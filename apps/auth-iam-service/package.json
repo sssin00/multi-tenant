@@ -1,0 +1,13 @@
+{
+  "name": "auth-iam-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"auth-iam-service build not configured yet\"",
+    "dev": "echo \"auth-iam-service dev not configured yet\"",
+    "lint": "echo \"auth-iam-service lint not configured yet\"",
+    "test": "echo \"auth-iam-service tests not configured yet\"",
+    "typecheck": "echo \"auth-iam-service typecheck not configured yet\""
+  }
+}

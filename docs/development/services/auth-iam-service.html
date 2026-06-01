@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>auth-iam-service 개발과정</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Development Process</p>
+        <h1>auth-iam-service 개발과정</h1>
+        <p class="lead">로그인, JWT, 사용자, 역할, 권한, 조직/창고 범위 접근 제어를 담당합니다.</p>
+      </header>
+      <section>
+        <h2>서비스 역할</h2>
+        <table>
+          <tr><th>위치</th><td><code>apps/auth-iam-service</code></td></tr>
+          <tr><th>초기 권한 모델</th><td><code>tenant_id</code> + role + optional <code>warehouse_id</code></td></tr>
+          <tr><th>책임</th><td>사용자, 로그인, JWT 발급/검증, RBAC, 이후 ABAC 확장</td></tr>
+          <tr><th>주의</th><td>업무 권한의 최종 정책은 Auth/IAM에 두되, WMS 업무 검증은 WMS에서 수행합니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>첫 구현 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>User</strong><p>사용자 생성, 조회, 상태 관리</p></div>
+          <div class="card"><strong>Login</strong><p>JWT access/refresh token 발급</p></div>
+          <div class="card"><strong>Permission</strong><p>role, permission, tenant scope 기본 구조</p></div>
+        </div>
+      </section>
+      <section>
+        <h2>개발 기록</h2>
+        <p>아직 구현 전입니다.</p>
+      </section>
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

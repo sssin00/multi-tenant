@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@multi-tenant/common": ["packages/common/src/index.ts"],
+      "@multi-tenant/config": ["packages/config/src/index.ts"],
+      "@multi-tenant/logger": ["packages/logger/src/index.ts"],
+      "@multi-tenant/tenant-context": ["packages/tenant-context/src/index.ts"],
+      "@multi-tenant/auth": ["packages/auth/src/index.ts"],
+      "@multi-tenant/database": ["packages/database/src/index.ts"],
+      "@multi-tenant/events": ["packages/events/src/index.ts"],
+      "@multi-tenant/aws": ["packages/aws/src/index.ts"],
+      "@multi-tenant/ui": ["packages/ui/src/index.ts"]
+    }
+  }
+}

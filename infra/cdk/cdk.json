@@ -1,0 +1,7 @@
+{
+  "app": "node --loader ts-node/esm bin/app.ts",
+  "context": {
+    "project": "multi-tenant-smart-factory",
+    "defaultRegion": "ap-northeast-2"
+  }
+}

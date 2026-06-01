@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>wms-service 개발과정</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Development Process</p>
+        <h1>wms-service 개발과정</h1>
+        <p class="lead">WMS 기준정보, 재고, 입고, 출고, 작업 지시를 담당하는 첫 메인 도메인 서비스입니다.</p>
+      </header>
+      <section>
+        <h2>서비스 역할</h2>
+        <table>
+          <tr><th>위치</th><td><code>apps/wms-service</code></td></tr>
+          <tr><th>초기 구조</th><td>하나의 서비스 내부를 모듈형 모놀리스로 구성</td></tr>
+          <tr><th>도메인 순서</th><td>warehouse → location → item → inventory → inbound → outbound → task → shipment</td></tr>
+          <tr><th>이벤트</th><td><code>wms.inventory.changed</code>, <code>wms.inbound.completed</code>, <code>wms.shipment.completed</code></td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>첫 구현 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>기준정보</strong><p>창고, 로케이션, 품목, 거래처, 단위, 바코드</p></div>
+          <div class="card"><strong>재고</strong><p>재고 조회, 이동, 조정, 로트/시리얼 정책</p></div>
+          <div class="card"><strong>입출고</strong><p>입고 예정/검수/적치, 출고 요청/할당/피킹</p></div>
+        </div>
+      </section>
+      <section>
+        <h2>개발 기록</h2>
+        <p>아직 구현 전입니다. WMS 모듈이 생길 때마다 API, DB, 이벤트, 테스트를 이곳에 기록합니다.</p>
+      </section>
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

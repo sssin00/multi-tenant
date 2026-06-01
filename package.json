@@ -1,0 +1,22 @@
+{
+  "name": "multi-tenant-smart-factory",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "dev:wms": "pnpm --filter wms-service dev",
+    "dev:web": "pnpm --filter web-wms dev",
+    "infra:synth": "pnpm --filter @multi-tenant/infra-cdk synth",
+    "infra:diff": "pnpm --filter @multi-tenant/infra-cdk diff",
+    "infra:deploy": "pnpm --filter @multi-tenant/infra-cdk deploy"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

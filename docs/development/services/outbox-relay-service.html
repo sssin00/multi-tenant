@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>outbox-relay-service 개발과정</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Development Process</p>
+        <h1>outbox-relay-service 개발과정</h1>
+        <p class="lead">서비스 DB의 Outbox 이벤트를 읽어 EventBridge/SQS로 안정적으로 발행합니다.</p>
+      </header>
+      <section>
+        <h2>서비스 역할</h2>
+        <table>
+          <tr><th>위치</th><td><code>apps/outbox-relay-service</code></td></tr>
+          <tr><th>책임</th><td>미발행 outbox event 조회, publish, retry, 실패 기록</td></tr>
+          <tr><th>초기 대상</th><td>WMS 재고 변경, 입고 완료, 출고 완료 이벤트</td></tr>
+          <tr><th>주의</th><td>도메인 트랜잭션은 각 서비스 DB에서 끝나고, relay는 발행만 담당합니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>첫 구현 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>Polling</strong><p>미발행 이벤트 조회와 lock 전략</p></div>
+          <div class="card"><strong>Publish</strong><p>EventBridge event bus로 발행</p></div>
+          <div class="card"><strong>Retry</strong><p>실패 횟수, DLQ 연계, 수동 replay 기준</p></div>
+        </div>
+      </section>
+      <section>
+        <h2>개발 기록</h2>
+        <p>아직 구현 전입니다.</p>
+      </section>
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

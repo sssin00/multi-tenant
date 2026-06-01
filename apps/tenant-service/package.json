@@ -1,0 +1,13 @@
+{
+  "name": "tenant-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"tenant-service build not configured yet\"",
+    "dev": "echo \"tenant-service dev not configured yet\"",
+    "lint": "echo \"tenant-service lint not configured yet\"",
+    "test": "echo \"tenant-service tests not configured yet\"",
+    "typecheck": "echo \"tenant-service typecheck not configured yet\""
+  }
+}

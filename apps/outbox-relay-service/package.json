@@ -1,0 +1,13 @@
+{
+  "name": "outbox-relay-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"outbox-relay-service build not configured yet\"",
+    "dev": "echo \"outbox-relay-service dev not configured yet\"",
+    "lint": "echo \"outbox-relay-service lint not configured yet\"",
+    "test": "echo \"outbox-relay-service tests not configured yet\"",
+    "typecheck": "echo \"outbox-relay-service typecheck not configured yet\""
+  }
+}

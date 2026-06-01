@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>프로젝트 구조와 작업 맥락 정리</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f7f9;
+        --surface: #ffffff;
+        --soft: #edf4f7;
+        --ink: #17212b;
+        --muted: #5d6976;
+        --line: #d8e2e8;
+        --primary: #0f6b73;
+        --primary-dark: #0a4d53;
+        --accent: #b45309;
+        --green: #23785b;
+        --shadow: 0 16px 38px rgba(20, 38, 54, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR",
+          "Apple SD Gothic Neo", Arial, sans-serif;
+        line-height: 1.65;
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 42px 0 64px;
+      }
+
+      header,
+      section,
+      .card,
+      .note {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+
+      header {
+        padding: 34px;
+        margin-bottom: 22px;
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        color: var(--primary);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.25;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        max-width: 880px;
+        font-size: clamp(34px, 4vw, 52px);
+      }
+
+      h2 {
+        font-size: 26px;
+      }
+
+      h3 {
+        margin-bottom: 8px;
+        color: var(--primary-dark);
+        font-size: 19px;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .lead {
+        max-width: 900px;
+        margin-top: 16px;
+        font-size: 18px;
+      }
+
+      section {
+        padding: 28px;
+        margin-top: 22px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 20px;
+      }
+
+      .grid.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .card {
+        padding: 18px;
+        box-shadow: none;
+        background: #fbfcfd;
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--primary-dark);
+        font-size: 17px;
+      }
+
+      pre {
+        overflow: auto;
+        margin: 18px 0 0;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #101827;
+        color: #eef6f8;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      code {
+        max-width: 100%;
+        border-radius: 6px;
+        background: #e7eef2;
+        color: #12333a;
+        padding: 2px 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.92em;
+        line-height: 1.45;
+        white-space: nowrap;
+        vertical-align: baseline;
+      }
+
+      pre code {
+        display: block;
+        background: transparent;
+        color: inherit;
+        padding: 0;
+        overflow-wrap: normal;
+      }
+
+      .ordered {
+        counter-reset: item;
+        display: grid;
+        gap: 10px;
+        margin: 20px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .ordered li {
+        counter-increment: item;
+        display: flex;
+        gap: 16px;
+        align-items: start;
+        min-height: 52px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.65;
+      }
+
+      .ordered li::before {
+        content: counter(item);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 40px;
+        width: 32px;
+        height: 32px;
+        margin-top: 2px;
+        border-radius: 8px;
+        background: var(--soft);
+        color: var(--primary-dark);
+        font-weight: 900;
+      }
+
+      .ordered .item-text {
+        display: block;
+        flex: 1 1 auto;
+        min-width: 0;
+        padding-top: 2px;
+      }
+
+      .note {
+        margin-top: 20px;
+        padding: 20px;
+        border-left: 5px solid var(--green);
+        box-shadow: none;
+      }
+
+      .note strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--green);
+      }
+
+      .table {
+        width: 100%;
+        margin-top: 20px;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .table th,
+      .table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .table th {
+        width: 220px;
+        background: var(--soft);
+        color: var(--primary-dark);
+      }
+
+      .table tr:last-child th,
+      .table tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .footer {
+        margin-top: 26px;
+        color: var(--muted);
+        font-size: 14px;
+        text-align: center;
+      }
+
+      @media (max-width: 900px) {
+        .page {
+          width: min(100% - 24px, 1180px);
+          padding-top: 18px;
+        }
+
+        header,
+        section {
+          padding: 22px;
+        }
+
+        .grid,
+        .grid.two {
+          grid-template-columns: 1fr;
+        }
+
+        .table,
+        .table tbody,
+        .table tr,
+        .table th,
+        .table td {
+          display: block;
+          width: 100%;
+        }
+
+        code {
+          white-space: normal;
+          overflow-wrap: anywhere;
+        }
+
+        pre code {
+          white-space: pre;
+        }
+
+        .ordered li {
+          gap: 12px;
+          padding: 12px;
+        }
+
+        .ordered li::before {
+          flex-basis: 36px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <p class="eyebrow">Project Context</p>
+        <h1>프로젝트 구조와 작업 맥락 정리</h1>
+        <p class="lead">
+          지금까지 결정한 멀티테넌트 스마트 팩토리/WMS first 방향, AWS ECS 운영 방식,
+          pnpm workspace 기반 monorepo 구조, 다른 컴퓨터에서 이어서 작업하는 방법을 한 문서에 정리합니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>프로젝트 방향</h2>
+        <div class="grid">
+          <div class="card">
+            <strong>목표</strong>
+            <p>멀티테넌트 기반 스마트 팩토리 서비스를 만들고, 첫 메인 서비스는 WMS로 시작합니다.</p>
+          </div>
+          <div class="card">
+            <strong>확장 순서</strong>
+            <p>WMS 안정화 후 MES, QMS, FMS, EMS를 같은 패턴으로 순차 추가합니다.</p>
+          </div>
+          <div class="card">
+            <strong>구현 전략</strong>
+            <p>초기 WMS는 모듈형 모놀리스로 시작하고, 경계가 명확해진 뒤 서비스 분리를 검토합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>확정 기술스택</h2>
+        <table class="table">
+          <tbody>
+            <tr>
+              <th>Backend</th>
+              <td>NestJS + TypeScript</td>
+            </tr>
+            <tr>
+              <th>Frontend</th>
+              <td>React + Vite</td>
+            </tr>
+            <tr>
+              <th>Runtime</th>
+              <td>AWS ECS Fargate</td>
+            </tr>
+            <tr>
+              <th>Database</th>
+              <td>Amazon RDS PostgreSQL</td>
+            </tr>
+            <tr>
+              <th>Cache</th>
+              <td>Amazon ElastiCache Redis</td>
+            </tr>
+            <tr>
+              <th>Event</th>
+              <td>Outbox + EventBridge + SQS first, MSK Kafka later</td>
+            </tr>
+            <tr>
+              <th>Infra as Code</th>
+              <td>AWS CDK TypeScript</td>
+            </tr>
+            <tr>
+              <th>Monorepo</th>
+              <td>pnpm workspace + Turborepo</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>생성된 기본 폴더 구조</h2>
+        <pre><code>multi-tenant/
+  apps/
+    gateway-service/
+    admin-bff-service/
+    user-bff-service/
+    tenant-service/
+    auth-iam-service/
+    wms-service/
+    outbox-relay-service/
+    web-admin/
+    web-wms/
+
+  packages/
+    common/
+    config/
+    logger/
+    tenant-context/
+    auth/
+    database/
+    events/
+    aws/
+    ui/
+
+  infra/
+    cdk/
+      bin/
+      lib/
+        stacks/
+        constructs/
+      config/
+      test/
+
+  docker/
+    local/
+    services/
+
+  docs/
+  scripts/
+  tools/
+  .github/workflows/
+
+  package.json
+  pnpm-workspace.yaml
+  turbo.json
+  tsconfig.base.json
+  .env.example</code></pre>
+      </section>
+
+      <section>
+        <h2>아키텍처 설계도</h2>
+        <p>
+          전체 AWS ECS 기반 아키텍처는 draw.io 파일로 관리합니다.
+          처음 공유한 스마트 팩토리 구성도를 참고하되, 현재 프로젝트의 결정사항에 맞춰
+          WMS first, ECS Fargate, EventBridge/SQS, RDS PostgreSQL 중심으로 다시 정리했습니다.
+        </p>
+        <table class="table">
+          <tbody>
+            <tr>
+              <th>파일 위치</th>
+              <td><code>docs/design/smart-factory-aws-ecs.drawio</code></td>
+            </tr>
+            <tr>
+              <th>형식</th>
+              <td>draw.io / diagrams.net XML 파일</td>
+            </tr>
+            <tr>
+              <th>주요 흐름</th>
+              <td>사용자/장비 → ALB → Gateway → BFF → Platform/WMS → Outbox → EventBridge/SQS → 공통 서비스</td>
+            </tr>
+            <tr>
+              <th>데이터 계층</th>
+              <td>RDS PostgreSQL, WMS DB, Audit/Read DB, ElastiCache Redis</td>
+            </tr>
+            <tr>
+              <th>확장 항목</th>
+              <td>VIP Tenant DB 분리, MES/QMS/FMS/EMS, MSK Kafka later</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="grid two">
+          <div class="card">
+            <h3>설계도에서 표현한 것</h3>
+            <p>
+              VPC, Public Subnets, Private App Subnets, Managed Services, Private Data Subnets,
+              공통/확장 Consumer 서비스, VIP 데이터 분리, 제조 도메인 확장 영역을 표현했습니다.
+            </p>
+          </div>
+          <div class="card">
+            <h3>설계도에서 줄인 것</h3>
+            <p>
+              모든 서비스 간 세부 호출선을 그리면 가독성이 떨어지므로, 핵심 트래픽 흐름만 선으로 표시하고
+              상세 호출 관계는 서비스별 문서로 분리하기로 했습니다.
+            </p>
+          </div>
+        </div>
+        <div class="note">
+          <strong>draw.io 수정 기준</strong>
+          <p>
+            요소 위로 선이 지나가지 않도록 유지하고, 선은 핵심 흐름에만 사용합니다.
+            상세 의존성, DB 접근, AWS 권한, 이벤트 구독 관계는 별도 문서나 서비스별 README에 정리합니다.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>폴더 역할</h2>
+        <div class="grid two">
+          <div class="card">
+            <h3>apps</h3>
+            <p>실제로 실행되는 백엔드 서비스와 프론트엔드 앱입니다. 서비스 간 내부 구현을 직접 import하지 않고 API 또는 이벤트로 통신합니다.</p>
+          </div>
+          <div class="card">
+            <h3>packages</h3>
+            <p>공통 타입, 설정, 로거, 테넌트 컨텍스트, 이벤트, AWS 클라이언트, UI 컴포넌트를 둡니다.</p>
+          </div>
+          <div class="card">
+            <h3>infra/cdk</h3>
+            <p>VPC, ECS, RDS, Redis, S3, EventBridge, SQS, IAM, Security Group을 CDK 코드로 관리합니다.</p>
+          </div>
+          <div class="card">
+            <h3>docker</h3>
+            <p>로컬 개발용 PostgreSQL, Redis, LocalStack과 서비스별 Dockerfile을 관리합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>AWS 작업 방식</h2>
+        <ol class="ordered">
+          <li><span class="item-text">AWS 리소스는 콘솔 수동 생성보다 <code>infra/cdk</code>의 CDK 코드로 관리합니다.</span></li>
+          <li><span class="item-text">애플리케이션은 ECS Fargate에서 실행하고 이미지는 ECR에 배포합니다.</span></li>
+          <li><span class="item-text">서비스 코드는 필요한 경우에만 <code>packages/aws</code>를 통해 S3, SQS, EventBridge, Secrets Manager를 사용합니다.</span></li>
+          <li><span class="item-text">AWS 리소스 이름, Queue URL, Bucket 이름, Event Bus 이름은 환경 변수로 주입합니다.</span></li>
+          <li><span class="item-text">ECS Task Role에 권한을 주고, 앱 코드에 AWS access key를 직접 저장하지 않습니다.</span></li>
+        </ol>
+        <div class="note">
+          <strong>중요 원칙</strong>
+          <p>
+            <code>infra/cdk</code>는 AWS 리소스를 만드는 코드이고, <code>apps/*</code>는 AWS 위에서 실행되는 앱입니다.
+            앱 안에 인프라 생성 로직을 섞지 않습니다.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>CDK와 Terraform 선택 기준</h2>
+        <table class="table">
+          <tbody>
+            <tr>
+              <th>AWS CDK</th>
+              <td>TypeScript 같은 일반 프로그래밍 언어로 AWS 인프라를 정의하고 CloudFormation으로 배포합니다.</td>
+            </tr>
+            <tr>
+              <th>Terraform</th>
+              <td>HCL로 여러 provider의 인프라를 선언적으로 관리하고, Terraform state를 통해 리소스 상태를 추적합니다.</td>
+            </tr>
+            <tr>
+              <th>현재 추천</th>
+              <td>AWS only, ECS 중심, TypeScript monorepo 구조이므로 초기에는 AWS CDK를 추천합니다.</td>
+            </tr>
+            <tr>
+              <th>Terraform 검토 시점</th>
+              <td>멀티 클라우드, 인프라팀 표준, Terraform module 생태계, Terraform Cloud/OpenTofu 운영 체계가 필요해질 때 검토합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <strong>결론</strong>
+          <p>
+            현재 프로젝트는 <code>infra/cdk</code>를 기준으로 진행합니다.
+            나중에 Terraform이 필요해지면 <code>infra/terraform</code>을 별도로 추가해 비교 검토합니다.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>코드 작성 시작 순서</h2>
+        <ol class="ordered">
+          <li><span class="item-text"><code>pnpm install</code>로 workspace 의존성과 lockfile을 생성합니다.</span></li>
+          <li><span class="item-text"><code>gateway-service</code>에 NestJS 기본 앱, health check, request id, tenant header 추출을 구현합니다.</span></li>
+          <li><span class="item-text"><code>packages/config</code>, <code>packages/logger</code>, <code>packages/tenant-context</code>를 먼저 구현합니다.</span></li>
+          <li><span class="item-text"><code>tenant-service</code>에서 테넌트 생성/조회, 상태, enabled modules, db_strategy를 구현합니다.</span></li>
+          <li><span class="item-text"><code>auth-iam-service</code>에서 로그인, JWT, 사용자, 역할, 권한의 기본 구조를 구현합니다.</span></li>
+          <li><span class="item-text"><code>wms-service</code>에서 warehouse, location, item, inventory 순서로 WMS MVP를 시작합니다.</span></li>
+          <li><span class="item-text">WMS 재고 변경 이벤트가 필요해질 때 Outbox와 <code>outbox-relay-service</code>를 붙입니다.</span></li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>BFF 제작 단계</h2>
+        <p>
+          BFF는 Gateway, Tenant, Auth/IAM이 최소로 동작한 뒤 WMS 화면을 만들기 직전에 제작합니다.
+          너무 일찍 만들면 임시 로직이 쌓이고, 너무 늦게 만들면 프론트가 도메인 서비스를 직접 호출하게 됩니다.
+        </p>
+        <table class="table">
+          <tbody>
+            <tr>
+              <th>먼저 제작</th>
+              <td><code>user-bff-service</code>. 사용자 정보, 현재 테넌트, 사용 가능 메뉴, WMS 화면 초기 데이터를 조합합니다.</td>
+            </tr>
+            <tr>
+              <th>나중 제작</th>
+              <td><code>admin-bff-service</code>. 테넌트 관리, 사용자/권한 관리, 운영자 설정, 감사 로그 조회가 필요해질 때 확장합니다.</td>
+            </tr>
+            <tr>
+              <th>BFF 역할</th>
+              <td>화면에 필요한 데이터 조합, 여러 서비스 호출 aggregation, 프론트용 응답 형태 변환, 메뉴/버튼 상태 구성입니다.</td>
+            </tr>
+            <tr>
+              <th>BFF에 넣지 않을 것</th>
+              <td>재고 차감, 입고 완료, 출고 할당 정책, 권한의 최종 판단, DB 직접 접근 같은 도메인 업무 로직입니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>gateway-service 기능 범위</h2>
+        <p>
+          <code>gateway-service</code>는 ALB 뒤에서 외부 요청을 받아 내부 BFF와 서비스로 넘기는 공통 출입구입니다.
+          이 서비스는 업무 로직을 처리하지 않고, 공통 보안, 테넌트 식별, 요청 컨텍스트, 라우팅을 담당합니다.
+        </p>
+        <div class="grid two">
+          <div class="card">
+            <h3>초기 구현 기능</h3>
+            <p>
+              health check, request id 발급/전파, tenant id 추출, access log, JWT guard 기본 구조,
+              public/private route 구분, BFF 라우팅을 먼저 구현합니다.
+            </p>
+          </div>
+          <div class="card">
+            <h3>이후 확장 기능</h3>
+            <p>
+              Redis 기반 rate limit, tenant status check, CORS 정책, 보안 헤더, 요청 크기 제한,
+              공통 에러 포맷, observability 연동을 추가합니다.
+            </p>
+          </div>
+        </div>
+        <table class="table">
+          <tbody>
+            <tr>
+              <th>라우팅</th>
+              <td><code>/api/auth/**</code> → auth-iam-service, <code>/api/admin/**</code> → admin-bff-service, <code>/api/app/**</code> → user-bff-service</td>
+            </tr>
+            <tr>
+              <th>Tenant 식별</th>
+              <td>초기에는 <code>x-tenant-id</code> header와 JWT tenant claim을 사용하고, 이후 subdomain/custom domain을 추가합니다.</td>
+            </tr>
+            <tr>
+              <th>Request Context</th>
+              <td><code>request_id</code>, <code>tenant_id</code>, <code>user_id</code>, roles, permissions summary를 내부 요청과 로그에 전파합니다.</td>
+            </tr>
+            <tr>
+              <th>넣지 않을 기능</th>
+              <td>재고 차감, 입고 완료, 품목 생성 규칙, ERP 연동, 복잡한 권한 정책 계산, DB 직접 접근은 Gateway에 넣지 않습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>pnpm workspace 규칙</h2>
+        <pre><code>packages:
+  - "apps/*"
+  - "packages/*"
+  - "infra/cdk"
+  - "tools/*"</code></pre>
+        <div class="grid two">
+          <div class="card">
+            <strong>좋은 사용</strong>
+            <p><code>apps/wms-service</code>에서 <code>@multi-tenant/events</code>, <code>@multi-tenant/tenant-context</code> 같은 공통 패키지를 import합니다.</p>
+          </div>
+          <div class="card">
+            <strong>피해야 할 사용</strong>
+            <p><code>apps/wms-service</code>가 <code>apps/auth-iam-service/src</code> 내부 구현을 직접 import하면 안 됩니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>기본 명령어</h2>
+        <pre><code>pnpm install
+pnpm dev
+pnpm build
+pnpm test
+pnpm lint
+
+pnpm --filter wms-service dev
+pnpm --filter web-wms dev
+
+pnpm infra:synth
+pnpm infra:diff
+pnpm infra:deploy</code></pre>
+      </section>
+
+      <section>
+        <h2>로컬 개발 인프라</h2>
+        <p>로컬 개발용 Docker Compose는 PostgreSQL, Redis, LocalStack을 포함합니다.</p>
+        <pre><code>docker compose -f docker/local/docker-compose.yml up -d</code></pre>
+        <table class="table">
+          <tbody>
+            <tr>
+              <th>PostgreSQL</th>
+              <td><code>localhost:5432</code>, DB: <code>multi_tenant</code></td>
+            </tr>
+            <tr>
+              <th>Redis</th>
+              <td><code>localhost:6379</code></td>
+            </tr>
+            <tr>
+              <th>LocalStack</th>
+              <td><code>localhost:4566</code>, S3/SQS/EventBridge/Secrets Manager/SSM 테스트용</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>다른 컴퓨터에서 이어서 작업하기</h2>
+        <p>가장 좋은 방법은 GitHub에 프로젝트를 올리고 다른 컴퓨터에서 clone하는 것입니다.</p>
+        <pre><code>git init
+git add .
+git commit -m "Initialize multi-tenant smart factory workspace"
+git branch -M main
+git remote add origin &lt;YOUR_GITHUB_REPO_URL&gt;
+git push -u origin main</code></pre>
+        <p style="margin-top: 16px;">다른 컴퓨터에서는 아래처럼 가져옵니다.</p>
+        <pre><code>git clone &lt;YOUR_GITHUB_REPO_URL&gt;
+cd multi-tenant
+pnpm install</code></pre>
+      </section>
+
+      <section>
+        <h2>새 환경에서 Codex에게 전달할 맥락</h2>
+        <pre><code>이 프로젝트는 멀티테넌트 스마트팩토리/WMS first 프로젝트야.
+docs/index.html,
+docs/design/project-setup-and-context.html,
+docs/design/aws-ecs-tech-stack.html,
+docs/design/msa-wms-roadmap.html,
+docs/design/smart-factory-aws-ecs.drawio를 읽고 이어서 작업해줘.
+현재 구조는 pnpm workspace 기반 monorepo이고,
+AWS ECS Fargate + RDS PostgreSQL + Redis + EventBridge/SQS first 전략이야.</code></pre>
+      </section>
+
+      <section>
+        <h2>다음 작업 후보</h2>
+        <ol class="ordered">
+          <li><span class="item-text"><code>pnpm install</code>로 workspace lockfile 생성</span></li>
+          <li><span class="item-text">NestJS 서비스 템플릿을 <code>gateway-service</code>, <code>wms-service</code>부터 적용</span></li>
+          <li><span class="item-text">Vite 기반 <code>web-wms</code> 앱 생성</span></li>
+          <li><span class="item-text">CDK의 <code>network-stack</code>, <code>database-stack</code>, <code>event-stack</code> 설계 시작</span></li>
+          <li><span class="item-text">Tenant Context, Logger, Events 공통 패키지 실제 구현</span></li>
+        </ol>
+      </section>
+
+      <p class="footer">작성일: 2026-06-01 · 프로젝트: multi-tenant smart factory · 기준: pnpm workspace + AWS ECS</p>
+    </main>
+  </body>
+</html>

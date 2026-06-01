@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>web-admin 개발과정</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Development Process</p>
+        <h1>web-admin 개발과정</h1>
+        <p class="lead">운영자와 관리자를 위한 React + Vite 프론트엔드 앱입니다.</p>
+      </header>
+      <section>
+        <h2>앱 역할</h2>
+        <table>
+          <tr><th>위치</th><td><code>apps/web-admin</code></td></tr>
+          <tr><th>대상</th><td>시스템 운영자, 테넌트 관리자</td></tr>
+          <tr><th>연결</th><td><code>admin-bff-service</code>를 통해 관리 화면 데이터를 조회합니다.</td></tr>
+          <tr><th>초기 화면</th><td>테넌트 관리, 사용자/권한 관리, 운영 설정, 감사 로그</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>첫 구현 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>Tenant Admin</strong><p>테넌트 목록, 생성, 상태 변경</p></div>
+          <div class="card"><strong>User Admin</strong><p>사용자 목록, 역할 부여, 초대</p></div>
+          <div class="card"><strong>Audit</strong><p>운영 로그 조회</p></div>
+        </div>
+      </section>
+      <section>
+        <h2>개발 기록</h2>
+        <p>아직 구현 전입니다.</p>
+      </section>
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

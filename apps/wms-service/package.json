@@ -1,0 +1,13 @@
+{
+  "name": "wms-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"wms-service build not configured yet\"",
+    "dev": "echo \"wms-service dev not configured yet\"",
+    "lint": "echo \"wms-service lint not configured yet\"",
+    "test": "echo \"wms-service tests not configured yet\"",
+    "typecheck": "echo \"wms-service typecheck not configured yet\""
+  }
+}

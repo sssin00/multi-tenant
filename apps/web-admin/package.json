@@ -1,0 +1,13 @@
+{
+  "name": "web-admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"web-admin build not configured yet\"",
+    "dev": "echo \"web-admin dev not configured yet\"",
+    "lint": "echo \"web-admin lint not configured yet\"",
+    "test": "echo \"web-admin tests not configured yet\"",
+    "typecheck": "echo \"web-admin typecheck not configured yet\""
+  }
+}

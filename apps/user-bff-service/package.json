@@ -1,0 +1,13 @@
+{
+  "name": "user-bff-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"user-bff-service build not configured yet\"",
+    "dev": "echo \"user-bff-service dev not configured yet\"",
+    "lint": "echo \"user-bff-service lint not configured yet\"",
+    "test": "echo \"user-bff-service tests not configured yet\"",
+    "typecheck": "echo \"user-bff-service typecheck not configured yet\""
+  }
+}

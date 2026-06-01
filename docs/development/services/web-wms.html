@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>web-wms 개발과정</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Development Process</p>
+        <h1>web-wms 개발과정</h1>
+        <p class="lead">WMS 사용자와 현장 작업자를 위한 React + Vite 프론트엔드 앱입니다.</p>
+      </header>
+      <section>
+        <h2>앱 역할</h2>
+        <table>
+          <tr><th>위치</th><td><code>apps/web-wms</code></td></tr>
+          <tr><th>대상</th><td>창고 운영자, 현장 작업자, PDA Web 사용자</td></tr>
+          <tr><th>연결</th><td><code>user-bff-service</code>를 통해 WMS 화면 데이터를 조회합니다.</td></tr>
+          <tr><th>초기 화면</th><td>대시보드, 기준정보, 재고, 입고, 출고</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>첫 구현 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>App Shell</strong><p>로그인 후 메뉴, 테넌트, 사용자 컨텍스트 표시</p></div>
+          <div class="card"><strong>Inventory</strong><p>재고 목록, 검색, 조정 화면</p></div>
+          <div class="card"><strong>Inbound/Outbound</strong><p>입출고 목록과 작업 상태 화면</p></div>
+        </div>
+      </section>
+      <section>
+        <h2>개발 기록</h2>
+        <p>아직 구현 전입니다.</p>
+      </section>
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

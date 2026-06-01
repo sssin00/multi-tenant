@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tenant-service 개발과정</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Development Process</p>
+        <h1>tenant-service 개발과정</h1>
+        <p class="lead">테넌트 생성, 상태, 사용 모듈, 도메인, DB 라우팅 전략을 관리합니다.</p>
+      </header>
+      <section>
+        <h2>서비스 역할</h2>
+        <table>
+          <tr><th>위치</th><td><code>apps/tenant-service</code></td></tr>
+          <tr><th>핵심 엔티티</th><td><code>tenants</code>, <code>tenant_domains</code>, <code>tenant_modules</code></td></tr>
+          <tr><th>DB 전략</th><td>일반 테넌트는 Shared DB + tenant_id, VIP는 Database per tenant later</td></tr>
+          <tr><th>이벤트</th><td><code>tenant.created</code>, <code>tenant.status_changed</code>, <code>tenant.module_enabled</code></td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>첫 구현 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>Tenant CRUD</strong><p>생성, 조회, 상태 변경</p></div>
+          <div class="card"><strong>Module</strong><p>enabled_modules 관리</p></div>
+          <div class="card"><strong>DB Strategy</strong><p><code>db_strategy</code> 필드와 라우팅 기준 정의</p></div>
+        </div>
+      </section>
+      <section>
+        <h2>개발 기록</h2>
+        <p>아직 구현 전입니다.</p>
+      </section>
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

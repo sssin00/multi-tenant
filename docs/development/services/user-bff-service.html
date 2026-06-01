@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>user-bff-service 개발과정</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Development Process</p>
+        <h1>user-bff-service 개발과정</h1>
+        <p class="lead">WMS 사용자 화면과 PDA Web에 필요한 데이터를 조합하는 사용자용 BFF입니다.</p>
+      </header>
+      <section>
+        <h2>서비스 역할</h2>
+        <table>
+          <tr><th>위치</th><td><code>apps/user-bff-service</code></td></tr>
+          <tr><th>책임</th><td>사용자 정보, 현재 테넌트, 사용 가능 메뉴, WMS 화면 초기 데이터, 대시보드 응답 조합</td></tr>
+          <tr><th>제작 시점</th><td>Gateway, Tenant, Auth/IAM 최소 구현 후 WMS 화면 개발 직전에 시작</td></tr>
+          <tr><th>주의</th><td>재고 차감, 입고 완료, 출고 할당 정책 같은 도메인 업무 로직은 WMS에 둡니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>첫 구현 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>GET /me</strong><p>사용자, tenant, roles, permissions summary</p></div>
+          <div class="card"><strong>GET /app-shell</strong><p>메뉴, 테넌트 설정, 사용 가능 모듈</p></div>
+          <div class="card"><strong>GET /wms/summary</strong><p>창고 수, 품목 수, 재고 요약, 입출고 대기 건수</p></div>
+        </div>
+      </section>
+      <section>
+        <h2>개발 기록</h2>
+        <p>아직 구현 전입니다. 화면별 API가 생길 때마다 이 문서에 기록합니다.</p>
+      </section>
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>
