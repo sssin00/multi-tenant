@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>테스트 시나리오 규칙</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Testing</p>
+        <h1>테스트 시나리오 규칙</h1>
+        <p class="lead">E2E 자동화 코드 대신 테스트 시나리오 기반 AI 검증 방식을 정리합니다.</p>
+      </header>
+
+      <section>
+              <h2>테스트 규칙</h2>
+              <p>
+                이 프로젝트의 1차 테스트는 자동화 E2E 테스트 도구를 중심으로 하지 않습니다.
+                대신 테스트 시나리오 문서를 기준으로 AI가 화면, API, 로그, 데이터 결과를 확인하는 방식으로 진행합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>기본 방식</th><td>테스트는 코드 기반 E2E보다 테스트 시나리오 기반 검증을 우선합니다.</td></tr>
+                  <tr><th>AI 역할</th><td>AI는 시나리오의 사전 조건, 실행 단계, 기대 결과를 읽고 실제 화면/API/로그/데이터를 확인합니다.</td></tr>
+                  <tr><th>자동화 범위</th><td>1차에서는 Playwright 같은 E2E 테스트 코드를 작성하지 않습니다. 필요해질 때 별도 결정합니다.</td></tr>
+                  <tr><th>필수 검증</th><td>멀티테넌트 격리, API 응답 포맷, 에러 코드, WMS 핵심 업무 흐름, outbox 저장, 감사 로그 저장을 검증합니다.</td></tr>
+                  <tr><th>기록</th><td>테스트 결과는 시나리오별로 성공/실패, 발견 이슈, 재현 단계, 수정 여부를 남깁니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>테스트 시나리오 형식</h2>
+              <p>테스트 시나리오는 AI와 사람이 모두 읽기 쉬운 형태로 작성합니다.</p>
+              <table>
+                <tbody>
+                  <tr><th>scenarioId</th><td>시나리오 고유 ID입니다. 예: <code>WMS-INV-001</code></td></tr>
+                  <tr><th>title</th><td>검증하려는 업무 흐름 이름입니다.</td></tr>
+                  <tr><th>priority</th><td><code>P0</code>, <code>P1</code>, <code>P2</code>로 중요도를 표시합니다.</td></tr>
+                  <tr><th>preconditions</th><td>테넌트, 사용자, 권한, 재고, 주문 상태 같은 사전 조건입니다.</td></tr>
+                  <tr><th>steps</th><td>AI가 실행할 화면 조작 또는 API 호출 순서입니다.</td></tr>
+                  <tr><th>expectedResult</th><td>성공 응답, 에러 코드, 화면 상태, 로그, outbox, 감사 로그의 기대 결과입니다.</td></tr>
+                  <tr><th>evidence</th><td>검증 후 남길 증거입니다. 예: 응답 JSON, 화면 캡처, 로그 requestId, DB 확인 결과</td></tr>
+                </tbody>
+              </table>
+              <pre><code>{
+  "scenarioId": "WMS-OUT-001",
+  "title": "출고 할당 성공 시 outbox 이벤트가 저장된다",
+  "priority": "P0",
+  "preconditions": [
+    "tenant_a가 active 상태이다",
+    "user_wms_manager_a가 wms.outbound.allocate 권한을 가진다",
+    "item_a_01의 가용 재고가 100개이다"
+  ],
+  "steps": [
+    "출고 주문 out_001을 생성한다",
+    "출고 할당 API를 호출한다",
+    "응답과 outbox 저장 결과를 확인한다"
+  ],
+  "expectedResult": [
+    "API 응답 success가 true이다",
+    "출고 상태가 allocated가 된다",
+    "outbox에 wms.outbound.allocated 이벤트가 저장된다",
+    "이벤트에 tenantId와 requestId가 포함된다"
+  ],
+  "evidence": [
+    "responseJson",
+    "requestId",
+    "outboxEventId"
+  ]
+}</code></pre>
+            </section>
+
+      <section>
+              <h2>WMS 1차 테스트 시나리오</h2>
+              <p>1차에서는 아래 시나리오 묶음만 충분히 검증합니다.</p>
+              <div class="grid two">
+                <div class="card">
+                  <strong>멀티테넌트 격리</strong>
+                  <p>tenant 누락 실패, JWT/header tenant mismatch, tenant A 사용자의 tenant B 데이터 접근 차단, suspended tenant 접근 차단</p>
+                </div>
+                <div class="card">
+                  <strong>API 응답/에러 포맷</strong>
+                  <p>성공 envelope, 목록 envelope, 에러 envelope, <code>VALIDATION_FAILED</code>, <code>TENANT_MISMATCH</code>, <code>WMS_INSUFFICIENT_STOCK</code></p>
+                </div>
+                <div class="card">
+                  <strong>WMS 핵심 업무</strong>
+                  <p>재고 조정, 입고 확정, 출고 할당, 출고 확정</p>
+                </div>
+                <div class="card">
+                  <strong>Outbox/Audit</strong>
+                  <p>업무 상태 변경 후 outbox 이벤트 저장, 재고 조정/출고 확정 audit log 저장, 로그의 requestId 연결</p>
+                </div>
+              </div>
+            </section>
+
+      <section>
+              <h2>AI 테스트 수행 규칙</h2>
+              <table>
+                <tbody>
+                  <tr><th>실행 기준</th><td>AI는 테스트 시나리오에 적힌 단계만 기준으로 검증하고, 임의로 성공 판정을 내리지 않습니다.</td></tr>
+                  <tr><th>증거 기준</th><td>성공 판정에는 응답 JSON, 화면 상태, 로그, outbox, audit log 중 필요한 증거를 남깁니다.</td></tr>
+                  <tr><th>실패 처리</th><td>실패 시 실제 결과, 기대 결과, 재현 단계, 관련 requestId를 기록합니다.</td></tr>
+                  <tr><th>외부 연동</th><td>AWS/ERP 실제 운영 리소스는 테스트에서 직접 호출하지 않고 mock, local 환경, dev 환경으로 제한합니다.</td></tr>
+                  <tr><th>회귀 테스트</th><td>수정 후 같은 시나리오를 다시 실행해 통과 여부를 확인합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <p class="footer"><a href="../project-rules.html">프로젝트 공통 규칙으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  active
+  inactive
+  locked
+}
+
+enum OutboxStatus {
+  pending
+  published
+  failed
+}
+
+model AuthUser {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @map("tenant_id") @db.Uuid
+  email        String
+  displayName  String     @map("display_name")
+  passwordHash String     @map("password_hash")
+  status       UserStatus @default(active)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  refreshTokens RefreshToken[]
+  userRoles     UserRole[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId, status])
+  @@map("auth_users")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  replacedBy String?   @map("replaced_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenHash])
+  @@index([tenantId, userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  code        String
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@unique([tenantId, code])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  roleId      String   @map("role_id") @db.Uuid
+  warehouseId String?  @map("warehouse_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, warehouseId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model OutboxEvent {
+  id            String       @id @default(uuid()) @map("outbox_id") @db.Uuid
+  eventId       String       @unique @map("event_id") @db.Uuid
+  eventType     String       @map("event_type")
+  schemaVersion Int          @map("schema_version")
+  tenantId      String       @map("tenant_id") @db.Uuid
+  requestId     String       @map("request_id")
+  source        String
+  aggregateType String       @map("aggregate_type")
+  aggregateId   String       @map("aggregate_id") @db.Uuid
+  payload       Json
+  status        OutboxStatus @default(pending)
+  retryCount    Int          @default(0) @map("retry_count")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  publishedAt   DateTime?    @map("published_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+  @@index([tenantId, eventType])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}

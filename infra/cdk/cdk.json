@@ -1,7 +1,20 @@
 {
   "app": "node --loader ts-node/esm bin/app.ts",
   "context": {
-    "project": "multi-tenant-smart-factory",
-    "defaultRegion": "ap-northeast-2"
+    "project": "multi-tenant",
+    "envName": "dev",
+    "defaultRegion": "ap-northeast-2",
+    "gatewayImageTag": "latest",
+    "gatewayDesiredCount": 0,
+    "gatewayUseNatGateway": true,
+    "gatewayRedisNodeType": "cache.t4g.micro",
+    "gatewayAcmCertificateArn": "",
+    "gatewayDomainName": "",
+    "gatewayCorsAllowedOrigins": "",
+    "gatewayJwtSecretArn": "",
+    "authIamServiceUrl": "",
+    "adminBffServiceUrl": "",
+    "userBffServiceUrl": "",
+    "tenantServiceUrl": ""
   }
 }

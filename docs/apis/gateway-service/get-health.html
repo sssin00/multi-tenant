@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GET /health - gateway-service API</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+    <style>
+      .endpoint {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 18px;
+      }
+
+      .method {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #ecfdf5;
+        color: var(--green);
+        font-weight: 800;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        line-height: 1.45;
+        white-space: nowrap;
+      }
+
+      .endpoint code {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+
+      details {
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        overflow: hidden;
+      }
+
+      summary {
+        cursor: pointer;
+        padding: 16px 18px;
+        color: var(--primary-dark);
+        font-weight: 800;
+        line-height: 1.6;
+      }
+
+      details[open] summary {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .details-body {
+        padding: 18px;
+        overflow-x: auto;
+      }
+
+      .details-body table {
+        margin-top: 0;
+      }
+
+      .details-body > :first-child {
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">gateway-service API</p>
+        <h1>GET /health</h1>
+        <p class="lead">gateway-service 프로세스가 살아 있고 HTTP 요청에 응답할 수 있는지 확인합니다.</p>
+        <div class="endpoint">
+          <span class="method">GET</span>
+          <code>/health</code>
+          <span class="tag done">PUBLIC</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>기본 정보</h2>
+        <table>
+          <tbody>
+            <tr><th>목적</th><td>ALB와 운영 모니터링에서 gateway-service 생존 상태를 확인합니다.</td></tr>
+            <tr><th>인증</th><td>없음. Health check 대상이므로 public endpoint로 둡니다.</td></tr>
+            <tr><th>외부 의존성</th><td>확인하지 않습니다. DB, Redis, BFF, Auth/IAM 상태는 <code>/ready</code>에서 다룹니다.</td></tr>
+            <tr><th>공통 Header</th><td><code>X-Request-Id</code>와 보안 header가 응답에 포함됩니다.</td></tr>
+            <tr><th>성공 상태</th><td><code>200 OK</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>상세</h2>
+
+        <details>
+          <summary>요청</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th>Method</th><td><code>GET</code></td></tr>
+                <tr><th>Path</th><td><code>/health</code></td></tr>
+                <tr><th>Headers</th><td>필수 header 없음</td></tr>
+                <tr><th>Body</th><td>없음</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>응답</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th><code>status</code></th><td><code>ok</code>. 프로세스가 요청에 응답 가능하다는 의미입니다.</td></tr>
+                <tr><th><code>service</code></th><td><code>gateway-service</code>. 응답 주체 서비스명입니다.</td></tr>
+                <tr><th><code>timestamp</code></th><td>ISO 8601 UTC 문자열입니다.</td></tr>
+              </tbody>
+            </table>
+            <pre><code>{
+  "status": "ok",
+  "service": "gateway-service",
+  "timestamp": "2026-06-08T00:00:00.000Z"
+}</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>운영 메모</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th>ALB health check</th><td><code>/health</code>를 사용합니다.</td></tr>
+                <tr><th>의존성 장애</th><td>외부 의존성 장애로 gateway 프로세스가 살아 있는 상황에서는 <code>/health</code>가 성공할 수 있습니다.</td></tr>
+                <tr><th>Ready check</th><td>트래픽을 받을 준비 상태는 <code>/ready</code>에서 별도로 판단합니다.</td></tr>
+                <tr><th>Access log</th><td>요청 완료 시 method, path, statusCode, durationMs, requestId를 포함한 JSON access log를 남깁니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
+      <p class="footer"><a href="./index.html">gateway-service API 목록으로 돌아가기</a> · <a href="../../development/services/gateway-service.html">gateway-service 개발과정으로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>보안과 AWS 리소스 규칙</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Security & AWS</p>
+        <h1>보안과 AWS 리소스 규칙</h1>
+        <p class="lead">보안 기본 원칙, AWS 리소스 이름/태그/IAM/CDK 관리 기준을 정리합니다.</p>
+      </header>
+
+      <section>
+              <h2>보안 규칙</h2>
+              <p>
+                보안 규칙은 인증/인가, 멀티테넌트, 로그, 환경 변수, 파일 업로드 정책을 하나로 묶는 기준입니다.
+                기본값은 안전하게 두고, public 접근은 명시적으로 허용된 경우에만 사용합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>업무 API</th><td>모든 업무 API는 인증이 필요합니다. Public API는 명시적으로 선언된 endpoint만 허용합니다.</td></tr>
+                  <tr><th>JWT</th><td>JWT에는 <code>roles</code>, <code>permissions</code>, 개인정보 상세를 넣지 않습니다.</td></tr>
+                  <tr><th>권한 판단</th><td>권한 판단은 <code>auth-iam-service</code> 또는 permission checker를 통해 수행합니다.</td></tr>
+                  <tr><th>Tenant</th><td><code>tenantId</code> mismatch는 항상 <code>403 TENANT_MISMATCH</code>로 차단합니다.</td></tr>
+                  <tr><th>Internal Auth</th><td>내부 서비스 호출은 외부 사용자 token만 믿지 않고 내부 호출 인증을 사용합니다.</td></tr>
+                  <tr><th>CORS</th><td>운영 환경에서는 허용 origin을 명시하고 wildcard를 사용하지 않습니다. gateway-service는 <code>GATEWAY_CORS_ALLOWED_ORIGINS</code> 기준으로 origin을 허용합니다.</td></tr>
+                  <tr><th>Security Header</th><td>gateway-service는 content sniffing, frame embedding, referrer leakage, 과도한 browser permission을 제한하는 공통 보안 header를 적용합니다.</td></tr>
+                  <tr><th>HTTPS</th><td>외부 진입점은 ALB HTTPS listener와 ACM 인증서를 사용합니다. HTTP listener는 HTTPS로 리다이렉트합니다.</td></tr>
+                  <tr><th>Admin API</th><td>관리자 API는 일반 사용자 API와 surface를 분리합니다. 예: <code>/api/v1/admin</code></td></tr>
+                  <tr><th>Rate Limit</th><td>요청 제한은 <code>gateway-service</code>에서 적용합니다.</td></tr>
+                  <tr><th>파일 업로드</th><td>업로드 파일은 확장자, MIME type, 크기를 검증합니다.</td></tr>
+                  <tr><th>S3 접근</th><td>S3 object는 public으로 열지 않고 pre-signed URL을 사용합니다.</td></tr>
+                  <tr><th>Secret</th><td>secret은 AWS Secrets Manager 또는 SSM Parameter Store에서 관리합니다.</td></tr>
+                  <tr><th>민감정보</th><td>password, token, secret, cookie, Authorization header는 로그에 남기지 않습니다.</td></tr>
+                  <tr><th>에러 응답</th><td>API 응답에는 stack trace, SQL, 내부 예외 메시지를 노출하지 않습니다.</td></tr>
+                  <tr><th>Audit</th><td>중요한 변경 작업은 감사 로그를 남깁니다.</td></tr>
+                </tbody>
+              </table>
+              <div class="card">
+                <strong>WMS 1차에서 충분한 보안 범위</strong>
+                <p>
+                  JWT 검증, tenant mismatch 차단, permission check 구조, 민감정보 로그 금지,
+                  에러 응답 내부정보 노출 금지, gateway rate limit 기본 구조, S3 pre-signed URL 기준을 먼저 적용합니다.
+                </p>
+              </div>
+            </section>
+
+      <section>
+              <h2>AWS 리소스 규칙</h2>
+              <p>
+                AWS 리소스는 CDK로 관리하고, 이름/태그/환경/IAM 권한을 일관되게 유지합니다.
+                수동 생성 리소스는 예외로 두되 반드시 문서에 기록합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>이름 형식</th><td><code>{project}-{env}-{resource}</code> 형식을 사용합니다.</td></tr>
+                  <tr><th>환경</th><td><code>dev</code>, <code>staging</code>, <code>prod</code> 환경을 분리합니다.</td></tr>
+                  <tr><th>ECS Service</th><td><code>{project}-{env}-{service}</code> 형식을 사용합니다. 예: <code>multi-tenant-dev-wms-service</code></td></tr>
+                  <tr><th>SQS Queue</th><td><code>{project}-{env}-{purpose}-queue</code> 형식을 사용합니다. 예: <code>multi-tenant-dev-outbox-queue</code></td></tr>
+                  <tr><th>EventBridge</th><td><code>{project}-{env}-event-bus</code> 형식을 사용합니다. 예: <code>multi-tenant-dev-event-bus</code></td></tr>
+                  <tr><th>S3 Bucket</th><td>전역 unique가 필요하므로 <code>{project}-{env}-{purpose}-{accountOrRegion}</code> 형식을 사용합니다.</td></tr>
+                  <tr><th>CloudWatch Logs</th><td>서비스별 log group으로 분리합니다. 예: <code>/multi-tenant/dev/wms-service</code></td></tr>
+                  <tr><th>IAM Role</th><td>서비스별 role을 분리하고 least privilege 원칙을 따릅니다.</td></tr>
+                  <tr><th>VPC</th><td>VPC, subnet, security group은 CDK로 관리합니다.</td></tr>
+                  <tr><th>Secret</th><td>secret 값은 Secrets Manager 또는 SSM Parameter Store에서 참조합니다.</td></tr>
+                  <tr><th>ACM</th><td>ALB에 연결하는 ACM 인증서는 ALB와 같은 region에 둡니다. 현재 기본 region은 <code>ap-northeast-2</code>입니다.</td></tr>
+                  <tr><th>DNS</th><td>Route53 hosted zone 준비 전에는 외부 DNS에서 gateway domain을 ALB DNS 이름으로 연결합니다. Route53 도입 후에는 CDK로 <code>A/AAAA Alias</code> record를 관리합니다.</td></tr>
+                  <tr><th>Removal Policy</th><td>삭제 위험이 큰 리소스는 prod에서 보수적인 removal policy를 사용합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>AWS 태그와 1차 범위</h2>
+              <div class="grid two">
+                <div class="card">
+                  <strong>공통 태그</strong>
+                  <pre><code>Project=multi-tenant
+Environment=dev
+Service=wms-service
+ManagedBy=cdk</code></pre>
+                </div>
+                <div class="card">
+                  <strong>WMS 1차에서 충분한 AWS 범위</strong>
+                  <p>
+                    CDK 리소스 관리, dev 환경 시작, ECS Fargate 서비스명 규칙, CloudWatch log group 분리,
+                    S3 bucket naming, SQS/EventBridge naming, Secrets Manager/SSM 사용, IAM role 서비스별 분리부터 적용합니다.
+                  </p>
+                </div>
+              </div>
+              <pre><code>multi-tenant-dev-wms-service
+multi-tenant-dev-gateway-service
+multi-tenant-dev-event-bus
+multi-tenant-dev-outbox-queue
+multi-tenant-dev-files-ap-northeast-2
+/multi-tenant/dev/wms-service</code></pre>
+            </section>
+
+      <p class="footer"><a href="../project-rules.html">프로젝트 공통 규칙으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

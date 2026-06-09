@@ -34,16 +34,557 @@
         </div>
       </section>
       <section>
+        <h2>Gateway 기능 TODO</h2>
+        <p>gateway-service 기능은 이 체크리스트를 기준으로 구현 내역에 맞춰 갱신합니다.</p>
+        <div class="grid two">
+          <div class="card">
+            <h3>완료</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> <code>GET /health</code>, <code>GET /ready</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GATEWAY_PORT</code> 기반 포트 설정</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>x-request-id</code> 생성과 응답 header 전파</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>x-tenant-id</code> 추출과 context 저장</label></p>
+              <p><label><input type="checkbox" checked disabled /> 요청 완료 JSON access log</label></p>
+              <p><label><input type="checkbox" checked disabled /> public/private route 구분 기본 구조</label></p>
+              <p><label><input type="checkbox" checked disabled /> Bearer token 기반 auth guard 기본 구조</label></p>
+              <p><label><input type="checkbox" checked disabled /> JWT payload의 <code>sub</code>, <code>tenantId</code> 추출</label></p>
+              <p><label><input type="checkbox" checked disabled /> JWT <code>tenantId</code>와 header tenant mismatch 차단</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>/api/v1/auth/**</code>, <code>/api/v1/admin/**</code>, <code>/api/v1/app/**</code> proxy route map</label></p>
+              <p><label><input type="checkbox" checked disabled /> upstream으로 <code>x-request-id</code>, <code>x-tenant-id</code>, <code>x-user-id</code> 전파</label></p>
+              <p><label><input type="checkbox" checked disabled /> Proxy request body 전달 처리</label></p>
+              <p><label><input type="checkbox" checked disabled /> Global exception filter로 API 에러 응답 포맷 통일</label></p>
+              <p><label><input type="checkbox" checked disabled /> JWT 서명 검증 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> JWT <code>iss</code>, <code>aud</code> claim 검증</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>/ready</code> 내부 의존성 readiness 기준 강화</label></p>
+              <p><label><input type="checkbox" checked disabled /> upstream timeout과 retry 정책</label></p>
+              <p><label><input type="checkbox" checked disabled /> Redis 기반 rate limit</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant status check 연동</label></p>
+              <p><label><input type="checkbox" checked disabled /> 보안 header와 CORS 운영 기준 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> HTTPS, ACM, Route53 연결 기준 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> GitHub Actions 배포 자동화</label></p>
+              <p><label><input type="checkbox" checked disabled /> gateway 테스트 시나리오 문서화</label></p>
+            </div>
+          </div>
+          <div class="card">
+            <h3>남은 작업</h3>
+            <p>남은 gateway-service 1차 TODO는 없습니다.</p>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h2>기능별 작업 내역</h2>
+        <p>Gateway 기능 TODO를 기준으로 구현된 작업, 관련 파일, 문서화 기준을 정리합니다.</p>
+        <div class="detail-list">
+          <details open>
+            <summary>Health와 Readiness</summary>
+            <div class="detail-body">
+              <div class="compact-grid">
+                <div class="card"><strong>구현</strong><p><code>GET /health</code>는 프로세스 생존 확인, <code>GET /ready</code>는 트래픽 수용 가능 여부 확인으로 분리했습니다.</p></div>
+                <div class="card"><strong>기준</strong><p><code>/ready</code>는 config, JWT, proxy route, security/CORS 설정을 확인하고 실패 시 <code>503 not_ready</code>를 반환합니다.</p></div>
+              </div>
+              <div class="doc-chip-list">
+                <div class="doc-chip-label">관련 코드</div>
+                <div class="doc-chip-items">
+                  <code>apps/gateway-service/src/health/health.controller.ts</code>
+                  <code>apps/gateway-service/src/health/health.service.ts</code>
+                </div>
+                <div class="doc-chip-label">관련 문서</div>
+                <div class="doc-chip-items">
+                  <code>docs/apis/gateway-service/get-health.html</code>
+                  <code>docs/apis/gateway-service/get-ready.html</code>
+                </div>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary>Request Context와 Access Log</summary>
+            <div class="detail-body">
+              <div class="compact-grid">
+                <div class="card"><strong>구현</strong><p><code>X-Request-Id</code>가 없으면 UUID를 생성하고, <code>X-Tenant-Id</code>와 userId 자리를 요청별 context에 저장합니다.</p></div>
+                <div class="card"><strong>로그</strong><p>요청 완료 시 JSON access log에 method, path, statusCode, durationMs, requestId, tenantId, userId를 남깁니다.</p></div>
+              </div>
+              <div class="doc-chip-list">
+                <div class="doc-chip-label">관련 코드</div>
+                <div class="doc-chip-items">
+                  <code>src/context/request-context.middleware.ts</code>
+                  <code>src/context/request-context.ts</code>
+                  <code>src/logging/access-log.middleware.ts</code>
+                </div>
+                <div class="doc-chip-label">검증 기준</div>
+                <div class="doc-chip-items">response header와 access log에서 같은 <code>requestId</code>가 확인되어야 합니다.</div>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary>Auth, JWT, Tenant 차단</summary>
+            <div class="detail-body">
+              <div class="compact-grid">
+                <div class="card"><strong>JWT</strong><p>Bearer token을 검증하고 <code>HS256</code>, <code>RS256</code>, 만료, <code>iss</code>, <code>aud</code>를 확인합니다.</p></div>
+                <div class="card"><strong>Tenant</strong><p>JWT <code>tenantId</code>와 header tenant가 다르면 <code>403 TENANT_MISMATCH</code>로 차단합니다.</p></div>
+              </div>
+              <div class="doc-chip-list">
+                <div class="doc-chip-label">관련 코드</div>
+                <div class="doc-chip-items">
+                  <code>src/auth/gateway-auth.guard.ts</code>
+                  <code>src/auth/jwt-verifier.ts</code>
+                  <code>src/tenant/tenant-status.guard.ts</code>
+                  <code>src/tenant/tenant-status.service.ts</code>
+                </div>
+                <div class="doc-chip-label">정책</div>
+                <div class="doc-chip-items">JWT에는 <code>roles</code>, <code>permissions</code>를 넣지 않고, tenant status check는 active tenant만 통과시킵니다.</div>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary>Proxy Routing, Body 전달, Timeout/Retry</summary>
+            <div class="detail-body">
+              <div class="compact-grid">
+                <div class="card"><strong>Route Map</strong><p><code>/api/v1/auth/**</code>, <code>/api/v1/admin/**</code>, <code>/api/v1/app/**</code>를 각각 Auth/IAM, Admin BFF, User BFF로 전달합니다.</p></div>
+                <div class="card"><strong>전달</strong><p>request body, query string, request context headers를 upstream으로 보존해 전달합니다.</p></div>
+                <div class="card"><strong>Timeout</strong><p>auth는 기본 <code>3000ms</code>, admin/app은 기본 <code>5000ms</code>입니다.</p></div>
+                <div class="card"><strong>Retry</strong><p><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout/network error/502/503/504에서 재시도합니다.</p></div>
+              </div>
+              <div class="doc-chip-list">
+                <div class="doc-chip-label">관련 코드</div>
+                <div class="doc-chip-items">
+                  <code>src/proxy/proxy.controller.ts</code>
+                  <code>src/proxy/proxy.service.ts</code>
+                </div>
+                <div class="doc-chip-label">관련 문서</div>
+                <div class="doc-chip-items"><code>docs/apis/gateway-service/proxy-routes.html</code></div>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary>Error Envelope와 Rate Limit</summary>
+            <div class="detail-body">
+              <div class="compact-grid">
+                <div class="card"><strong>Error</strong><p>실패 응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>, <code>error.code</code>, <code>error.message</code> 구조로 통일했습니다.</p></div>
+                <div class="card"><strong>Rate Limit</strong><p>Redis fixed window 방식으로 route group별 요청 수를 제한하고, 초과 시 <code>429 RATE_LIMIT_EXCEEDED</code>를 반환합니다.</p></div>
+              </div>
+              <div class="doc-chip-list">
+                <div class="doc-chip-label">관련 코드</div>
+                <div class="doc-chip-items">
+                  <code>src/errors/global-exception.filter.ts</code>
+                  <code>src/rate-limit/rate-limit.guard.ts</code>
+                  <code>src/rate-limit/redis-rate-limit.service.ts</code>
+                </div>
+                <div class="doc-chip-label">Redis key</div>
+                <div class="doc-chip-items">tenant/user/routeGroup 또는 anonymous IP 기준으로 생성합니다.</div>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary>Security, CORS, HTTPS, 배포 자동화</summary>
+            <div class="detail-body">
+              <div class="compact-grid">
+                <div class="card"><strong>Security</strong><p>공통 보안 header, 명시 origin 기반 CORS, HTTPS 요청 HSTS를 적용했습니다.</p></div>
+                <div class="card"><strong>Infra</strong><p>ACM ARN이 있으면 ALB HTTPS listener를 만들고 HTTP를 HTTPS로 redirect합니다.</p></div>
+                <div class="card"><strong>CI/CD</strong><p><code>dev</code>, <code>staging</code>, <code>main</code> 브랜치를 각각 dev, staging, prod 환경으로 배포합니다.</p></div>
+                <div class="card"><strong>Docs</strong><p>API 문서, 개발 기록, 테스트 시나리오, 향후 서비스 연동 작업을 함께 갱신했습니다.</p></div>
+              </div>
+              <div class="doc-chip-list">
+                <div class="doc-chip-label">관련 코드</div>
+                <div class="doc-chip-items">
+                  <code>src/security/security-headers.middleware.ts</code>
+                  <code>infra/cdk/lib/gateway-service-stack.ts</code>
+                </div>
+                <div class="doc-chip-label">워크플로</div>
+                <div class="doc-chip-items"><code>.github/workflows/deploy-gateway-service.yml</code></div>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+      <section>
+        <h2>Gateway 테스트 시나리오</h2>
+        <p>1차 검증은 자동 E2E 코드가 아니라 시나리오 기반 AI 검증으로 진행합니다. 성공 판정에는 응답 JSON, header, access log, upstream 수신 내용, Redis key, CloudFormation template 중 필요한 증거를 남깁니다.</p>
+        <div class="wide-table">
+          <table>
+          <thead>
+            <tr>
+              <th>scenarioId</th>
+              <th>title</th>
+              <th>priority</th>
+              <th>expectedResult</th>
+              <th>evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>GWS-HEALTH-001</code></td>
+              <td>Health API가 public으로 응답한다</td>
+              <td><code>P0</code></td>
+              <td><code>GET /health</code>가 인증 없이 <code>200</code>으로 응답하고 <code>X-Request-Id</code>를 반환한다.</td>
+              <td>response JSON, response headers, access log의 <code>requestId</code></td>
+            </tr>
+            <tr>
+              <td><code>GWS-READY-001</code></td>
+              <td>Readiness가 필수 설정 상태를 반영한다</td>
+              <td><code>P0</code></td>
+              <td>정상 설정은 <code>200 ready</code>, JWT/CORS/proxy 설정 오류는 <code>503 not_ready</code>와 실패 check를 반환한다.</td>
+              <td>response JSON의 <code>checks</code>, 실패 check message</td>
+            </tr>
+            <tr>
+              <td><code>GWS-AUTH-001</code></td>
+              <td>Private API는 bearer token 없이 차단된다</td>
+              <td><code>P0</code></td>
+              <td><code>/api/v1/app/**</code> 요청에 token이 없으면 <code>401 UNAUTHORIZED</code> envelope로 응답한다.</td>
+              <td>response JSON, status code, <code>requestId</code></td>
+            </tr>
+            <tr>
+              <td><code>GWS-JWT-001</code></td>
+              <td>JWT 서명, 만료, issuer, audience를 검증한다</td>
+              <td><code>P0</code></td>
+              <td>유효한 token은 통과하고 잘못된 서명, 만료, issuer/audience mismatch는 <code>401 AUTH_INVALID_TOKEN</code> 또는 <code>AUTH_TOKEN_EXPIRED</code>로 차단한다.</td>
+              <td>token 조건, response JSON, error code</td>
+            </tr>
+            <tr>
+              <td><code>GWS-TENANT-001</code></td>
+              <td>JWT tenant와 header tenant mismatch를 차단한다</td>
+              <td><code>P0</code></td>
+              <td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 응답한다.</td>
+              <td>response JSON, access log의 <code>tenantId</code>, <code>requestId</code></td>
+            </tr>
+            <tr>
+              <td><code>GWS-TENANT-002</code></td>
+              <td>Inactive tenant 접근을 차단한다</td>
+              <td><code>P0</code></td>
+              <td>tenant status check 활성화 시 <code>inactive</code>, <code>suspended</code>, <code>deleted</code> tenant는 <code>403 TENANT_NOT_READY</code>로 차단한다.</td>
+              <td>tenant-service mock response, Redis cache key, response JSON</td>
+            </tr>
+            <tr>
+              <td><code>GWS-PROXY-001</code></td>
+              <td>Proxy route가 request context와 body를 upstream으로 전달한다</td>
+              <td><code>P0</code></td>
+              <td><code>/api/v1/auth/**</code>, <code>/api/v1/admin/**</code>, <code>/api/v1/app/**</code>가 각각 설정된 upstream으로 전달되고 body, query, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>가 보존된다.</td>
+              <td>upstream mock 수신 headers/body/query, gateway access log</td>
+            </tr>
+            <tr>
+              <td><code>GWS-PROXY-002</code></td>
+              <td>Upstream timeout과 retry 정책을 적용한다</td>
+              <td><code>P1</code></td>
+              <td>safe method는 timeout/network error/502/503/504에서 설정 횟수만큼 재시도하고, 쓰기 method는 재시도하지 않는다. 최종 timeout은 <code>504 GATEWAY_TIMEOUT</code>이다.</td>
+              <td>upstream attempt log, response JSON, status code</td>
+            </tr>
+            <tr>
+              <td><code>GWS-RATE-001</code></td>
+              <td>Redis rate limit이 route group별로 적용된다</td>
+              <td><code>P1</code></td>
+              <td>제한 내 요청은 통과하고 제한 초과 시 <code>429 RATE_LIMIT_EXCEEDED</code>와 rate limit headers를 반환한다.</td>
+              <td>response headers, Redis key/value, response JSON</td>
+            </tr>
+            <tr>
+              <td><code>GWS-SEC-001</code></td>
+              <td>Security headers와 CORS 정책을 적용한다</td>
+              <td><code>P1</code></td>
+              <td>모든 응답에 공통 보안 header가 포함되고, 허용 origin preflight만 CORS header를 받는다. HTTPS 요청에는 HSTS가 포함된다.</td>
+              <td>response headers, allowed/disallowed origin preflight result</td>
+            </tr>
+            <tr>
+              <td><code>GWS-ERR-001</code></td>
+              <td>공통 API 에러 envelope를 유지한다</td>
+              <td><code>P1</code></td>
+              <td>실패 응답은 <code>success=false</code>, <code>requestId</code>, <code>timestamp</code>, <code>error.code</code>, <code>error.message</code> 구조를 가진다.</td>
+              <td>response JSON, error log의 <code>errorCode</code></td>
+            </tr>
+            <tr>
+              <td><code>GWS-CICD-001</code></td>
+              <td>브랜치별 배포 대상이 고정된다</td>
+              <td><code>P1</code></td>
+              <td><code>dev</code>는 <code>dev</code>, <code>staging</code>은 <code>staging</code>, <code>main</code>은 <code>prod</code> 환경으로 배포되고 image tag는 <code>{env}-{gitSha12}</code> 형식이다.</td>
+              <td>GitHub Actions summary, CDK context, CloudFormation stack name</td>
+            </tr>
+          </tbody>
+          </table>
+        </div>
+
+        <h3>상세 실행 기준</h3>
+        <table>
+          <tbody>
+            <tr><th>preconditions</th><td>로컬 또는 dev 환경에서 gateway-service, Redis, upstream mock service, tenant-service mock을 준비합니다. JWT는 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</td></tr>
+            <tr><th>steps</th><td>시나리오별 API 요청을 실행하고, response status/body/header, gateway JSON log, Redis key, upstream mock 수신 값을 확인합니다.</td></tr>
+            <tr><th>expectedResult</th><td>API envelope, error code, tenant 차단, JWT 차단, upstream 전달, rate limit, CORS/security header가 위 표의 기대 결과와 일치해야 합니다.</td></tr>
+            <tr><th>evidence</th><td>각 시나리오 결과에는 <code>requestId</code>, response JSON, 필요한 header, mock 수신 payload, Redis key, 관련 log line을 남깁니다.</td></tr>
+            <tr><th>failure record</th><td>실패 시 실제 결과, 기대 결과, 재현 단계, 관련 <code>requestId</code>를 기록하고 수정 후 같은 scenarioId로 회귀 확인합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>향후 서비스 개발 연동 작업</h2>
+        <p>다른 서비스가 구현될 때 gateway-service에서 함께 확인하거나 보강할 작업 목록입니다. gateway는 업무 로직을 갖지 않고, 인증/tenant/context/routing/보안 경계만 담당합니다.</p>
+        <div class="wide-table">
+          <table>
+          <thead>
+            <tr>
+              <th>trigger</th>
+              <th>gateway 작업</th>
+              <th>문서/검증</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>auth-iam-service</code> 구현</td>
+              <td>실제 JWT 발급 정책과 <code>iss</code>, <code>aud</code>, algorithm, key rotation 기준을 맞추고 <code>AUTH_IAM_SERVICE_URL</code> proxy를 검증합니다.</td>
+              <td>JWT 시나리오, proxy route API 문서, auth 개발 문서 갱신</td>
+            </tr>
+            <tr>
+              <td><code>tenant-service</code> 구현</td>
+              <td><code>GET /internal/tenants/{tenantId}/status</code> 계약을 확정하고 tenant status check를 기본 활성화할 환경을 결정합니다.</td>
+              <td>tenant status 시나리오, Redis cache key, tenant 개발 문서 갱신</td>
+            </tr>
+            <tr>
+              <td><code>admin-bff-service</code> 구현</td>
+              <td><code>/api/v1/admin/**</code> route map, timeout, rate limit 기준을 실제 admin 화면 API에 맞춰 조정합니다.</td>
+              <td>admin proxy 시나리오, API 문서, CORS allowed origin 확인</td>
+            </tr>
+            <tr>
+              <td><code>user-bff-service</code> 구현</td>
+              <td><code>/api/v1/app/**</code> route map, request body 전달, tenant/user context 전파를 실제 app API로 검증합니다.</td>
+              <td>app proxy 시나리오, upstream mock 또는 dev BFF 수신 로그</td>
+            </tr>
+            <tr>
+              <td><code>wms-service</code> API 공개</td>
+              <td>gateway에는 WMS 업무 로직을 넣지 않고 BFF를 통해 라우팅합니다. WMS 권한 검증은 domain service에서 수행되는지 확인합니다.</td>
+              <td>WMS API 문서, tenant isolation 시나리오, permission 시나리오</td>
+            </tr>
+            <tr>
+              <td>새 public API 추가</td>
+              <td>public route를 명시적으로 선언하고, 인증 예외 사유와 rate limit 기준을 검토합니다.</td>
+              <td>API 문서, public/private route 시나리오, 보안 규칙 갱신</td>
+            </tr>
+            <tr>
+              <td>새 private API surface 추가</td>
+              <td><code>/api/v1/{surface}/**</code> route group, upstream URL env, timeout, retry, rate limit, access log 필드를 추가합니다.</td>
+              <td>proxy route API 문서, gateway 테스트 시나리오 추가</td>
+            </tr>
+            <tr>
+              <td>권한/역할 조회 연동</td>
+              <td>JWT에는 roles/permissions를 넣지 않고, BFF 또는 domain service가 auth-iam-service에서 권한을 조회하는 경계를 유지합니다.</td>
+              <td>auth/permission 규칙 문서, 권한 실패 시나리오</td>
+            </tr>
+            <tr>
+              <td>운영 도메인 확정</td>
+              <td><code>GATEWAY_CORS_ALLOWED_ORIGINS</code>, ACM certificate ARN, gateway domain, DNS target을 환경별로 확정합니다.</td>
+              <td>infra README, AWS ECS 기술 문서, security/CORS 시나리오</td>
+            </tr>
+            <tr>
+              <td>Route53 도입</td>
+              <td>CDK에 hosted zone lookup과 ALB alias record를 추가하고, 기존 외부 DNS 연결 기준을 교체합니다.</td>
+              <td>AWS 설계 문서, drawio 아키텍처, CDK synth/diff 결과</td>
+            </tr>
+            <tr>
+              <td>운영 관측성 강화</td>
+              <td>CloudWatch metric filter, alarm, dashboard, tracing header 전파 기준을 추가합니다.</td>
+              <td>운영 문서, 로그/알람 검증 시나리오</td>
+            </tr>
+            <tr>
+              <td>배포 안정화</td>
+              <td>GitHub Actions에 environment approval, smoke test, rollback 기준을 추가하고 prod 배포 보호 규칙을 적용합니다.</td>
+              <td>GitHub Actions 문서, 배포 시나리오, 실패 복구 절차</td>
+            </tr>
+          </tbody>
+          </table>
+        </div>
+      </section>
+      <section>
         <h2>개발 기록</h2>
         <article>
           <h3>2026-06-01 NestJS 기본 구성</h3>
           <ul>
-            <li><code>apps/gateway-service</code>를 NestJS + TypeScript 실행 앱으로 구성합니다.</li>
+            <li><code>apps/gateway-service</code>를 NestJS + TypeScript 실행 앱으로 구성했습니다.</li>
             <li>초기 API는 <code>GET /health</code>, <code>GET /ready</code>만 구현합니다.</li>
             <li>실행 포트는 <code>GATEWAY_PORT</code> 환경 변수로 받고, 기본값은 <code>3000</code>입니다.</li>
-            <li><code>pnpm --filter gateway-service typecheck</code>, <code>pnpm --filter gateway-service build</code>를 통과했습니다.</li>
-            <li>로컬 실행 후 <code>/health</code>, <code>/ready</code> 응답을 확인했습니다.</li>
             <li>이번 단계에서는 request context, JWT guard, proxy routing, access log는 만들지 않고 다음 단계에서 추가합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-08 Health API 보강</h3>
+          <ul>
+            <li><code>GET /health</code>는 gateway-service 프로세스 생존 확인용 endpoint로 둡니다.</li>
+            <li>응답에는 <code>status</code>, <code>service</code>, <code>timestamp</code>를 포함합니다.</li>
+            <li>DB, Redis, BFF, Auth/IAM 같은 외부 의존성 확인은 <code>/health</code>에 넣지 않고 <code>/ready</code>에서 다룹니다.</li>
+            <li>API 상세 문서는 <a href="../../apis/gateway-service/get-health.html"><code>docs/apis/gateway-service/get-health.html</code></a>에 기록합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-08 Docker 구성 추가</h3>
+          <ul>
+            <li><code>docker/services/Dockerfile.nest</code>를 monorepo NestJS 앱 실행에 맞게 조정했습니다.</li>
+            <li><code>docker/local/docker-compose.yml</code>에 <code>gateway-service</code> 서비스를 추가했습니다.</li>
+            <li>로컬 개발 compose 프로젝트 이름은 <code>gateway-service-local</code>로 고정했습니다.</li>
+            <li><code>docker/deploy/docker-compose.yml</code>을 단독 서버나 VM 실행용 배포 템플릿으로 추가했습니다.</li>
+            <li>AWS ECS 배포는 compose가 아니라 <code>infra/cdk</code>에서 관리합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-08 Request Context와 Gateway 기본 보안 흐름</h3>
+          <ul>
+            <li>요청별 <code>requestId</code>, <code>tenantId</code>, <code>userId</code>를 담는 request context를 추가했습니다.</li>
+            <li><code>X-Request-Id</code>가 없으면 gateway-service가 UUID를 생성하고 응답 header와 upstream 요청에 전파합니다.</li>
+            <li><code>X-Tenant-Id</code>는 request context에 먼저 담고, 인증 후 JWT <code>tenantId</code>와 불일치하면 <code>403 TENANT_MISMATCH</code>로 차단합니다.</li>
+            <li>요청 완료 시 JSON access log를 남기며 <code>method</code>, <code>path</code>, <code>statusCode</code>, <code>durationMs</code>, <code>requestId</code>, <code>tenantId</code>, <code>userId</code>를 포함합니다.</li>
+            <li><code>/health</code>, <code>/ready</code>는 public route로 유지하고, <code>/api/v1/**</code>는 기본 private route로 처리합니다.</li>
+            <li>JWT verifier는 local-dev 기본 구조로 시작하며 <code>sub</code>, <code>tenantId</code>, <code>exp</code>를 확인합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</li>
+            <li><code>/api/v1/auth/**</code>, <code>/api/v1/admin/**</code>, <code>/api/v1/app/**</code> proxy routing 뼈대를 추가했습니다.</li>
+            <li>Proxy route API 문서는 <a href="../../apis/gateway-service/proxy-routes.html"><code>docs/apis/gateway-service/proxy-routes.html</code></a>에 기록합니다.</li>
+          </ul>
+          <table>
+            <tbody>
+              <tr><th>GWS-CTX-001</th><td><code>GET /health</code> 호출 시 <code>X-Request-Id</code>가 응답 header로 전파되고 access log에 남는다.</td></tr>
+              <tr><th>GWS-AUTH-001</th><td><code>/api/v1/app/**</code> 호출 시 bearer token이 없으면 <code>401 UNAUTHORIZED</code>로 차단된다.</td></tr>
+              <tr><th>GWS-TENANT-001</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 차단된다.</td></tr>
+              <tr><th>GWS-PROXY-001</th><td>JWT와 tenant header가 일치하면 request context header를 upstream으로 전파하는 proxy 흐름까지 진입한다.</td></tr>
+            </tbody>
+          </table>
+        </article>
+        <article>
+          <h3>2026-06-08 Proxy Body와 공통 에러 응답</h3>
+          <ul>
+            <li>Gateway에서 request body를 먼저 소비하지 않도록 NestJS <code>bodyParser</code>를 비활성화했습니다.</li>
+            <li><code>GET</code>, <code>HEAD</code>를 제외한 proxy 요청은 원본 request stream을 upstream으로 전달합니다.</li>
+            <li>Proxy 요청 body와 query string은 내부 서비스 경로로 함께 전달합니다.</li>
+            <li>Global exception filter를 추가해 실패 응답을 <code>success</code>, <code>requestId</code>, <code>timestamp</code>, <code>error</code> envelope로 통일했습니다.</li>
+            <li>에러 응답의 <code>error</code>는 <code>code</code>, <code>message</code>, <code>details</code>를 포함합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-08 JWT 서명 검증</h3>
+          <ul>
+            <li>JWT verifier에 서명 검증을 추가했습니다.</li>
+            <li>로컬 개발 기본값은 <code>JWT_ALGORITHM=HS256</code>와 랜덤 생성한 <code>JWT_SECRET</code>입니다.</li>
+            <li><code>HS256</code>은 <code>JWT_SECRET</code>으로 HMAC 서명을 검증합니다.</li>
+            <li><code>RS256</code>은 <code>JWT_PUBLIC_KEY</code>로 RSA SHA-256 서명을 검증할 수 있게 구성했습니다.</li>
+            <li>서명이 맞지 않거나 허용되지 않은 algorithm이면 <code>401 AUTH_INVALID_TOKEN</code>으로 차단합니다.</li>
+            <li>서명 검증 후에도 JWT payload에서 request context에 반영하는 값은 <code>sub</code>, <code>tenantId</code>만 유지합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-08 JWT Issuer/Audience 검증</h3>
+          <ul>
+            <li><code>JWT_ISSUER</code> 설정을 추가하고 토큰의 <code>iss</code> claim과 일치하는지 검증합니다.</li>
+            <li><code>JWT_AUDIENCE</code> 설정을 추가하고 토큰의 <code>aud</code> claim과 일치하는지 검증합니다.</li>
+            <li><code>aud</code> claim이 배열이면 설정된 audience가 배열에 포함되어야 통과합니다.</li>
+            <li>issuer 또는 audience가 맞지 않으면 <code>401 AUTH_INVALID_TOKEN</code>으로 차단합니다.</li>
+            <li>검증 후 request context에 반영하는 값은 계속 <code>sub</code>, <code>tenantId</code>만 유지합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 Ready API 기준 강화</h3>
+          <ul>
+            <li><code>GET /ready</code>가 gateway-service의 트래픽 수용 가능 여부를 판단하도록 readiness check를 추가했습니다.</li>
+            <li><code>config</code> check는 gateway port와 request context header 설정을 확인합니다.</li>
+            <li><code>jwt</code> check는 signing key 설정과 <code>JWT_ISSUER</code>, <code>JWT_AUDIENCE</code> 설정을 확인합니다.</li>
+            <li><code>proxyRoutes</code> check는 Auth/IAM, Admin BFF, User BFF upstream URL 형식을 확인합니다.</li>
+            <li>check 중 하나라도 실패하면 <code>503 Service Unavailable</code>과 <code>status=not_ready</code>를 반환합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 Upstream Timeout과 Retry 정책</h3>
+          <ul>
+            <li>proxy route별 upstream timeout을 추가했습니다.</li>
+            <li><code>/api/v1/auth/**</code>는 기본 <code>3000ms</code>, <code>/api/v1/admin/**</code>와 <code>/api/v1/app/**</code>는 기본 <code>5000ms</code>를 적용합니다.</li>
+            <li><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout, network error, upstream <code>502</code>, <code>503</code>, <code>504</code> 응답에 대해 기본 1회 재시도합니다.</li>
+            <li><code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>는 중복 실행 위험 때문에 재시도하지 않습니다.</li>
+            <li>최종 timeout은 <code>504 GATEWAY_TIMEOUT</code>, 최종 연결 실패는 <code>503 UPSTREAM_UNAVAILABLE</code>로 응답합니다.</li>
+            <li>upstream 시도별 로그에 <code>requestId</code>, <code>tenantId</code>, <code>userId</code>, <code>method</code>, <code>path</code>, <code>upstream</code>, <code>attempt</code>, <code>durationMs</code>, <code>statusCode</code>, <code>errorCode</code>를 남깁니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 Redis 기반 Rate Limit</h3>
+          <ul>
+            <li>Redis fixed window 방식의 rate limit guard를 추가했습니다.</li>
+            <li>제한 기준은 인증 후 <code>tenantId + userId + routeGroup</code>, 인증 전 <code>IP + routeGroup</code>입니다.</li>
+            <li>Redis key는 인증 후 <code>rate-limit:{env}:gateway:{tenantId}:{userId}:{routeGroup}</code> 형식을 사용합니다.</li>
+            <li>Redis key는 인증 전 <code>rate-limit:{env}:gateway:anonymous:{ip}:{routeGroup}</code> 형식을 사용합니다.</li>
+            <li>route group은 <code>auth</code>, <code>admin</code>, <code>app</code>으로 나눕니다.</li>
+            <li>로컬 Docker 환경은 compose Redis를 사용하고, AWS 배포 환경은 ElastiCache Redis를 사용합니다.</li>
+            <li>기본 제한은 <code>auth=60/min</code>, <code>admin=300/min</code>, <code>app=600/min</code>입니다.</li>
+            <li>제한 초과 시 <code>429 RATE_LIMIT_EXCEEDED</code>, Redis 저장소 장애 시 <code>503 RATE_LIMIT_UNAVAILABLE</code>로 응답합니다.</li>
+            <li>응답 header에 <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code>을 추가합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 AWS ElastiCache Redis 연동</h3>
+          <ul>
+            <li>gateway-service CDK stack에 ElastiCache Redis cache cluster를 추가했습니다.</li>
+            <li>Redis subnet group은 gateway-service app subnet을 사용합니다.</li>
+            <li>Redis security group은 gateway-service task security group에서 오는 <code>6379</code> 포트만 허용합니다.</li>
+            <li>ECS task 환경 변수 <code>REDIS_URL</code>은 CDK가 ElastiCache endpoint로 주입합니다.</li>
+            <li>기본 Redis 노드 타입은 <code>cache.t4g.micro</code>이며 CDK context <code>gatewayRedisNodeType</code>으로 조정할 수 있습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 Tenant Status Check 연동</h3>
+          <ul>
+            <li>tenant status check guard를 추가했습니다.</li>
+            <li>기능 활성화 시 <code>TENANT_SERVICE_URL</code>의 <code>GET /internal/tenants/{tenantId}/status</code>를 호출합니다.</li>
+            <li>tenant status는 Redis에 <code>tenant-status:{env}:{tenantId}</code> key로 기본 30초 캐시합니다.</li>
+            <li><code>active</code> tenant만 통과하고 <code>inactive</code>, <code>suspended</code>, <code>deleted</code>는 <code>403 TENANT_NOT_READY</code>로 차단합니다.</li>
+            <li>tenant status 조회 실패는 <code>503 TENANT_STATUS_UNAVAILABLE</code>로 응답합니다.</li>
+            <li>tenant-service 준비 전 로컬 개발과 현재 ECS 배포 구성을 보호하기 위해 기본값은 <code>GATEWAY_TENANT_STATUS_CHECK_ENABLED=false</code>입니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 Security Headers와 CORS 운영 기준</h3>
+          <ul>
+            <li>gateway-service 모든 응답에 공통 보안 header를 추가했습니다.</li>
+            <li><code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code>, <code>Permissions-Policy</code>, <code>Content-Security-Policy</code>, <code>Cross-Origin-Opener-Policy</code>, <code>Cross-Origin-Resource-Policy</code>를 적용합니다.</li>
+            <li>HTTPS 요청에는 <code>Strict-Transport-Security</code>를 추가합니다.</li>
+            <li>CORS는 <code>GATEWAY_CORS_ALLOWED_ORIGINS</code>에 명시된 origin만 허용합니다.</li>
+            <li>운영 기준에 맞춰 wildcard origin은 readiness check에서 실패 처리합니다.</li>
+            <li>로컬 환경은 localhost 개발 origin을 허용하고, dev/staging/prod는 환경별 명시 origin을 사용합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 HTTPS, ACM, Route53 연결 기준</h3>
+          <ul>
+            <li>gateway-service CDK stack에 선택형 HTTPS listener 구성을 추가했습니다.</li>
+            <li><code>gatewayAcmCertificateArn</code> context가 있으면 ALB <code>443</code> listener를 만들고 ACM 인증서를 연결합니다.</li>
+            <li>HTTPS listener가 활성화되면 ALB <code>80</code> listener는 HTTPS로 리다이렉트합니다.</li>
+            <li>Route53 hosted zone이 아직 없으므로 CDK는 DNS record를 생성하지 않습니다.</li>
+            <li><code>gatewayDomainName</code> context를 전달하면 CDK output에 연결 대상 ALB DNS 이름을 함께 노출합니다.</li>
+            <li>Route53 도입 전에는 외부 DNS 제공자에서 subdomain <code>CNAME</code> 또는 ALIAS/ANAME을 ALB DNS 이름으로 연결합니다.</li>
+            <li>Route53 도입 후에는 hosted zone 기반 <code>A/AAAA Alias</code> record를 CDK 관리 리소스로 추가합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 GitHub Actions 배포 자동화</h3>
+          <ul>
+            <li><code>.github/workflows/deploy-gateway-service.yml</code>을 추가했습니다.</li>
+            <li><code>dev</code> 브랜치는 <code>dev</code> 환경, <code>staging</code> 브랜치는 <code>staging</code> 환경, <code>main</code> 브랜치는 <code>prod</code> 환경으로 배포합니다.</li>
+            <li>배포는 GitHub OIDC로 AWS role을 assume하는 방식이며, 환경별 GitHub Environment secret <code>AWS_ROLE_ARN</code>을 사용합니다.</li>
+            <li>첫 배포도 가능하도록 CDK를 <code>gatewayDesiredCount=0</code>으로 먼저 실행해 ECR/기본 인프라를 만들고, 이미지를 ECR에 push한 뒤 실제 desired count로 다시 배포합니다.</li>
+            <li>이미지 tag는 <code>{env}-{gitSha12}</code> 형식을 사용합니다.</li>
+            <li>CDK stack은 GitHub Environment variable로 ACM 인증서 ARN, gateway domain, CORS origin, upstream service URL을 받을 수 있습니다.</li>
+            <li>JWT secret은 GitHub Environment secret <code>GATEWAY_JWT_SECRET_ARN</code>으로 Secrets Manager ARN을 전달하고, ECS task secret으로 주입합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 Gateway 테스트 시나리오 문서화</h3>
+          <ul>
+            <li>gateway-service 1차 검증 시나리오를 개발 문서에 추가했습니다.</li>
+            <li>시나리오는 health/readiness, JWT, tenant mismatch, tenant status, proxy 전달, timeout/retry, rate limit, security header/CORS, error envelope, branch deploy mapping을 포함합니다.</li>
+            <li>각 시나리오는 <code>scenarioId</code>, <code>priority</code>, 기대 결과, 증거 기준을 함께 기록합니다.</li>
+            <li>검증 증거는 response JSON, header, access log, upstream mock 수신 내용, Redis key, CloudFormation/GitHub Actions 결과를 기준으로 남깁니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-09 향후 서비스 개발 연동 작업 정리</h3>
+          <ul>
+            <li>다른 서비스가 구현될 때 gateway-service에서 함께 확인할 작업 목록을 추가했습니다.</li>
+            <li>대상은 Auth/IAM, tenant-service, Admin BFF, User BFF, WMS API, public/private route, 운영 도메인, Route53, 관측성, 배포 안정화입니다.</li>
+            <li>gateway-service는 업무 로직을 갖지 않고 인증, tenant, context, routing, 보안 경계만 담당한다는 기준을 유지합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-08 Gateway 환경 분리</h3>
+          <ul>
+            <li><code>gateway-service</code> 환경명을 <code>local</code>, <code>dev</code>, <code>staging</code>, <code>prod</code>로 통일했습니다.</li>
+            <li>환경별 compose 설정은 <code>docker/env/gateway-service/.env.{env}</code>에서 관리합니다.</li>
+            <li>로컬 개발 compose는 <code>.env.local</code>을 사용하고, 배포용 compose는 선택한 환경 env 파일을 주입하는 구조로 분리했습니다.</li>
+            <li>애플리케이션 설정 검증의 <code>APP_ENV</code> 허용값을 <code>local</code>, <code>dev</code>, <code>staging</code>, <code>prod</code>로 맞췄습니다.</li>
+            <li>CDK 기본 환경명은 <code>dev</code>로 유지하고, 운영 환경 판정은 <code>prod</code> 기준으로 정리했습니다.</li>
           </ul>
         </article>
       </section>

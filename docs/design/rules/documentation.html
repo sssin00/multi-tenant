@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>문서 업데이트 규칙</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Documentation</p>
+        <h1>문서 업데이트 규칙</h1>
+        <p class="lead">변경 유형별로 어떤 문서를 갱신해야 하는지 정리합니다.</p>
+      </header>
+
+      <section>
+              <h2>문서 업데이트 규칙</h2>
+              <p>
+                코드, 설계, 운영 기준이 바뀌면 관련 문서를 함께 갱신합니다.
+                문서 업데이트 규칙의 목적은 설계 문서와 실제 구현이 달라지는 것을 줄이고, 다른 컴퓨터나 다른 작업자가 이어서 볼 수 있게 하는 것입니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>설계 변경</th><td><code>docs/design/*</code> 문서를 수정합니다.</td></tr>
+                  <tr><th>서비스 구현 변경</th><td>해당 서비스 문서 <code>docs/development/services/{service}.html</code>을 수정합니다.</td></tr>
+                  <tr><th>전체 진행 상태 변경</th><td><code>docs/index.html</code>의 요약과 상태를 수정합니다.</td></tr>
+                  <tr><th>Codex 작업 기준 변경</th><td>Codex가 계속 따라야 하는 규칙이면 <code>AGENTS.md</code>도 수정합니다.</td></tr>
+                  <tr><th>아키텍처 구조 변경</th><td>관련 설계 문서와 <code>docs/design/smart-factory-aws-ecs.drawio</code>를 함께 수정합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>문서별 책임</h2>
+              <table>
+                <tbody>
+                  <tr><th><code>docs/index.html</code></th><td>전체 문서 대시보드, 현재 진행 상태, 주요 결정 요약, 문서 링크를 관리합니다.</td></tr>
+                  <tr><th><code>docs/design/project-rules.html</code></th><td>네이밍, API, 인증/인가, 멀티테넌트, 에러, 로그, 이벤트, 환경 변수, 테스트 같은 공통 규칙을 관리합니다.</td></tr>
+                  <tr><th><code>docs/design/aws-ecs-tech-stack.html</code></th><td>AWS, ECS, VPC, 기술스택, 운영 인프라 결정을 관리합니다.</td></tr>
+                  <tr><th><code>docs/design/msa-wms-roadmap.html</code></th><td>WMS first 개발 순서와 단계별 로드맵을 관리합니다.</td></tr>
+                  <tr><th><code>docs/design/smart-factory-aws-ecs.drawio</code></th><td>AWS ECS 기반 스마트 팩토리 아키텍처 설계도를 관리합니다.</td></tr>
+                  <tr><th><code>docs/development/services/{service}.html</code></th><td>서비스별 개발 과정, 구현 기능, API, 테스트 시나리오, 이슈, 결정사항을 관리합니다.</td></tr>
+                  <tr><th><code>AGENTS.md</code></th><td>Codex가 작업할 때 따라야 하는 실행 규칙을 관리합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>변경 유형별 문서 업데이트</h2>
+              <table>
+                <tbody>
+                  <tr><th>WMS API 추가</th><td><code>docs/development/services/wms-service.html</code>, 필요 시 테스트 시나리오와 API 규칙을 수정합니다.</td></tr>
+                  <tr><th>공통 규칙 추가</th><td><code>docs/design/project-rules.html</code>을 수정하고, Codex가 따라야 하면 <code>AGENTS.md</code>도 수정합니다.</td></tr>
+                  <tr><th>AWS 구성 변경</th><td><code>docs/design/aws-ecs-tech-stack.html</code>과 필요한 경우 draw.io 설계도를 수정합니다.</td></tr>
+                  <tr><th>서비스 추가</th><td><code>docs/index.html</code>에 링크를 추가하고, <code>docs/development/services/{service}.html</code>을 생성합니다.</td></tr>
+                  <tr><th>이벤트 추가</th><td><code>docs/design/project-rules.html</code>의 이벤트 규칙 또는 해당 서비스 개발 문서에 이벤트 이름과 payload를 기록합니다.</td></tr>
+                  <tr><th>테스트 시나리오 추가</th><td>해당 서비스 개발 문서에 scenarioId, 사전 조건, 실행 단계, 기대 결과, 증거 기준을 기록합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <p class="footer"><a href="../project-rules.html">프로젝트 공통 규칙으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

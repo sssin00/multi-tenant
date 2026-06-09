@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>환경 변수와 Secret 규칙</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Environment</p>
+        <h1>환경 변수와 Secret 규칙</h1>
+        <p class="lead">환경 변수 naming, AWS secret 관리, WMS 1차 환경 변수를 정리합니다.</p>
+      </header>
+
+      <section>
+              <h2>환경 변수 규칙</h2>
+              <p>
+                환경 변수는 서비스별 설정을 명확히 분리하고, 비밀값은 AWS Secrets Manager 또는 SSM Parameter Store로 관리합니다.
+                실제 AWS 환경에서는 ECS Task Definition을 통해 주입합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>이름 규칙</th><td><code>UPPER_SNAKE_CASE</code>를 사용합니다.</td></tr>
+                  <tr><th>공통 값</th><td>모든 서비스가 공유하는 값은 prefix 없이 사용합니다. 예: <code>APP_ENV</code>, <code>LOG_LEVEL</code></td></tr>
+                  <tr><th>서비스 전용 값</th><td>서비스 전용 값은 prefix를 붙입니다. 예: <code>WMS_DEFAULT_PAGE_SIZE</code>, <code>OUTBOX_BATCH_SIZE</code></td></tr>
+                  <tr><th>URL 이름</th><td>서비스 간 호출 URL은 <code>{SERVICE_NAME}_SERVICE_URL</code> 형식을 사용합니다.</td></tr>
+                  <tr><th>로컬 파일</th><td><code>.env.example</code>은 git에 포함하고, <code>.env.local</code>은 git에 올리지 않습니다.</td></tr>
+                  <tr><th>검증</th><td>서비스 시작 시 환경 변수 schema validation을 수행합니다. 운영 환경에서 필수 값이 없으면 시작 실패로 처리합니다.</td></tr>
+                  <tr><th>기본값</th><td>기본값은 코드 곳곳에 숨기지 않고 config module 또는 schema에 명시합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>공통 환경 변수</h2>
+              <p>모든 서비스가 사용할 수 있는 기본 환경 변수입니다.</p>
+              <pre><code>NODE_ENV=development
+APP_ENV=local
+SERVICE_NAME=wms-service
+SERVICE_PORT=3003
+LOG_LEVEL=info
+AWS_REGION=ap-northeast-2
+REQUEST_ID_HEADER=X-Request-Id
+TENANT_ID_HEADER=X-Tenant-Id</code></pre>
+              <div class="grid two">
+                <div class="card">
+                  <strong>서비스별 prefix 예시</strong>
+                  <p><code>WMS_</code>, <code>AUTH_</code>, <code>TENANT_</code>, <code>GATEWAY_</code>, <code>BFF_</code>, <code>OUTBOX_</code>, <code>ERP_</code></p>
+                </div>
+                <div class="card">
+                  <strong>서비스 URL 예시</strong>
+                  <p><code>AUTH_IAM_SERVICE_URL</code>, <code>TENANT_SERVICE_URL</code>, <code>WMS_SERVICE_URL</code>, <code>USER_BFF_SERVICE_URL</code>, <code>ADMIN_BFF_SERVICE_URL</code></p>
+                </div>
+              </div>
+            </section>
+
+      <section>
+              <h2>AWS Secret 관리</h2>
+              <p>일반 설정값과 비밀값을 분리합니다. ECS Task Definition에서는 일반 설정은 <code>environment</code>, 비밀값은 <code>secrets</code>로 주입합니다.</p>
+              <table>
+                <tbody>
+                  <tr><th>environment</th><td>서비스 포트, log level, endpoint, feature flag, event bus name, queue URL처럼 노출되어도 치명적이지 않은 설정값</td></tr>
+                  <tr><th>secrets</th><td>DB password, JWT private key, ERP API key, SMTP password, access key처럼 비밀로 관리해야 하는 값</td></tr>
+                  <tr><th>Secrets Manager</th><td>DB password, JWT private key, 외부 API key, SMTP password 같은 민감정보를 관리합니다.</td></tr>
+                  <tr><th>SSM Parameter Store</th><td>일반 설정값, endpoint, feature flag, public config를 관리합니다.</td></tr>
+                  <tr><th>로그 금지</th><td>secret 값은 시스템 로그, 감사 로그, 에러 응답에 노출하지 않습니다.</td></tr>
+                </tbody>
+              </table>
+              <pre><code># 일반 설정
+EVENT_BUS_NAME=multi-tenant-dev-event-bus
+OUTBOX_QUEUE_URL=https://sqs.ap-northeast-2.amazonaws.com/...
+FILE_BUCKET_NAME=multi-tenant-dev-files
+
+# secret으로 관리해야 하는 값
+JWT_PRIVATE_KEY
+DATABASE_URL
+REDIS_URL
+ERP_API_KEY
+SMTP_PASSWORD</code></pre>
+            </section>
+
+      <section>
+              <h2>환경 변수 검증</h2>
+              <p>NestJS 서비스는 시작 시 환경 변수 schema를 검증합니다. 검증에는 <code>zod</code> 사용을 권장합니다.</p>
+              <pre><code>const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']),
+  APP_ENV: z.enum(['local', 'dev', 'stage', 'prod']),
+  SERVICE_NAME: z.string().min(1),
+  SERVICE_PORT: z.coerce.number().int().positive(),
+  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+});</code></pre>
+            </section>
+
+      <section>
+              <h2>WMS 1차 환경 변수</h2>
+              <p>WMS 1차에서는 아래 변수부터 시작하면 충분합니다. 이후 서비스가 늘어날 때 서비스별 prefix 변수를 추가합니다.</p>
+              <pre><code>NODE_ENV
+APP_ENV
+SERVICE_NAME
+SERVICE_PORT
+LOG_LEVEL
+AWS_REGION
+DATABASE_URL
+REDIS_URL
+TENANT_DB_STRATEGY
+AUTH_IAM_SERVICE_URL
+TENANT_SERVICE_URL
+WMS_DEFAULT_PAGE_SIZE
+WMS_MAX_PAGE_SIZE</code></pre>
+            </section>
+
+      <p class="footer"><a href="../project-rules.html">프로젝트 공통 규칙으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

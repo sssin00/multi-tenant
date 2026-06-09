@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GET /ready - gateway-service API</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+    <style>
+      .endpoint {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 18px;
+      }
+
+      .method {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #ecfdf5;
+        color: var(--green);
+        font-weight: 800;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        line-height: 1.45;
+        white-space: nowrap;
+      }
+
+      .endpoint code {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+
+      details {
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        overflow: hidden;
+      }
+
+      summary {
+        cursor: pointer;
+        padding: 16px 18px;
+        color: var(--primary-dark);
+        font-weight: 800;
+        line-height: 1.6;
+      }
+
+      details[open] summary {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .details-body {
+        padding: 18px;
+        overflow-x: auto;
+      }
+
+      .details-body table {
+        margin-top: 0;
+      }
+
+      .details-body > :first-child {
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">gateway-service API</p>
+        <h1>GET /ready</h1>
+        <p class="lead">
+          gateway-service가 트래픽을 받을 준비 상태인지 확인합니다.
+          설정, JWT 검증 준비 상태, proxy route, rate limit, tenant status, security/CORS 기준을 확인합니다.
+        </p>
+        <div class="endpoint">
+          <span class="method">GET</span>
+          <code>/ready</code>
+          <span class="tag done">READY</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>기본 정보</h2>
+        <table>
+          <tbody>
+            <tr><th>목적</th><td>gateway-service가 요청을 받을 준비 상태인지 확인합니다.</td></tr>
+            <tr><th>인증</th><td>없음. 운영 readiness check 대상이므로 public endpoint로 둡니다.</td></tr>
+            <tr><th>현재 범위</th><td>gateway 설정, JWT verifier 준비 상태, proxy route URL 형식, upstream timeout/retry 설정, rate limit 설정, tenant status 설정, security/CORS 설정을 확인합니다.</td></tr>
+            <tr><th>외부 연결</th><td>현재 readiness는 설정 유효성 기준입니다. Redis나 tenant-service에 실제 ping 요청은 보내지 않습니다.</td></tr>
+            <tr><th>성공 상태</th><td><code>200 OK</code></td></tr>
+            <tr><th>실패 상태</th><td><code>503 Service Unavailable</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>상세</h2>
+
+        <details>
+          <summary>요청</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th>Method</th><td><code>GET</code></td></tr>
+                <tr><th>Path</th><td><code>/ready</code></td></tr>
+                <tr><th>Headers</th><td>필수 header 없음</td></tr>
+                <tr><th>Body</th><td>없음</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>응답</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th><code>status</code></th><td><code>ready</code> 또는 <code>not_ready</code>. gateway-service가 요청을 받을 준비 상태인지 나타냅니다.</td></tr>
+                <tr><th><code>service</code></th><td><code>gateway-service</code>. 응답 주체 서비스명입니다.</td></tr>
+                <tr><th><code>timestamp</code></th><td>응답 생성 시각입니다.</td></tr>
+                <tr><th><code>checks.config</code></th><td><code>GATEWAY_PORT</code>, request context header 설정을 확인합니다.</td></tr>
+                <tr><th><code>checks.jwt</code></th><td><code>JWT_SECRET</code>/<code>JWT_PUBLIC_KEY</code>, <code>JWT_ISSUER</code>, <code>JWT_AUDIENCE</code> 설정을 확인합니다.</td></tr>
+                <tr><th><code>checks.proxyRoutes</code></th><td>Auth/IAM, Admin BFF, User BFF upstream URL이 <code>http</code> 또는 <code>https</code> URL인지, timeout/retry 설정이 유효한지 확인합니다.</td></tr>
+                <tr><th><code>checks.rateLimit</code></th><td>rate limit 활성화 시 <code>REDIS_URL</code>, window seconds, route group별 limit이 유효한지 확인합니다.</td></tr>
+                <tr><th><code>checks.tenantStatus</code></th><td>tenant status check 활성화 시 <code>TENANT_SERVICE_URL</code>, cache TTL, timeout 설정이 유효한지 확인합니다.</td></tr>
+                <tr><th><code>checks.security</code></th><td><code>prod</code> 환경 CORS origin 필수 여부와 wildcard 금지 기준을 확인합니다.</td></tr>
+                <tr><th>실패 응답 포맷</th><td><code>/ready</code> 실패 응답은 공통 error envelope로 감싸지 않고 readiness body를 그대로 반환합니다.</td></tr>
+              </tbody>
+            </table>
+            <pre><code>{
+  "status": "ready",
+  "service": "gateway-service",
+  "timestamp": "2026-06-09T10:00:00.000Z",
+  "checks": {
+    "config": {
+      "status": "ok"
+    },
+    "jwt": {
+      "status": "ok"
+    },
+    "proxyRoutes": {
+      "status": "ok"
+    },
+    "rateLimit": {
+      "status": "ok"
+    },
+    "tenantStatus": {
+      "status": "ok",
+      "message": "Tenant status check is disabled"
+    },
+    "security": {
+      "status": "ok"
+    }
+  }
+}</code></pre>
+            <pre><code>{
+  "status": "not_ready",
+  "service": "gateway-service",
+  "timestamp": "2026-06-09T10:00:00.000Z",
+  "checks": {
+    "config": {
+      "status": "ok"
+    },
+    "jwt": {
+      "status": "failed",
+      "message": "JWT_SECRET is required for HS256"
+    },
+    "proxyRoutes": {
+      "status": "ok"
+    },
+    "rateLimit": {
+      "status": "ok"
+    },
+    "tenantStatus": {
+      "status": "ok"
+    },
+    "security": {
+      "status": "ok"
+    }
+  }
+}</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>운영 메모</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th>ALB health check</th><td>현재 ALB target group health check는 <code>/health</code>를 사용합니다.</td></tr>
+                <tr><th>Readiness 용도</th><td><code>/ready</code>는 배포 후 트래픽 수신 가능 여부를 더 엄격하게 판단하는 endpoint입니다.</td></tr>
+                <tr><th>Rate limit</th><td><code>GATEWAY_RATE_LIMIT_ENABLED=true</code>이면 <code>REDIS_URL</code>이 필요합니다.</td></tr>
+                <tr><th>Tenant status</th><td><code>GATEWAY_TENANT_STATUS_CHECK_ENABLED=true</code>이면 <code>TENANT_SERVICE_URL</code>이 필요합니다.</td></tr>
+                <tr><th>Production CORS</th><td><code>APP_ENV=prod</code>에서는 <code>GATEWAY_CORS_ALLOWED_ORIGINS</code>가 비어 있으면 실패합니다.</td></tr>
+                <tr><th>Wildcard CORS</th><td><code>*</code> origin은 모든 환경에서 readiness 실패로 처리합니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
+      <p class="footer"><a href="./index.html">gateway-service API 목록으로 돌아가기</a> · <a href="../../development/services/gateway-service.html">gateway-service 개발과정으로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

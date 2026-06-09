@@ -1,4 +1,22 @@
+name: gateway-service-local
+
 services:
+  gateway-service:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      args:
+        APP_NAME: gateway-service
+    container_name: multi-tenant-gateway-service
+    env_file:
+      - ../env/gateway-service/.env.local
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+      - localstack
+
   postgres:
     image: postgres:16-alpine
     container_name: multi-tenant-postgres

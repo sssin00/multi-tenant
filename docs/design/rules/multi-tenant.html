@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>멀티테넌트 처리 규칙</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Multi-Tenant</p>
+        <h1>멀티테넌트 처리 규칙</h1>
+        <p class="lead">tenant context, tenant 식별, 내부 전파, tenant 격리 기준을 정리합니다.</p>
+      </header>
+
+      <section>
+              <h2>멀티테넌트 처리 규칙</h2>
+              <p>
+                모든 업무 데이터와 업무 API는 테넌트 경계를 기준으로 격리합니다.
+                초기 구현은 JWT의 <code>tenantId</code>, 선택적 <code>X-Tenant-Id</code>, 테넌트 상태 검증, tenant context 전파부터 시작합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>기본 원칙</th><td>모든 업무 API는 tenant context가 있어야 처리합니다.</td></tr>
+                  <tr><th>예외 API</th><td>로그인, token refresh, health check, public config, tenant bootstrap API는 예외로 둘 수 있습니다.</td></tr>
+                  <tr><th>기준값</th><td>인증된 요청의 기준 테넌트는 JWT의 <code>tenantId</code>입니다.</td></tr>
+                  <tr><th>Header 검증</th><td><code>X-Tenant-Id</code>가 있으면 JWT의 <code>tenantId</code>와 반드시 일치해야 합니다.</td></tr>
+                  <tr><th>Mismatch</th><td>JWT와 header의 tenant가 다르면 <code>403 TENANT_MISMATCH</code>로 거부합니다.</td></tr>
+                  <tr><th>Tenant 상태</th><td><code>active</code> 상태만 업무 API를 허용합니다. <code>suspended</code>, <code>deleted</code>, <code>provisioning</code>은 거부합니다.</td></tr>
+                  <tr><th>Gateway 책임</th><td><code>gateway-service</code>가 tenant context를 확정하고 내부 서비스로 전파합니다.</td></tr>
+                  <tr><th>내부 서비스 책임</th><td>전파된 tenant context를 사용하되, 중요한 업무 처리 전 필요한 권한과 scope를 다시 검증합니다.</td></tr>
+                  <tr><th>데이터 접근</th><td>테넌트 소유 데이터 조회와 변경은 반드시 <code>tenantId</code> 기준으로 제한합니다.</td></tr>
+                  <tr><th>로그/이벤트/감사</th><td>로그, 도메인 이벤트, 감사 로그에는 <code>tenantId</code>와 <code>requestId</code>를 포함합니다.</td></tr>
+                  <tr><th>Redis/S3</th><td>Redis key와 S3 object key에는 tenant 식별자를 포함합니다.</td></tr>
+                  <tr><th>관리자 구분</th><td><code>system_admin</code>과 <code>tenant_admin</code>은 서로 다른 관리자 범위로 분리합니다.</td></tr>
+                  <tr><th>대리 접속</th><td>테넌트 대리 접속은 별도 승인, 감사 로그, 권한 제한 규칙을 만들기 전까지 제공하지 않습니다.</td></tr>
+                  <tr><th>테스트</th><td>tenant 누락, tenant mismatch, 타 테넌트 데이터 접근, 비활성 tenant 접근을 테스트합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>Tenant Context</h2>
+              <p>서비스 내부에서는 아래 형태의 tenant context를 공통 패키지로 전달하는 것을 기본으로 합니다.</p>
+              <pre><code>type TenantContext = {
+  tenantId: string;
+  tenantCode?: string;
+  userId?: string;
+  requestId: string;
+  source: 'jwt' | 'header' | 'subdomain' | 'custom_domain' | 'internal';
+  dbStrategy?: 'shared' | 'schema' | 'database';
+  enabledModules?: string[];
+};</code></pre>
+              <div class="grid two">
+                <div class="card">
+                  <strong>내부 전파 Header</strong>
+                  <p><code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>, <code>X-Internal-Auth</code></p>
+                </div>
+                <div class="card">
+                  <strong>Key 예시</strong>
+                  <p><code>tenant:{tenantId}:config</code>, <code>permission:{tenantId}:{userId}</code>, <code>tenants/{tenantId}/uploads/{yyyy}/{mm}/{fileId}</code></p>
+                </div>
+              </div>
+            </section>
+
+      <p class="footer"><a href="../project-rules.html">프로젝트 공통 규칙으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

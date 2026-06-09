@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>이벤트와 Outbox 규칙</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Events & Outbox</p>
+        <h1>이벤트와 Outbox 규칙</h1>
+        <p class="lead">도메인 이벤트, 1차 이벤트 범위, outbox 발행과 소비 규칙을 정리합니다.</p>
+      </header>
+
+      <section>
+              <h2>이벤트 규칙</h2>
+              <p>
+                이벤트는 이미 발생한 도메인 사실을 표현합니다. 명령이 아니며, 상태 변경이 성공한 뒤 발행 대상으로 기록합니다.
+                서비스 간 직접 호출보다 이벤트 기반 연동이 자연스러운 경우에는 Outbox 패턴을 우선 사용합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>이름 형식</th><td><code>{domain}.{resource}.{pastAction}</code> 형식을 사용합니다. 예: <code>wms.outbound.shipped</code></td></tr>
+                  <tr><th>표현 방식</th><td>이벤트 이름은 과거형으로 작성합니다. 예: <code>created</code>, <code>adjusted</code>, <code>confirmed</code>, <code>allocated</code>, <code>shipped</code></td></tr>
+                  <tr><th>금지</th><td><code>createOutboundOrder</code>, <code>shipOutboundOrder</code>, <code>sendErp</code>처럼 명령형 이름을 사용하지 않습니다.</td></tr>
+                  <tr><th>필수 필드</th><td><code>eventId</code>, <code>eventType</code>, <code>schemaVersion</code>, <code>tenantId</code>, <code>requestId</code>, <code>occurredAt</code>, <code>source</code>, <code>data</code></td></tr>
+                  <tr><th>선택 필드</th><td><code>actor</code>, <code>correlationId</code>, <code>causationId</code>, <code>traceId</code></td></tr>
+                  <tr><th>Payload</th><td>리소스 ID, 상태, 수량, 참조 ID, 변경 요약처럼 소비에 필요한 최소 데이터만 담습니다.</td></tr>
+                  <tr><th>금지 데이터</th><td>민감정보, 토큰, 비밀번호, 전체 사용자 프로필, 전체 권한 목록, 대용량 첨부파일은 이벤트에 넣지 않습니다.</td></tr>
+                </tbody>
+              </table>
+              <pre><code>{
+  "eventId": "evt_01HZABC123",
+  "eventType": "wms.outbound.shipped",
+  "schemaVersion": 1,
+  "tenantId": "tenant_001",
+  "requestId": "req_01HZABC123",
+  "occurredAt": "2026-06-02T01:40:00.000Z",
+  "source": "wms-service",
+  "actor": {
+    "userId": "user_001",
+    "type": "user"
+  },
+  "data": {
+    "outboundOrderId": "out_001",
+    "warehouseId": "wh_001",
+    "status": "shipped"
+  }
+}</code></pre>
+            </section>
+
+      <section>
+              <h2>1차 이벤트 적용 범위</h2>
+              <p>
+                WMS 1차 개발에서는 모든 이벤트를 만들지 않고, 업무 상태 변경이 명확하고 이후 연동 가능성이 높은 이벤트만 먼저 적용합니다.
+                실제 외부 발행보다 <code>outbox_events</code> 저장까지 먼저 구현해도 충분합니다.
+              </p>
+              <div class="grid two">
+                <div class="card">
+                  <strong>1차 필수 이벤트</strong>
+                  <p><code>wms.inventory.adjusted</code>, <code>wms.inbound.confirmed</code>, <code>wms.outbound.allocated</code>, <code>wms.outbound.shipped</code></p>
+                </div>
+                <div class="card">
+                  <strong>1차 구현 범위</strong>
+                  <p><code>packages/events</code> envelope 타입, WMS 이벤트 이름 상수, <code>wms-service</code> outbox 저장, Auth/IAM 변경 outbox 저장, <code>outbox-relay-service</code> 기본 재시도 구조</p>
+                </div>
+                <div class="card">
+                  <strong>Auth/IAM 이벤트</strong>
+                  <p><code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code>, <code>auth.permission.created</code>, <code>auth.role.created</code>, <code>auth.role.updated</code>, <code>auth.role.permissionsReplaced</code>, <code>auth.userRole.assigned</code>, <code>auth.userRole.removed</code></p>
+                </div>
+                <div class="card">
+                  <strong>나중에 추가</strong>
+                  <p><code>wms.item.created</code>, <code>wms.item.updated</code>, <code>wms.inventory.reserved</code>, <code>wms.inventory.released</code>, <code>wms.inbound.created</code>, <code>wms.outbound.created</code>, <code>wms.outbound.cancelled</code></p>
+                </div>
+                <div class="card">
+                  <strong>1차 연동 대상</strong>
+                  <p>감사 로그, 알림, ERP 연동, 분석 집계는 이벤트를 받을 수 있게 설계하되, WMS 첫 구현에서는 직접 완성하지 않아도 됩니다.</p>
+                </div>
+              </div>
+            </section>
+
+      <section>
+              <h2>Outbox 이벤트 발행 규칙</h2>
+              <p>상태 변경과 이벤트 저장은 같은 DB 트랜잭션에서 처리하고, 실제 발행은 <code>outbox-relay-service</code>가 담당합니다.</p>
+              <table>
+                <tbody>
+                  <tr><th>업무 트랜잭션</th><td>도메인 상태 변경, <code>outbox_events</code> 저장, DB commit 순서로 처리합니다.</td></tr>
+                  <tr><th>Relay</th><td><code>outbox-relay-service</code>가 미발행 이벤트를 조회하고 EventBridge 또는 SQS로 발행합니다.</td></tr>
+                  <tr><th>성공 처리</th><td>발행 성공 시 <code>published</code> 상태와 <code>publishedAt</code>을 기록합니다.</td></tr>
+                  <tr><th>실패 처리</th><td>실패 시 <code>retryCount</code>를 증가시키고 재시도합니다. 반복 실패는 DLQ 또는 <code>failed</code> 상태로 분리합니다.</td></tr>
+                </tbody>
+              </table>
+              <pre><code>{
+  "outboxId": "outbox_01HZABC123",
+  "eventId": "evt_01HZABC123",
+  "eventType": "wms.outbound.shipped",
+  "tenantId": "tenant_001",
+  "aggregateType": "outboundOrder",
+  "aggregateId": "out_001",
+  "payload": {},
+  "status": "pending",
+  "retryCount": 0,
+  "createdAt": "2026-06-02T01:40:00.000Z",
+  "publishedAt": null
+}</code></pre>
+            </section>
+
+      <section>
+              <h2>이벤트 소비 규칙</h2>
+              <table>
+                <tbody>
+                  <tr><th>멱등성</th><td>소비자는 <code>eventId</code> 기준으로 중복 처리를 방지합니다.</td></tr>
+                  <tr><th>재시도</th><td>이벤트 처리는 실패 후 재시도 가능해야 합니다.</td></tr>
+                  <tr><th>순서</th><td>순서가 중요한 처리는 <code>aggregateId</code> 기준으로 설계합니다.</td></tr>
+                  <tr><th>서비스 경계</th><td>이벤트 소비자가 다른 서비스의 DB를 직접 수정하지 않습니다.</td></tr>
+                  <tr><th>상세 조회</th><td>이벤트 payload가 부족하면 소비자가 API 또는 projection을 통해 필요한 상세 정보를 조회합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>이벤트 버전과 AWS 라우팅</h2>
+              <table>
+                <tbody>
+                  <tr><th>Schema Version</th><td><code>schemaVersion</code>은 필수입니다.</td></tr>
+                  <tr><th>버전 유지</th><td>필드 추가는 같은 version을 유지할 수 있습니다.</td></tr>
+                  <tr><th>버전 증가</th><td>필드 삭제, 타입 변경, 의미 변경은 version 증가가 필요합니다.</td></tr>
+                  <tr><th>EventBridge</th><td>여러 서비스가 구독하는 도메인 이벤트 라우팅에 사용합니다.</td></tr>
+                  <tr><th>SQS</th><td>특정 작업자가 안정적으로 처리해야 하는 작업, 재시도, DLQ가 중요한 작업에 사용합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <p class="footer"><a href="../project-rules.html">프로젝트 공통 규칙으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

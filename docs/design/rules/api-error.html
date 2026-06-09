@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>API와 에러 코드 규칙</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">API & Error</p>
+        <h1>API와 에러 코드 규칙</h1>
+        <p class="lead">API URL, 요청/응답 envelope, error code, HTTP status 매핑을 정리합니다.</p>
+      </header>
+
+      <section>
+              <h2>API 규칙</h2>
+              <table>
+                <tbody>
+                  <tr><th>기본 구조</th><td><code>/api/v1/{surface}/{domain}/{resource}</code> 형식을 사용합니다.</td></tr>
+                  <tr><th>버전 위치</th><td>API 버전은 <code>/api</code> 바로 뒤에 둡니다. 예: <code>/api/v1/app/wms/items</code></td></tr>
+                  <tr><th>기본 원칙</th><td>URL은 명사 중심, 리소스는 복수형, 단어는 <code>kebab-case</code>를 사용합니다.</td></tr>
+                  <tr><th>좋은 예</th><td><code>GET /api/v1/admin/tenants</code>, <code>POST /api/v1/app/wms/outbound-orders</code></td></tr>
+                  <tr><th>피할 예</th><td><code>POST /createOutboundOrder</code>, <code>POST /adjustInventory</code></td></tr>
+                </tbody>
+              </table>
+              <div class="grid two">
+                <div class="card">
+                  <strong>버전을 올리는 경우</strong>
+                  <p>응답 필드 삭제, 필드 타입 변경, 필수 요청값 추가, URL 구조 변경, 인증 방식 변경처럼 기존 클라이언트가 깨지는 변경입니다.</p>
+                </div>
+                <div class="card">
+                  <strong>버전을 올리지 않는 경우</strong>
+                  <p>응답 필드 추가, optional query 추가, 새 endpoint 추가, 내부 로직 개선, 성능 개선, 버그 수정입니다.</p>
+                </div>
+              </div>
+            </section>
+
+      <section>
+              <h2>요청/응답 규칙</h2>
+              <table>
+                <tbody>
+                  <tr><th>Body 형식</th><td>요청과 응답 body는 JSON을 기본으로 사용합니다.</td></tr>
+                  <tr><th>JSON Key</th><td>요청 body, 응답 body, query parameter는 <code>camelCase</code>를 사용합니다.</td></tr>
+                  <tr><th>날짜/시간</th><td>날짜/시간은 ISO 8601 UTC 문자열을 사용합니다. 예: <code>2026-06-01T10:00:00.000Z</code></td></tr>
+                  <tr><th>Header</th><td><code>Authorization</code>, <code>Content-Type</code>, <code>Accept</code>, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>를 표준으로 사용합니다.</td></tr>
+                  <tr><th>Idempotency</th><td>중복 실행 위험이 있는 POST는 <code>Idempotency-Key</code> header를 사용합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>성공 응답 형식</h2>
+              <p><code>meta</code> 필드는 사용하지 않고, 공통 응답 필드는 top-level에 둡니다.</p>
+              <pre><code>{
+  "success": true,
+  "requestId": "req_01HZ...",
+  "timestamp": "2026-06-01T10:00:00.000Z",
+  "data": {}
+}</code></pre>
+              <div class="grid two">
+                <div class="card">
+                  <strong>단건 응답</strong>
+                  <p><code>data</code>는 객체 또는 <code>null</code>입니다.</p>
+                </div>
+                <div class="card">
+                  <strong>삭제 응답</strong>
+                  <p>삭제도 envelope를 유지하고 <code>data</code>는 <code>null</code>로 둡니다.</p>
+                </div>
+              </div>
+            </section>
+
+      <section>
+              <h2>목록 응답 형식</h2>
+              <p>복수 데이터의 <code>data</code>는 <code>items</code>, <code>page</code>, <code>size</code>, <code>total</code>만 사용합니다.</p>
+              <pre><code>{
+  "success": true,
+  "requestId": "req_01HZ...",
+  "timestamp": "2026-06-01T10:00:00.000Z",
+  "data": {
+    "items": [],
+    "page": 1,
+    "size": 20,
+    "total": 152
+  }
+}</code></pre>
+              <table>
+                <tbody>
+                  <tr><th><code>items</code></th><td>현재 페이지의 데이터 배열입니다.</td></tr>
+                  <tr><th><code>page</code></th><td>현재 페이지 번호입니다. 1부터 시작합니다.</td></tr>
+                  <tr><th><code>size</code></th><td>요청한 페이지 크기입니다. 기본값은 20, 최대값은 100을 권장합니다.</td></tr>
+                  <tr><th><code>total</code></th><td>필터 조건에 맞는 전체 item 개수입니다. <code>totalPages</code>는 내려주지 않습니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>에러 응답 형식</h2>
+              <pre><code>{
+  "success": false,
+  "requestId": "req_01HZ...",
+  "timestamp": "2026-06-01T10:00:00.000Z",
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Validation failed",
+    "details": {}
+  }
+}</code></pre>
+              <table>
+                <tbody>
+                  <tr><th>Error Code</th><td><code>UPPER_SNAKE_CASE</code>를 사용합니다. 예: <code>TENANT_NOT_FOUND</code>, <code>VALIDATION_FAILED</code></td></tr>
+                  <tr><th>Validation Error</th><td><code>error.details.fields</code> 배열에 필드별 오류를 담습니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>에러 코드 체계</h2>
+              <p>
+                에러 코드는 클라이언트 분기와 운영 추적을 위한 안정적인 식별자입니다.
+                화면 문구는 <code>message</code>가 아니라 <code>error.code</code>를 기준으로 별도 처리합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>네이밍</th><td><code>UPPER_SNAKE_CASE</code>를 사용합니다.</td></tr>
+                  <tr><th>기본 구조</th><td>공통 에러는 짧게, 도메인 에러는 <code>{DOMAIN}_{RESOURCE}_{REASON}</code> 형태를 우선 사용합니다.</td></tr>
+                  <tr><th>분기 기준</th><td>프론트엔드와 BFF는 <code>message</code>가 아니라 <code>error.code</code>로 분기합니다.</td></tr>
+                  <tr><th>Message</th><td>기본 설명용입니다. 다국어 사용자 문구는 프론트엔드 또는 별도 message catalog에서 처리합니다.</td></tr>
+                  <tr><th>Details</th><td>검증 실패 필드, 업무 처리 힌트, 외부 시스템 참조값만 넣고 민감정보는 넣지 않습니다.</td></tr>
+                  <tr><th>보안</th><td>내부 예외 메시지, SQL, stack trace는 API 응답에 노출하지 않습니다.</td></tr>
+                  <tr><th>로그</th><td>모든 에러 로그에는 <code>requestId</code>, <code>tenantId</code>, <code>userId</code>, <code>error.code</code>를 남깁니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>HTTP Status 매핑</h2>
+              <table>
+                <tbody>
+                  <tr><th>400</th><td>요청값 오류. 예: <code>INVALID_REQUEST</code>, <code>VALIDATION_FAILED</code></td></tr>
+                  <tr><th>401</th><td>인증 실패. 예: <code>UNAUTHORIZED</code>, <code>AUTH_INVALID_TOKEN</code>, <code>AUTH_TOKEN_EXPIRED</code></td></tr>
+                  <tr><th>403</th><td>권한 또는 테넌트 접근 불가. 예: <code>FORBIDDEN</code>, <code>PERMISSION_DENIED</code>, <code>TENANT_MISMATCH</code>, <code>TENANT_SUSPENDED</code></td></tr>
+                  <tr><th>404</th><td>리소스 없음. 예: <code>NOT_FOUND</code>, <code>TENANT_NOT_FOUND</code>, <code>WMS_ITEM_NOT_FOUND</code></td></tr>
+                  <tr><th>409</th><td>중복 또는 상태 충돌. 예: <code>CONFLICT</code>, <code>DUPLICATE_RESOURCE</code>, <code>WMS_STOCK_ALREADY_ALLOCATED</code></td></tr>
+                  <tr><th>422</th><td>업무 규칙 위반. 예: <code>BUSINESS_RULE_VIOLATION</code>, <code>WMS_INSUFFICIENT_STOCK</code></td></tr>
+                  <tr><th>429</th><td>요청 제한. 예: <code>RATE_LIMIT_EXCEEDED</code></td></tr>
+                  <tr><th>500</th><td>서버 내부 오류. 예: <code>INTERNAL_SERVER_ERROR</code></td></tr>
+                  <tr><th>503</th><td>서비스 준비 안 됨 또는 외부 장애. 예: <code>SERVICE_UNAVAILABLE</code>, <code>TENANT_NOT_READY</code></td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>초기 에러 코드 목록</h2>
+              <div class="grid two">
+                <div class="card">
+                  <strong>공통</strong>
+                  <p><code>INVALID_REQUEST</code>, <code>VALIDATION_FAILED</code>, <code>UNAUTHORIZED</code>, <code>FORBIDDEN</code>, <code>NOT_FOUND</code>, <code>CONFLICT</code>, <code>BUSINESS_RULE_VIOLATION</code>, <code>RATE_LIMIT_EXCEEDED</code>, <code>INTERNAL_SERVER_ERROR</code>, <code>SERVICE_UNAVAILABLE</code></p>
+                </div>
+                <div class="card">
+                  <strong>인증/인가</strong>
+                  <p><code>AUTH_INVALID_TOKEN</code>, <code>AUTH_TOKEN_EXPIRED</code>, <code>AUTH_REFRESH_TOKEN_EXPIRED</code>, <code>AUTH_INVALID_CREDENTIALS</code>, <code>AUTH_ACCOUNT_LOCKED</code>, <code>PERMISSION_DENIED</code></p>
+                </div>
+                <div class="card">
+                  <strong>테넌트</strong>
+                  <p><code>TENANT_REQUIRED</code>, <code>TENANT_NOT_FOUND</code>, <code>TENANT_MISMATCH</code>, <code>TENANT_SUSPENDED</code>, <code>TENANT_DELETED</code>, <code>TENANT_NOT_READY</code></p>
+                </div>
+                <div class="card">
+                  <strong>WMS</strong>
+                  <p><code>WMS_ITEM_NOT_FOUND</code>, <code>WMS_WAREHOUSE_NOT_FOUND</code>, <code>WMS_LOCATION_NOT_FOUND</code>, <code>WMS_INVENTORY_NOT_FOUND</code>, <code>WMS_INSUFFICIENT_STOCK</code>, <code>WMS_STOCK_ALREADY_ALLOCATED</code>, <code>WMS_INBOUND_ORDER_NOT_FOUND</code>, <code>WMS_OUTBOUND_ORDER_NOT_FOUND</code>, <code>WMS_OUTBOUND_ALREADY_SHIPPED</code></p>
+                </div>
+              </div>
+            </section>
+
+      <section>
+              <h2>에러 응답 예시</h2>
+              <div class="grid two">
+                <div class="card">
+                  <strong>요청값 검증 실패</strong>
+                  <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC123",
+  "timestamp": "2026-06-02T01:20:00.000Z",
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Validation failed",
+    "details": {
+      "fields": [
+        { "name": "warehouseId", "reason": "warehouseId is required" },
+        { "name": "quantity", "reason": "quantity must be greater than 0" }
+      ]
+    }
+  }
+}</code></pre>
+                </div>
+                <div class="card">
+                  <strong>토큰 만료</strong>
+                  <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC124",
+  "timestamp": "2026-06-02T01:21:00.000Z",
+  "error": {
+    "code": "AUTH_TOKEN_EXPIRED",
+    "message": "Access token expired",
+    "details": {}
+  }
+}</code></pre>
+                </div>
+                <div class="card">
+                  <strong>테넌트 불일치</strong>
+                  <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC125",
+  "timestamp": "2026-06-02T01:22:00.000Z",
+  "error": {
+    "code": "TENANT_MISMATCH",
+    "message": "Tenant mismatch",
+    "details": {
+      "source": "jwt_header"
+    }
+  }
+}</code></pre>
+                </div>
+                <div class="card">
+                  <strong>재고 부족</strong>
+                  <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC126",
+  "timestamp": "2026-06-02T01:23:00.000Z",
+  "error": {
+    "code": "WMS_INSUFFICIENT_STOCK",
+    "message": "Insufficient stock",
+    "details": {
+      "itemId": "item_001",
+      "warehouseId": "wh_001",
+      "requestedQuantity": 100,
+      "availableQuantity": 25
+    }
+  }
+}</code></pre>
+                </div>
+                <div class="card">
+                  <strong>이미 출고된 주문</strong>
+                  <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC127",
+  "timestamp": "2026-06-02T01:24:00.000Z",
+  "error": {
+    "code": "WMS_OUTBOUND_ALREADY_SHIPPED",
+    "message": "Outbound order already shipped",
+    "details": {
+      "outboundOrderId": "out_001",
+      "currentStatus": "shipped"
+    }
+  }
+}</code></pre>
+                </div>
+                <div class="card">
+                  <strong>외부 ERP 연동 실패</strong>
+                  <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC128",
+  "timestamp": "2026-06-02T01:25:00.000Z",
+  "error": {
+    "code": "ERP_INTEGRATION_FAILED",
+    "message": "ERP integration failed",
+    "details": {
+      "system": "external_erp",
+      "operation": "syncOutboundOrder"
+    }
+  }
+}</code></pre>
+                </div>
+              </div>
+            </section>
+
+      <p class="footer"><a href="../project-rules.html">프로젝트 공통 규칙으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

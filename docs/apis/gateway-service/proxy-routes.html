@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Proxy Routes - gateway-service API</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+    <style>
+      .endpoint {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 18px;
+      }
+
+      .method {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #edf4f7;
+        color: var(--primary);
+        font-weight: 800;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        line-height: 1.45;
+        white-space: nowrap;
+      }
+
+      .endpoint code {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+
+      details {
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        overflow: hidden;
+      }
+
+      summary {
+        cursor: pointer;
+        padding: 16px 18px;
+        color: var(--primary-dark);
+        font-weight: 800;
+        line-height: 1.6;
+      }
+
+      details[open] summary {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .details-body {
+        padding: 18px;
+        overflow-x: auto;
+      }
+
+      .details-body table {
+        margin-top: 0;
+      }
+
+      .details-body > :first-child {
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">gateway-service API</p>
+        <h1>Proxy Routes</h1>
+        <p class="lead">인증된 <code>/api/v1/**</code> 요청에 request context를 붙이고 내부 서비스로 전달합니다.</p>
+        <div class="endpoint">
+          <span class="method">ANY</span>
+          <code>/api/v1/auth/**</code>
+          <code>/api/v1/admin/**</code>
+          <code>/api/v1/app/**</code>
+          <span class="tag done">ACTIVE</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>기본 정보</h2>
+        <table>
+          <tbody>
+            <tr><th>인증</th><td>필수. <code>Authorization: Bearer {token}</code>이 필요합니다.</td></tr>
+            <tr><th>Public 예외</th><td><code>/health</code>, <code>/ready</code>만 public입니다.</td></tr>
+            <tr><th>Tenant</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 차단합니다.</td></tr>
+            <tr><th>JWT Claim</th><td><code>sub</code>, <code>tenantId</code>만 request context에 반영합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</td></tr>
+            <tr><th>JWT Signature</th><td><code>HS256</code>, <code>RS256</code> 서명 검증을 지원합니다. 로컬 기본값은 <code>HS256</code>입니다.</td></tr>
+            <tr><th>JWT Issuer/Audience</th><td><code>iss</code>는 <code>JWT_ISSUER</code>, <code>aud</code>는 <code>JWT_AUDIENCE</code>와 일치해야 합니다.</td></tr>
+            <tr><th>Tenant Status</th><td>기능 활성화 시 tenant status API와 Redis cache로 active tenant만 통과시킵니다.</td></tr>
+            <tr><th>Security Headers</th><td>gateway-service가 공통 보안 header를 모든 응답에 추가합니다.</td></tr>
+            <tr><th>CORS</th><td>운영 환경에서는 명시된 origin만 허용하고 wildcard origin을 사용하지 않습니다.</td></tr>
+            <tr><th>Timeout</th><td>Auth upstream은 기본 <code>3000ms</code>, Admin/App upstream은 기본 <code>5000ms</code>까지 기다립니다.</td></tr>
+            <tr><th>Retry</th><td><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout, network error, <code>502</code>, <code>503</code>, <code>504</code>에 대해 기본 1회 재시도합니다.</td></tr>
+            <tr><th>Rate Limit</th><td>Redis fixed window 방식으로 route group별 요청 수를 제한합니다.</td></tr>
+            <tr><th>Body</th><td><code>GET</code>, <code>HEAD</code>를 제외한 요청 body는 upstream으로 전달합니다.</td></tr>
+            <tr><th>Upstream 응답</th><td>upstream status, body, header를 전달하되 hop-by-hop header는 제외합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>상세</h2>
+
+        <details>
+          <summary>라우팅 맵</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th><code>/api/v1/auth/**</code></th><td><code>AUTH_IAM_SERVICE_URL</code>로 전달합니다.</td></tr>
+                <tr><th><code>/api/v1/admin/**</code></th><td><code>ADMIN_BFF_SERVICE_URL</code>로 전달합니다.</td></tr>
+                <tr><th><code>/api/v1/app/**</code></th><td><code>USER_BFF_SERVICE_URL</code>로 전달합니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>Security Headers와 CORS</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th><code>GATEWAY_SECURITY_HEADERS_ENABLED</code></th><td>보안 header 적용 여부입니다. 기본값은 <code>true</code>입니다.</td></tr>
+                <tr><th>보안 Header</th><td><code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code>, <code>X-Permitted-Cross-Domain-Policies</code>, <code>Permissions-Policy</code>, <code>Content-Security-Policy</code>, <code>Cross-Origin-Opener-Policy</code>, <code>Cross-Origin-Resource-Policy</code>를 적용합니다.</td></tr>
+                <tr><th>HSTS</th><td>요청이 HTTPS로 들어온 경우 <code>Strict-Transport-Security</code>를 추가합니다.</td></tr>
+                <tr><th><code>GATEWAY_CORS_ALLOWED_ORIGINS</code></th><td>쉼표로 구분한 허용 origin 목록입니다. 운영에서는 명시 origin만 허용합니다.</td></tr>
+                <tr><th><code>GATEWAY_CORS_ALLOWED_METHODS</code></th><td>기본값은 <code>GET,POST,PUT,PATCH,DELETE,OPTIONS</code>입니다.</td></tr>
+                <tr><th><code>GATEWAY_CORS_ALLOWED_HEADERS</code></th><td><code>Authorization</code>, <code>Content-Type</code>, <code>Accept</code>, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>Idempotency-Key</code>를 허용합니다.</td></tr>
+                <tr><th><code>GATEWAY_CORS_EXPOSED_HEADERS</code></th><td><code>X-Request-Id</code>, <code>X-Tenant-Id</code>, rate limit headers를 노출합니다.</td></tr>
+                <tr><th>Wildcard</th><td><code>*</code> origin은 readiness check에서 실패 처리합니다.</td></tr>
+                <tr><th>비활성화</th><td><code>GATEWAY_SECURITY_HEADERS_ENABLED=false</code>이면 gateway-service가 보안 header를 추가하지 않습니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>Tenant Status Check</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th><code>GATEWAY_TENANT_STATUS_CHECK_ENABLED</code></th><td>tenant status check 활성화 여부입니다. tenant-service 준비 전까지 기본값은 <code>false</code>입니다.</td></tr>
+                <tr><th><code>TENANT_SERVICE_URL</code></th><td>tenant 상태를 조회할 내부 서비스 URL입니다.</td></tr>
+                <tr><th>조회 Endpoint</th><td><code>GET /internal/tenants/{tenantId}/status</code></td></tr>
+                <tr><th>조회 Header</th><td><code>Accept: application/json</code></td></tr>
+                <tr><th>Cache key</th><td><code>tenant-status:{env}:{tenantId}</code></td></tr>
+                <tr><th>Cache TTL</th><td><code>GATEWAY_TENANT_STATUS_CACHE_TTL_SECONDS</code>. 기본값은 <code>30</code>초입니다.</td></tr>
+                <tr><th>Timeout</th><td><code>GATEWAY_TENANT_STATUS_TIMEOUT_MS</code>. 기본값은 <code>1000</code>ms입니다.</td></tr>
+                <tr><th>통과 상태</th><td><code>active</code></td></tr>
+                <tr><th>차단 상태</th><td><code>inactive</code>, <code>suspended</code>, <code>deleted</code>는 <code>403 TENANT_NOT_READY</code>로 차단합니다.</td></tr>
+                <tr><th>Tenant 누락</th><td>private 업무 API에서 tenant context가 없으면 <code>403 TENANT_REQUIRED</code>로 차단합니다.</td></tr>
+                <tr><th>조회 실패</th><td>tenant status 조회 실패는 <code>503 TENANT_STATUS_UNAVAILABLE</code>로 응답합니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>Redis Rate Limit</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th>저장소</th><td>로컬 Docker 환경은 compose Redis를 사용하고, AWS 배포 환경은 ElastiCache Redis를 사용합니다.</td></tr>
+                <tr><th><code>REDIS_URL</code></th><td>gateway-service가 rate limit 저장소로 연결할 Redis URL입니다. ECS 배포에서는 CDK가 ElastiCache endpoint로 주입합니다.</td></tr>
+                <tr><th>Algorithm</th><td><code>INCR</code>와 <code>EXPIRE</code>를 사용하는 60초 fixed window 방식입니다.</td></tr>
+                <tr><th>Route group</th><td><code>/api/v1/auth/**</code>는 <code>auth</code>, <code>/api/v1/admin/**</code>는 <code>admin</code>, <code>/api/v1/app/**</code>는 <code>app</code>입니다.</td></tr>
+                <tr><th>인증 후 Key</th><td><code>rate-limit:{env}:gateway:{tenantId}:{userId}:{routeGroup}</code></td></tr>
+                <tr><th>인증 전 Key</th><td><code>rate-limit:{env}:gateway:anonymous:{ip}:{routeGroup}</code></td></tr>
+                <tr><th><code>auth</code></th><td>기본 <code>60 requests / 60 seconds</code></td></tr>
+                <tr><th><code>admin</code></th><td>기본 <code>300 requests / 60 seconds</code></td></tr>
+                <tr><th><code>app</code></th><td>기본 <code>600 requests / 60 seconds</code></td></tr>
+                <tr><th>초과 응답</th><td><code>429 RATE_LIMIT_EXCEEDED</code></td></tr>
+                <tr><th>Redis 장애</th><td><code>503 RATE_LIMIT_UNAVAILABLE</code></td></tr>
+                <tr><th>응답 Header</th><td><code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code></td></tr>
+                <tr><th>비활성화</th><td><code>GATEWAY_RATE_LIMIT_ENABLED=false</code>이면 rate limit check와 rate limit header를 적용하지 않습니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>Timeout과 Retry</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th><code>GATEWAY_AUTH_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/v1/auth/**</code> upstream timeout입니다. 기본값은 <code>3000</code>입니다.</td></tr>
+                <tr><th><code>GATEWAY_ADMIN_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/v1/admin/**</code> upstream timeout입니다. 기본값은 <code>5000</code>입니다.</td></tr>
+                <tr><th><code>GATEWAY_APP_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/v1/app/**</code> upstream timeout입니다. 기본값은 <code>5000</code>입니다.</td></tr>
+                <tr><th><code>GATEWAY_SAFE_METHOD_RETRIES</code></th><td>safe method 재시도 횟수입니다. 기본값은 <code>1</code>입니다.</td></tr>
+                <tr><th>Retry method</th><td><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 재시도합니다.</td></tr>
+                <tr><th>Retry condition</th><td>network error, timeout, upstream <code>502</code>, <code>503</code>, <code>504</code> 응답입니다.</td></tr>
+                <tr><th>Timeout 실패 응답</th><td>최종 timeout은 <code>504 GATEWAY_TIMEOUT</code>으로 응답합니다.</td></tr>
+                <tr><th>연결 실패 응답</th><td>최종 network error는 <code>503 UPSTREAM_UNAVAILABLE</code>로 응답합니다.</td></tr>
+                <tr><th>쓰기 요청</th><td><code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>는 중복 실행 위험 때문에 재시도하지 않습니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>전파 Header</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th><code>X-Request-Id</code></th><td>요청에 없으면 gateway-service가 생성하고 응답과 upstream 요청에 전파합니다.</td></tr>
+                <tr><th><code>X-Tenant-Id</code></th><td>JWT <code>tenantId</code>를 기준으로 upstream 요청에 전파합니다.</td></tr>
+                <tr><th><code>X-User-Id</code></th><td>JWT <code>sub</code>를 기준으로 upstream 요청에 전파합니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>Upstream 응답 전달</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th>Status</th><td>upstream HTTP status를 gateway 응답 status로 그대로 사용합니다.</td></tr>
+                <tr><th>Body</th><td>upstream response body를 Buffer로 읽어 그대로 반환합니다.</td></tr>
+                <tr><th>Header</th><td>upstream response header를 전달합니다.</td></tr>
+                <tr><th>제외 Header</th><td><code>connection</code>, <code>content-length</code>, <code>expect</code>, <code>host</code>, <code>keep-alive</code>, <code>proxy-authenticate</code>, <code>proxy-authorization</code>, <code>te</code>, <code>trailer</code>, <code>transfer-encoding</code>, <code>upgrade</code>는 전달하지 않습니다.</td></tr>
+                <tr><th>Redirect</th><td>upstream redirect는 gateway가 자동으로 따라가지 않고 <code>manual</code> 방식으로 처리합니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>JWT 서명 검증</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th><code>JWT_ALGORITHM=HS256</code></th><td><code>JWT_SECRET</code>으로 HMAC SHA-256 서명을 검증합니다.</td></tr>
+                <tr><th><code>JWT_ALGORITHM=RS256</code></th><td><code>JWT_PUBLIC_KEY</code>로 RSA SHA-256 서명을 검증합니다.</td></tr>
+                <tr><th><code>JWT_ISSUER</code></th><td>토큰의 <code>iss</code> claim과 일치해야 합니다.</td></tr>
+                <tr><th><code>JWT_AUDIENCE</code></th><td>토큰의 <code>aud</code> claim과 일치해야 합니다. <code>aud</code>가 배열이면 값 중 하나가 일치해야 합니다.</td></tr>
+                <tr><th>실패 응답</th><td>서명, algorithm, issuer, audience가 맞지 않으면 <code>401 AUTH_INVALID_TOKEN</code>으로 응답합니다.</td></tr>
+                <tr><th>Claim 반영</th><td>검증 후 <code>sub</code>, <code>tenantId</code>만 request context에 반영합니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>요청 Body 전달</summary>
+          <div class="details-body">
+            <table>
+              <tbody>
+                <tr><th>대상 Method</th><td><code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code> 등 body를 가질 수 있는 요청입니다.</td></tr>
+                <tr><th>전달 방식</th><td>gateway-service가 원본 request stream을 upstream으로 전달합니다.</td></tr>
+                <tr><th>제외 Method</th><td><code>GET</code>, <code>HEAD</code> 요청에는 body를 전달하지 않습니다.</td></tr>
+                <tr><th>주의</th><td>gateway-service는 도메인 payload를 해석하지 않습니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>에러 응답 예시</summary>
+          <div class="details-body">
+            <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC123",
+  "timestamp": "2026-06-08T05:38:37.422Z",
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Missing bearer token",
+    "details": {}
+  }
+}</code></pre>
+            <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC124",
+  "timestamp": "2026-06-08T05:38:38.000Z",
+  "error": {
+    "code": "TENANT_MISMATCH",
+    "message": "Tenant mismatch",
+    "details": {
+      "source": "jwt_header"
+    }
+  }
+}</code></pre>
+            <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC125",
+  "timestamp": "2026-06-09T10:00:00.000Z",
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Rate limit exceeded",
+    "details": {
+      "routeGroup": "app",
+      "limit": 600,
+      "windowSeconds": 60,
+      "resetAt": 1760000000
+    }
+  }
+}</code></pre>
+            <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC126",
+  "timestamp": "2026-06-09T10:00:01.000Z",
+  "error": {
+    "code": "GATEWAY_TIMEOUT",
+    "message": "Upstream request timed out",
+    "details": {
+      "route": "app",
+      "upstreamUrl": "http://user-bff-service:3000",
+      "timeoutMs": 5000
+    }
+  }
+}</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <p class="footer"><a href="./index.html">gateway-service API 목록으로 돌아가기</a> · <a href="../../development/services/gateway-service.html">gateway-service 개발과정으로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

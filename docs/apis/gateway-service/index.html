@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>gateway-service API 문서</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+    <style>
+      .api-summary {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 14px;
+        align-items: start;
+        margin-top: 18px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .api-summary:hover {
+        border-color: var(--primary);
+      }
+
+      .method {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #ecfdf5;
+        color: var(--green);
+        font-weight: 800;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        line-height: 1.45;
+        white-space: nowrap;
+      }
+
+      .api-summary h2 {
+        font-size: 20px;
+      }
+
+      .api-summary p {
+        margin-top: 4px;
+        line-height: 1.75;
+      }
+
+      .api-summary .tag {
+        justify-self: end;
+      }
+
+      @media (max-width: 900px) {
+        .api-summary {
+          grid-template-columns: 1fr;
+        }
+
+        .api-summary .tag {
+          justify-self: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">API Docs</p>
+        <h1>gateway-service API 문서</h1>
+        <p class="lead">gateway-service에 추가되는 API를 누적 기록합니다. 목록에는 기본 정보만 두고, 상세는 각 API 문서에서 펼쳐 확인합니다.</p>
+      </header>
+
+      <section>
+        <h2>API 목록</h2>
+        <a class="api-summary" href="./get-health.html">
+          <span class="method">GET</span>
+          <div>
+            <h2>/health</h2>
+            <p>gateway-service 프로세스 생존 확인용 API입니다.</p>
+          </div>
+          <span class="tag done">ACTIVE</span>
+        </a>
+        <a class="api-summary" href="./get-ready.html">
+          <span class="method">GET</span>
+          <div>
+            <h2>/ready</h2>
+            <p>설정, JWT, proxy route, rate limit, tenant status, security/CORS 기준을 확인하는 readiness API입니다.</p>
+          </div>
+          <span class="tag done">READY</span>
+        </a>
+        <a class="api-summary" href="./proxy-routes.html">
+          <span class="method">ANY</span>
+          <div>
+            <h2>/api/v1/{surface}/**</h2>
+            <p>JWT, tenant status, rate limit을 통과한 업무 API 요청을 내부 서비스로 전달합니다.</p>
+          </div>
+          <span class="tag done">ACTIVE</span>
+        </a>
+      </section>
+
+      <p class="footer"><a href="../index.html">API 문서 허브로 돌아가기</a> · <a href="../../development/services/gateway-service.html">gateway-service 개발과정으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

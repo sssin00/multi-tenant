@@ -4,6 +4,7 @@ build/
 coverage/
 .turbo/
 .pnpm-store/
+apps/*/src/generated/
 
 .env
 .env.*

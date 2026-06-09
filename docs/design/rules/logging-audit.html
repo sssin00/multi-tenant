@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>시스템 로그와 감사 로그 규칙</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Logging & Audit</p>
+        <h1>시스템 로그와 감사 로그 규칙</h1>
+        <p class="lead">시스템 로그, 감사 로그, 로그 보안 기준을 분리해 정리합니다.</p>
+      </header>
+
+      <section>
+              <h2>시스템 로그와 감사 로그 분리</h2>
+              <p>
+                시스템 로그는 장애 분석과 운영 모니터링을 위한 기록이고, 감사 로그는 사용자와 관리자의 업무 행위를 증명하기 위한 기록입니다.
+                두 로그는 목적, 저장소, 보존 정책을 분리합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>시스템 로그</th><td>요청, 에러, 성능, 외부 연동, 내부 처리 상태를 기록합니다. 기본 저장소는 CloudWatch Logs입니다.</td></tr>
+                  <tr><th>감사 로그</th><td>누가, 언제, 어떤 리소스에 어떤 행위를 했는지 기록합니다. 별도 audit 저장소에 append-only로 저장합니다.</td></tr>
+                  <tr><th>분리 기준</th><td>장애 원인을 찾기 위한 기록이면 시스템 로그, 행위 책임을 증명해야 하는 기록이면 감사 로그입니다.</td></tr>
+                  <tr><th>연결 기준</th><td>시스템 로그와 감사 로그는 동일한 <code>requestId</code>로 연결할 수 있어야 합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
+              <h2>시스템 로그 규칙</h2>
+              <p>시스템 로그는 JSON 구조화 로그로 남기고, 서비스 운영과 장애 분석에 필요한 정보만 포함합니다.</p>
+              <table>
+                <tbody>
+                  <tr><th>공통 필드</th><td><code>timestamp</code>, <code>level</code>, <code>service</code>, <code>env</code>, <code>requestId</code>, <code>tenantId</code>, <code>userId</code>, <code>message</code></td></tr>
+                  <tr><th>요청 로그</th><td><code>method</code>, <code>path</code>, <code>statusCode</code>, <code>durationMs</code>를 포함합니다.</td></tr>
+                  <tr><th>에러 로그</th><td><code>errorCode</code>, <code>operation</code>, <code>resourceType</code>, <code>resourceId</code>를 가능한 범위에서 포함합니다.</td></tr>
+                  <tr><th>Trace</th><td>OpenTelemetry 또는 X-Ray 사용 시 <code>traceId</code>, <code>spanId</code>를 포함합니다.</td></tr>
+                  <tr><th>저장소</th><td>초기에는 서비스별 CloudWatch Logs log group으로 분리합니다.</td></tr>
+                </tbody>
+              </table>
+              <pre><code>{
+  "timestamp": "2026-06-02T01:31:00.000Z",
+  "level": "info",
+  "service": "gateway-service",
+  "env": "dev",
+  "requestId": "req_01HZABC123",
+  "tenantId": "tenant_001",
+  "userId": "user_001",
+  "method": "POST",
+  "path": "/api/v1/app/wms/outbound-orders",
+  "statusCode": 201,
+  "durationMs": 82,
+  "message": "Request completed"
+}</code></pre>
+            </section>
+
+      <section>
+              <h2>감사 로그 규칙</h2>
+              <p>
+                감사 로그는 업무 행위 추적용입니다. 수정과 삭제를 허용하지 않는 append-only 원칙을 따르고,
+                관리자 화면에서 tenant, actor, action, 기간 기준으로 조회할 수 있게 설계합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>공통 필드</th><td><code>auditId</code>, <code>occurredAt</code>, <code>tenantId</code>, <code>actor</code>, <code>action</code>, <code>resource</code>, <code>result</code>, <code>requestId</code></td></tr>
+                  <tr><th>선택 필드</th><td><code>reason</code>, <code>changes</code>, <code>sourceIp</code>, <code>userAgent</code>를 필요한 경우 포함합니다.</td></tr>
+                  <tr><th>기록 대상</th><td>권한 변경, 테넌트 설정 변경, 사용자 변경, 재고 조정, 입고 확정, 출고 할당, 출고 확정, ERP 수동 재시도 같은 업무 행위입니다.</td></tr>
+                  <tr><th>기본 제외</th><td>목록 조회, 단순 상세 조회, 검색, 화면 진입, health check, 내부 polling은 기본적으로 감사 로그 대상이 아닙니다.</td></tr>
+                  <tr><th>민감 조회</th><td>개인정보 상세 조회, 권한 목록 조회, 시스템 관리자 화면 접근, VIP 테넌트 데이터 접근은 감사 로그 대상으로 둘 수 있습니다.</td></tr>
+                  <tr><th>초기 구현</th><td>WMS 초기에는 <code>wms-service</code> 내부 audit module과 <code>audit_logs</code> 저장소로 시작하고, 서비스가 늘어나면 <code>audit-log-service</code>로 분리합니다.</td></tr>
+                </tbody>
+              </table>
+              <pre><code>{
+  "auditId": "aud_01HZABC123",
+  "occurredAt": "2026-06-02T01:35:00.000Z",
+  "tenantId": "tenant_001",
+  "actor": {
+    "userId": "user_001",
+    "type": "user"
+  },
+  "action": "wms.outbound.ship.confirmed",
+  "resource": {
+    "type": "outboundOrder",
+    "id": "out_001"
+  },
+  "result": "success",
+  "requestId": "req_01HZABC123",
+  "reason": "출고 확정",
+  "changes": {
+    "before": { "status": "allocated" },
+    "after": { "status": "shipped" }
+  }
+}</code></pre>
+            </section>
+
+      <section>
+              <h2>로그 보안 규칙</h2>
+              <table>
+                <tbody>
+                  <tr><th>금지</th><td><code>password</code>, <code>accessToken</code>, <code>refreshToken</code>, <code>Authorization</code> header, cookie, secret, apiKey, privateKey는 남기지 않습니다.</td></tr>
+                  <tr><th>개인정보</th><td>전화번호, 이메일, 사업자등록번호 같은 개인정보와 식별정보는 원문 저장하지 않고 필요한 경우 마스킹합니다.</td></tr>
+                  <tr><th>Stack Trace</th><td>API 응답에는 stack trace를 노출하지 않습니다. 운영 로그에서도 필요한 경우에만 제한적으로 남깁니다.</td></tr>
+                  <tr><th>업무 상태 변경</th><td>중요한 업무 상태 변경은 시스템 로그만으로 대체하지 않고 감사 로그 또는 도메인 이벤트로 별도 기록합니다.</td></tr>
+                </tbody>
+              </table>
+              <pre><code>authorization: [REDACTED]
+email: s***@example.com
+phone: 010-****-1234</code></pre>
+            </section>
+
+      <p class="footer"><a href="../project-rules.html">프로젝트 공통 규칙으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

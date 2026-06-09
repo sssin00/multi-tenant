@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>auth-iam-service API 문서</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">API Docs</p>
+        <h1>auth-iam-service API 문서</h1>
+        <p class="lead">
+          로그인, token refresh, 사용자, 역할, 권한 조회 API의 구현 계약입니다.
+          외부 호출은 gateway-service의 <code>/api/v1/auth/**</code> proxy route를 통해 들어옵니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>API 공통 기준</h2>
+        <table>
+          <tbody>
+            <tr><th>Public base path</th><td><code>/api/v1/auth</code></td></tr>
+            <tr><th>Gateway upstream</th><td><code>AUTH_IAM_SERVICE_URL</code></td></tr>
+            <tr><th>Headers</th><td><code>Authorization</code>, <code>Content-Type</code>, <code>Accept</code>, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>Idempotency-Key</code></td></tr>
+            <tr><th>Internal headers</th><td>Internal API는 <code>X-Internal-Service-Id</code>, <code>X-Internal-Timestamp</code>, <code>X-Internal-Signature</code> HMAC 인증 header가 필요합니다.</td></tr>
+            <tr><th>Internal signing</th><td>서명 대상은 <code>METHOD</code>, <code>originalUrl</code>, timestamp, requestId, body SHA-256 hash를 줄바꿈으로 연결한 문자열입니다.</td></tr>
+            <tr><th>Envelope</th><td>모든 응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>를 포함합니다. list 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용합니다.</td></tr>
+            <tr><th>JWT</th><td>access token은 JWT이며 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</td></tr>
+            <tr><th>Refresh token</th><td>opaque token을 사용하고 서버에는 hash만 저장합니다. refresh 사용 시 새 token을 발급하고 이전 token은 폐기합니다.</td></tr>
+            <tr><th>Audit</th><td><code>auth-iam-service</code>는 <code>audit_logs</code> 테이블을 소유하지 않습니다. 사용자/역할/권한 변경 API는 <code>AUDIT_LOG_SERVICE_URL</code>의 별도 audit-log-service로 audit record 저장을 요청합니다.</td></tr>
+            <tr><th>Outbox</th><td>사용자/permission/role 변경 API는 업무 변경과 같은 DB transaction에서 <code>outbox_events</code>에 <code>pending</code> event를 저장합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Endpoint 목록</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Endpoint</th>
+                <th>인증</th>
+                <th>설명</th>
+                <th>상세 문서</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>GET /health</code></td>
+                <td>Public</td>
+                <td>프로세스 생존 확인 API입니다.</td>
+                <td><span class="tag done">Detailed</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /ready</code></td>
+                <td>Public</td>
+                <td>config, JWT signing key, DB, Redis 상태를 확인합니다.</td>
+                <td><span class="tag done">Detailed</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/v1/auth/login</code></td>
+                <td>Public</td>
+                <td>email/password와 tenant context로 access token과 refresh token을 발급합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/v1/auth/token/refresh</code></td>
+                <td>Public</td>
+                <td>refresh token rotation으로 새 access/refresh token을 발급합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/v1/auth/logout</code></td>
+                <td>Authenticated or refresh token</td>
+                <td>현재 refresh token 또는 사용자 세션을 폐기합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /api/v1/auth/me</code></td>
+                <td>Authenticated</td>
+                <td>현재 사용자와 tenant, role/permission summary를 반환합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /api/v1/auth/users</code></td>
+                <td>Admin</td>
+                <td>tenant-scoped 사용자 목록을 조회합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/v1/auth/users</code></td>
+                <td>Admin</td>
+                <td>tenant 사용자를 생성합니다. 중복 실행 위험이 있으므로 <code>Idempotency-Key</code>를 사용합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /api/v1/auth/users/{userId}</code></td>
+                <td>Admin</td>
+                <td>tenant-scoped 사용자 상세를 조회합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>PATCH /api/v1/auth/users/{userId}</code></td>
+                <td>Admin</td>
+                <td>사용자 email 또는 displayName을 수정합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>PATCH /api/v1/auth/users/{userId}/status</code></td>
+                <td>Admin</td>
+                <td>사용자 상태를 active, inactive, locked 등으로 변경합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>DELETE /api/v1/auth/users/{userId}</code></td>
+                <td>Admin</td>
+                <td>사용자를 hard delete하지 않고 inactive 상태로 전환합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /api/v1/auth/roles</code></td>
+                <td>Admin</td>
+                <td>tenant role 목록과 scope 기준을 조회합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/v1/auth/roles</code></td>
+                <td>Admin</td>
+                <td>tenant role과 permission mapping을 생성합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>PATCH /api/v1/auth/roles/{roleId}</code></td>
+                <td>Admin</td>
+                <td>tenant role의 code, name, description을 수정합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>PUT /api/v1/auth/roles/{roleId}/permissions</code></td>
+                <td>Admin</td>
+                <td>role에 연결된 permission mapping을 교체합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/v1/auth/permissions</code></td>
+                <td>Admin</td>
+                <td>permission catalog 항목을 생성합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /api/v1/auth/permissions</code></td>
+                <td>Admin</td>
+                <td>permission catalog 목록을 조회합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/v1/auth/users/{userId}/roles</code></td>
+                <td>Admin</td>
+                <td>사용자에게 tenant role을 부여하고 optional warehouse scope를 설정합니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /api/v1/auth/permissions/summary</code></td>
+                <td>Internal</td>
+                <td>BFF가 화면 구성에 사용할 role/permission summary를 조회합니다. 허용 caller는 <code>admin-bff-service</code>, <code>user-bff-service</code>입니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/v1/auth/permissions/check</code></td>
+                <td>Internal</td>
+                <td>도메인 서비스가 업무 수행 전 permission과 scope 허용 여부를 확인합니다. 허용 caller는 <code>admin-bff-service</code>, <code>user-bff-service</code>, <code>wms-service</code>입니다.</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Health와 Readiness</h2>
+        <table>
+          <tbody>
+            <tr><th><code>GET /health</code></th><td>인증 없이 호출할 수 있으며 프로세스 생존 상태를 반환합니다. 응답 header에는 <code>X-Request-Id</code>가 포함됩니다.</td></tr>
+            <tr><th><code>GET /ready</code></th><td>트래픽 수용 가능 여부를 확인합니다. config, JWT, internal auth, database, Redis, security check를 포함합니다.</td></tr>
+            <tr><th>Success</th><td><code>200</code>과 <code>status=ready</code>를 반환합니다.</td></tr>
+            <tr><th>Failure</th><td>필수 설정 또는 의존성 실패 시 <code>503</code>과 <code>status=not_ready</code>를 반환합니다. Readiness 응답은 일반 error envelope가 아니라 check 목록을 직접 반환합니다.</td></tr>
+          </tbody>
+        </table>
+        <pre><code>{
+  "status": "ready",
+  "service": "auth-iam-service",
+  "timestamp": "2026-06-09T00:00:00.000Z",
+  "checks": {
+    "config": { "status": "ok" },
+    "jwt": { "status": "ok" },
+    "internalAuth": { "status": "ok" },
+    "database": { "status": "ok" },
+    "redis": { "status": "ok" },
+    "security": { "status": "ok" }
+  }
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>Internal Service Auth</h2>
+        <table>
+          <tbody>
+            <tr><th>적용 대상</th><td><code>GET /api/v1/auth/permissions/summary</code>, <code>POST /api/v1/auth/permissions/check</code></td></tr>
+            <tr><th>Headers</th><td><code>X-Internal-Service-Id</code>, <code>X-Internal-Timestamp</code>, <code>X-Internal-Signature</code>, <code>X-Request-Id</code>, <code>X-Tenant-Id</code></td></tr>
+            <tr><th>Signature</th><td><code>HMAC-SHA256(AUTH_INTERNAL_AUTH_SECRET, METHOD + "\n" + originalUrl + "\n" + timestamp + "\n" + requestId + "\n" + sha256(body))</code></td></tr>
+            <tr><th>Summary caller</th><td><code>admin-bff-service</code>, <code>user-bff-service</code></td></tr>
+            <tr><th>Check caller</th><td><code>admin-bff-service</code>, <code>user-bff-service</code>, <code>wms-service</code></td></tr>
+            <tr><th>Errors</th><td><code>401 AUTH_INTERNAL_AUTH_REQUIRED</code>, <code>401 AUTH_INTERNAL_SIGNATURE_INVALID</code>, <code>401 AUTH_INTERNAL_TIMESTAMP_INVALID</code>, <code>401 AUTH_INTERNAL_TIMESTAMP_EXPIRED</code>, <code>403 AUTH_INTERNAL_SERVICE_FORBIDDEN</code>, <code>503 AUTH_INTERNAL_AUTH_NOT_READY</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Login</h2>
+        <table>
+          <tbody>
+            <tr><th>Endpoint</th><td><code>POST /api/v1/auth/login</code></td></tr>
+            <tr><th>Status</th><td>성공 시 <code>200</code>, 인증 실패 시 <code>401 AUTH_INVALID_CREDENTIALS</code>, tenant mismatch 시 <code>403 TENANT_MISMATCH</code>를 반환합니다.</td></tr>
+            <tr><th>Tenant</th><td><code>X-Tenant-Id</code> header 또는 body <code>tenantId</code>가 필요합니다. 둘 다 있으면 값이 같아야 합니다.</td></tr>
+            <tr><th>Password</th><td>서버 저장 hash는 <code>scrypt</code>와 사용자별 random salt를 사용합니다. password 원문은 저장하거나 로그에 남기지 않습니다.</td></tr>
+            <tr><th>Refresh</th><td>login 응답의 refresh token은 opaque token이며 DB에는 SHA-256 hash만 저장합니다.</td></tr>
+            <tr><th>Response data</th><td><code>accessToken</code>, <code>expiresIn</code>, <code>refreshToken</code>, <code>refreshExpiresIn</code>, <code>tokenType</code></td></tr>
+            <tr><th>Errors</th><td><code>400 VALIDATION_FAILED</code>, <code>401 AUTH_INVALID_CREDENTIALS</code>, <code>403 AUTH_ACCOUNT_LOCKED</code>, <code>403 TENANT_MISMATCH</code></td></tr>
+          </tbody>
+        </table>
+        <pre><code>{
+  "tenantId": "11111111-1111-4111-8111-111111111111",
+  "email": "worker@example.com",
+  "password": "user-password"
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>Refresh와 Logout</h2>
+        <table>
+          <tbody>
+            <tr><th>Refresh endpoint</th><td><code>POST /api/v1/auth/token/refresh</code></td></tr>
+            <tr><th>Refresh status</th><td>성공 시 <code>200</code>으로 새 access token과 refresh token을 반환합니다. 이전 refresh token은 <code>revokedAt</code>, <code>replacedBy</code>로 폐기합니다.</td></tr>
+            <tr><th>Reuse failure</th><td>존재하지 않거나 만료되었거나 이미 폐기된 refresh token은 <code>401 AUTH_INVALID_TOKEN</code>으로 실패합니다.</td></tr>
+            <tr><th>Logout endpoint</th><td><code>POST /api/v1/auth/logout</code></td></tr>
+            <tr><th>Logout behavior</th><td>body의 <code>refreshToken</code>이 있으면 해당 token만 폐기합니다. 없으면 gateway가 전달한 <code>X-Tenant-Id</code>, <code>X-User-Id</code> 기준으로 active refresh token을 모두 폐기합니다.</td></tr>
+            <tr><th>Tenant</th><td>body <code>tenantId</code>와 <code>X-Tenant-Id</code>가 함께 있고 값이 다르면 <code>403 TENANT_MISMATCH</code>로 실패합니다.</td></tr>
+            <tr><th>Errors</th><td><code>400 VALIDATION_FAILED</code>, <code>401 AUTH_INVALID_TOKEN</code>, <code>403 TENANT_MISMATCH</code></td></tr>
+          </tbody>
+        </table>
+        <pre><code>{
+  "refreshToken": "opaque-refresh-token"
+}</code></pre>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-018f4a0f",
+  "timestamp": "2026-06-09T00:00:00.000Z",
+  "data": {
+    "revoked": true,
+    "revokedCount": 1
+  }
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>Me</h2>
+        <table>
+          <tbody>
+            <tr><th>Endpoint</th><td><code>GET /api/v1/auth/me</code></td></tr>
+            <tr><th>Auth context</th><td>gateway가 검증한 access token에서 전달한 <code>X-Tenant-Id</code>, <code>X-User-Id</code>를 사용합니다.</td></tr>
+            <tr><th>Response data</th><td><code>user</code>, <code>roles</code>, sorted <code>permissions</code></td></tr>
+            <tr><th>JWT rule</th><td>JWT에는 role/permission을 넣지 않고, 현재 사용자 화면 구성에 필요한 권한 정보는 이 API 응답으로 제공합니다.</td></tr>
+            <tr><th>Status rule</th><td>사용자가 <code>active</code>가 아니면 <code>403 AUTH_ACCOUNT_LOCKED</code>로 실패합니다.</td></tr>
+            <tr><th>Errors</th><td><code>400 TENANT_REQUIRED</code>, <code>401 AUTH_INVALID_TOKEN</code>, <code>403 AUTH_ACCOUNT_LOCKED</code>, <code>404 AUTH_USER_NOT_FOUND</code></td></tr>
+          </tbody>
+        </table>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-018f4a0f",
+  "timestamp": "2026-06-09T00:00:00.000Z",
+  "data": {
+    "user": {
+      "id": "user-uuid",
+      "tenantId": "tenant-uuid",
+      "email": "worker@example.com",
+      "displayName": "Worker",
+      "status": "active",
+      "createdAt": "2026-06-09T00:00:00.000Z",
+      "updatedAt": "2026-06-09T00:00:00.000Z"
+    },
+    "roles": [
+      {
+        "roleId": "role-uuid",
+        "roleCode": "inventory_manager",
+        "warehouseId": null
+      }
+    ],
+    "permissions": [
+      "wms.inventory.adjust"
+    ]
+  }
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>User CRUD</h2>
+        <table>
+          <tbody>
+            <tr><th>Tenant</th><td>모든 사용자 API는 <code>X-Tenant-Id</code>가 필요하며, DB 접근 조건에 <code>tenantId</code>를 포함합니다.</td></tr>
+            <tr><th>Create</th><td><code>POST /api/v1/auth/users</code>는 <code>email</code>, <code>displayName</code>, <code>password</code>, optional <code>status</code>를 받습니다. 기본 상태는 <code>active</code>입니다.</td></tr>
+            <tr><th>List</th><td><code>GET /api/v1/auth/users?page=1&amp;size=20&amp;status=active&amp;email=worker</code> 형식을 지원합니다. list 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용합니다.</td></tr>
+            <tr><th>Detail</th><td><code>GET /api/v1/auth/users/{userId}</code>는 다른 tenant 사용자를 <code>404 AUTH_USER_NOT_FOUND</code>로 숨깁니다.</td></tr>
+            <tr><th>Update</th><td><code>PATCH /api/v1/auth/users/{userId}</code>는 <code>email</code>과 <code>displayName</code> 변경을 지원합니다.</td></tr>
+            <tr><th>Status</th><td><code>PATCH /api/v1/auth/users/{userId}/status</code>는 <code>active</code>, <code>inactive</code>, <code>locked</code>를 지원합니다. <code>inactive</code> 또는 <code>locked</code> 전환 시 active refresh token을 revoke합니다.</td></tr>
+            <tr><th>Delete</th><td><code>DELETE /api/v1/auth/users/{userId}</code>는 hard delete가 아니라 <code>inactive</code> 상태 전환으로 처리합니다.</td></tr>
+            <tr><th>Secret</th><td>사용자 응답에는 <code>passwordHash</code>를 포함하지 않습니다.</td></tr>
+            <tr><th>Audit</th><td>생성, 수정, 상태 변경은 <code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code> action으로 audit-log-service에 기록 요청을 보냅니다.</td></tr>
+            <tr><th>Outbox</th><td>생성, 수정, 상태 변경은 같은 이름의 <code>auth.user.*</code> outbox event를 <code>pending</code> 상태로 저장합니다.</td></tr>
+            <tr><th>Errors</th><td><code>400 TENANT_REQUIRED</code>, <code>400 VALIDATION_FAILED</code>, <code>404 AUTH_USER_NOT_FOUND</code>, <code>409 AUTH_USER_EMAIL_CONFLICT</code></td></tr>
+          </tbody>
+        </table>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>Endpoint</th><th>Body 또는 query</th><th>Response data</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>POST /api/v1/auth/users</code></td><td><code>email</code>, <code>displayName</code>, <code>password</code>, optional <code>status</code></td><td>User object</td></tr>
+              <tr><td><code>GET /api/v1/auth/users</code></td><td><code>page</code>, <code>size</code>, optional <code>status</code>, <code>email</code></td><td><code>items</code>, <code>page</code>, <code>size</code>, <code>total</code></td></tr>
+              <tr><td><code>GET /api/v1/auth/users/{userId}</code></td><td>path <code>userId</code></td><td>User object</td></tr>
+              <tr><td><code>PATCH /api/v1/auth/users/{userId}</code></td><td>optional <code>email</code>, <code>displayName</code>. At least one is required.</td><td>User object</td></tr>
+              <tr><td><code>PATCH /api/v1/auth/users/{userId}/status</code></td><td><code>status</code>: <code>active</code>, <code>inactive</code>, <code>locked</code></td><td>User object</td></tr>
+              <tr><td><code>DELETE /api/v1/auth/users/{userId}</code></td><td>path <code>userId</code></td><td>User object with <code>inactive</code> status</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <pre><code>{
+  "email": "worker@example.com",
+  "displayName": "Worker",
+  "password": "user-password",
+  "status": "active"
+}</code></pre>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-018f4a0f",
+  "timestamp": "2026-06-09T00:00:00.000Z",
+  "data": {
+    "id": "user-uuid",
+    "tenantId": "tenant-uuid",
+    "email": "worker@example.com",
+    "displayName": "Worker",
+    "status": "active",
+    "createdAt": "2026-06-09T00:00:00.000Z",
+    "updatedAt": "2026-06-09T00:00:00.000Z"
+  }
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>Role과 Permission</h2>
+        <table>
+          <tbody>
+            <tr><th>Permission catalog</th><td><code>POST/GET /api/v1/auth/permissions</code>로 전역 permission code catalog를 관리합니다. code는 <code>{domain}.{resource}.{action}</code> 형식을 사용합니다.</td></tr>
+            <tr><th>Role</th><td><code>POST/GET/PATCH /api/v1/auth/roles</code>는 <code>X-Tenant-Id</code> 기준 tenant-scoped role을 관리합니다.</td></tr>
+            <tr><th>Role mapping</th><td><code>PUT /api/v1/auth/roles/{roleId}/permissions</code>는 role에 연결된 permission code 목록을 교체합니다.</td></tr>
+            <tr><th>User assignment</th><td><code>POST /api/v1/auth/users/{userId}/roles</code>는 사용자에게 role을 부여합니다. optional <code>warehouseId</code>로 scope를 제한할 수 있습니다.</td></tr>
+            <tr><th>Summary</th><td><code>GET /api/v1/auth/permissions/summary?userId={userId}</code>는 BFF가 사용할 role과 permission 요약을 반환합니다.</td></tr>
+            <tr><th>Check</th><td><code>POST /api/v1/auth/permissions/check</code>는 도메인 서비스가 업무 실행 전 permission과 warehouse scope를 확인할 때 사용합니다.</td></tr>
+            <tr><th>System admin</th><td><code>system_admin</code>은 tenant-scoped role API에서 생성할 수 없습니다. <code>system.*</code> permission은 tenant role mapping과 tenant permission check에서 <code>403 AUTH_ADMIN_SCOPE_MISMATCH</code>로 차단합니다.</td></tr>
+            <tr><th>Tenant admin</th><td><code>tenant_admin</code>은 tenant 전체 scope role입니다. <code>warehouseId</code>가 포함된 user-role assignment는 <code>403 AUTH_ADMIN_SCOPE_MISMATCH</code>로 실패합니다.</td></tr>
+            <tr><th>Audit</th><td>permission 생성, role 생성/수정, role-permission 교체, user-role 부여/해제는 audit-log-service에 변경 record 저장을 요청합니다.</td></tr>
+            <tr><th>Outbox</th><td>permission 생성, role 생성/수정, role-permission 교체, user-role 부여/해제는 <code>auth.permission.created</code>, <code>auth.role.*</code>, <code>auth.userRole.*</code> event로 저장합니다.</td></tr>
+            <tr><th>Errors</th><td><code>400 TENANT_REQUIRED</code>, <code>400 VALIDATION_FAILED</code>, <code>403 AUTH_ADMIN_SCOPE_MISMATCH</code>, <code>404 AUTH_ROLE_NOT_FOUND</code>, <code>404 AUTH_USER_NOT_FOUND</code>, <code>404 AUTH_USER_ROLE_NOT_FOUND</code>, <code>409 AUTH_PERMISSION_CODE_CONFLICT</code>, <code>409 AUTH_ROLE_CODE_CONFLICT</code>, <code>409 AUTH_USER_ROLE_CONFLICT</code></td></tr>
+          </tbody>
+        </table>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>Endpoint</th><th>Body 또는 query</th><th>Response data</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>POST /api/v1/auth/permissions</code></td><td><code>code</code>, optional <code>description</code></td><td>Permission object</td></tr>
+              <tr><td><code>GET /api/v1/auth/permissions</code></td><td><code>page</code>, <code>size</code>, optional <code>code</code></td><td>Permission list</td></tr>
+              <tr><td><code>GET /api/v1/auth/permissions/{permissionId}</code></td><td>path <code>permissionId</code></td><td>Permission object</td></tr>
+              <tr><td><code>POST /api/v1/auth/roles</code></td><td><code>code</code>, <code>name</code>, optional <code>description</code></td><td>Role object with permissions</td></tr>
+              <tr><td><code>GET /api/v1/auth/roles</code></td><td><code>page</code>, <code>size</code>, optional <code>code</code></td><td>Role list</td></tr>
+              <tr><td><code>GET /api/v1/auth/roles/{roleId}</code></td><td>path <code>roleId</code></td><td>Role object with permissions</td></tr>
+              <tr><td><code>PATCH /api/v1/auth/roles/{roleId}</code></td><td>optional <code>code</code>, <code>name</code>, <code>description</code></td><td>Role object with permissions</td></tr>
+              <tr><td><code>PUT /api/v1/auth/roles/{roleId}/permissions</code></td><td><code>permissionCodes</code> array</td><td>Role object with replaced permissions</td></tr>
+              <tr><td><code>POST /api/v1/auth/users/{userId}/roles</code></td><td><code>roleId</code>, optional <code>warehouseId</code></td><td>User role assignment</td></tr>
+              <tr><td><code>GET /api/v1/auth/users/{userId}/roles</code></td><td>path <code>userId</code></td><td><code>items</code> of user role assignments</td></tr>
+              <tr><td><code>DELETE /api/v1/auth/user-roles/{userRoleId}</code></td><td>path <code>userRoleId</code></td><td><code>{ "removed": true }</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <pre><code>{
+  "code": "wms.inventory.adjust",
+  "description": "Adjust inventory"
+}</code></pre>
+        <pre><code>{
+  "code": "inventory_manager",
+  "name": "Inventory Manager",
+  "description": "Can manage inventory"
+}</code></pre>
+        <pre><code>{
+  "permissionCodes": [
+    "wms.inventory.adjust"
+  ]
+}</code></pre>
+        <pre><code>{
+  "roleId": "role-uuid",
+  "warehouseId": "warehouse-uuid"
+}</code></pre>
+        <pre><code>{
+  "userId": "user-uuid",
+  "permission": "wms.inventory.adjust",
+  "scope": {
+    "warehouseId": "warehouse-uuid"
+  }
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>Permission Summary와 Check</h2>
+        <table>
+          <tbody>
+            <tr><th>Summary</th><td><code>GET /api/v1/auth/permissions/summary?userId={userId}</code>. Query의 <code>userId</code>가 없으면 propagated <code>X-User-Id</code>를 사용합니다.</td></tr>
+            <tr><th>Summary response</th><td><code>userId</code>, <code>tenantId</code>, <code>roles</code>, sorted <code>permissions</code></td></tr>
+            <tr><th>Check</th><td><code>POST /api/v1/auth/permissions/check</code>. Body는 <code>userId</code>, <code>permission</code> 또는 <code>permissionCode</code>, optional <code>scope.warehouseId</code>를 받습니다.</td></tr>
+            <tr><th>Check response</th><td><code>allowed</code>, <code>userId</code>, <code>tenantId</code>, <code>permission</code>, <code>scope</code></td></tr>
+            <tr><th>Scope rule</th><td>warehouse-scoped assignment는 요청 <code>scope.warehouseId</code>와 일치해야 허용됩니다. warehouse scope 없이 요청하면 warehouse-scoped role은 허용되지 않습니다.</td></tr>
+            <tr><th>Account rule</th><td>대상 사용자가 <code>active</code> 상태가 아니면 <code>403 AUTH_ACCOUNT_LOCKED</code>로 실패합니다.</td></tr>
+          </tbody>
+        </table>
+        <pre><code>{
+  "userId": "user-uuid",
+  "permission": "wms.inventory.adjust",
+  "scope": {
+    "warehouseId": "warehouse-uuid"
+  }
+}</code></pre>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-018f4a0f",
+  "timestamp": "2026-06-09T00:00:00.000Z",
+  "data": {
+    "allowed": true,
+    "userId": "user-uuid",
+    "tenantId": "tenant-uuid",
+    "permission": "wms.inventory.adjust",
+    "scope": {
+      "warehouseId": "warehouse-uuid"
+    }
+  }
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>Side Effects</h2>
+        <table>
+          <tbody>
+            <tr><th>Audit 대상</th><td>사용자 생성/수정/상태 변경, permission 생성, role 생성/수정, role-permission 교체, user-role 부여/해제</td></tr>
+            <tr><th>Audit 저장 위치</th><td><code>auth-iam-service</code> DB가 아니라 <code>AUDIT_LOG_SERVICE_URL</code>의 별도 audit-log-service입니다.</td></tr>
+            <tr><th>Outbox 대상</th><td><code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code>, <code>auth.permission.created</code>, <code>auth.role.created</code>, <code>auth.role.updated</code>, <code>auth.role.permissionsReplaced</code>, <code>auth.userRole.assigned</code>, <code>auth.userRole.removed</code></td></tr>
+            <tr><th>Outbox 상태</th><td>업무 변경 transaction 안에서 <code>pending</code>, <code>retryCount=0</code>으로 저장합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Error Code</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>Status</th><th>Codes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>400</code></td><td><code>VALIDATION_FAILED</code>, <code>TENANT_REQUIRED</code></td></tr>
+              <tr><td><code>401</code></td><td><code>AUTH_INVALID_CREDENTIALS</code>, <code>AUTH_INVALID_TOKEN</code>, <code>AUTH_INTERNAL_AUTH_REQUIRED</code>, <code>AUTH_INTERNAL_SIGNATURE_INVALID</code>, <code>AUTH_INTERNAL_TIMESTAMP_INVALID</code>, <code>AUTH_INTERNAL_TIMESTAMP_EXPIRED</code></td></tr>
+              <tr><td><code>403</code></td><td><code>TENANT_MISMATCH</code>, <code>AUTH_ACCOUNT_LOCKED</code>, <code>AUTH_ADMIN_SCOPE_MISMATCH</code>, <code>AUTH_INTERNAL_SERVICE_FORBIDDEN</code></td></tr>
+              <tr><td><code>404</code></td><td><code>AUTH_USER_NOT_FOUND</code>, <code>AUTH_ROLE_NOT_FOUND</code>, <code>AUTH_PERMISSION_NOT_FOUND</code>, <code>AUTH_USER_ROLE_NOT_FOUND</code></td></tr>
+              <tr><td><code>409</code></td><td><code>AUTH_USER_EMAIL_CONFLICT</code>, <code>AUTH_PERMISSION_CODE_CONFLICT</code>, <code>AUTH_ROLE_CODE_CONFLICT</code>, <code>AUTH_USER_ROLE_CONFLICT</code></td></tr>
+              <tr><td><code>503</code></td><td><code>AUTH_INTERNAL_AUTH_NOT_READY</code>, <code>AUDIT_CONTEXT_INCOMPLETE</code>, <code>AUDIT_LOG_SERVICE_UNAVAILABLE</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>대표 응답 예시</h2>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-018f4a0f",
+  "timestamp": "2026-06-09T00:00:00.000Z",
+  "data": {
+    "accessToken": "jwt.access.token",
+    "expiresIn": 1800,
+    "refreshToken": "opaque-refresh-token",
+    "refreshExpiresIn": 1209600,
+    "tokenType": "Bearer"
+  }
+}</code></pre>
+        <pre><code>{
+  "success": false,
+  "requestId": "req-018f4a0f",
+  "timestamp": "2026-06-09T00:00:00.000Z",
+  "error": {
+    "code": "AUTH_INVALID_CREDENTIALS",
+    "message": "Invalid credentials"
+  }
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>운영 보완 사항</h2>
+        <div class="grid">
+          <div class="card"><strong>JWT 운영 알고리즘</strong><p>로컬은 <code>HS256</code>로 충분하지만, 운영은 <code>RS256</code>와 key rotation 방식을 확정해야 합니다.</p></div>
+          <div class="card"><strong>내부 호출 인증</strong><p>Permission summary/check는 HMAC 기반 service-to-service 인증을 적용했습니다. Secret은 <code>AUTH_INTERNAL_AUTH_SECRET</code>로 주입합니다.</p></div>
+          <div class="card"><strong>Bootstrap 경계</strong><p>tenant 최초 관리자 생성 API와 system admin 권한 경계를 명확히 분리해야 합니다.</p></div>
+          <div class="card"><strong>Audit 서비스 계약</strong><p>현재 내부 저장 경로는 <code>/api/v1/internal/audit/logs</code>로 두었습니다. 실제 audit-log-service 구현 시 인증 header, retry, 장애 시 처리 방식을 확정해야 합니다.</p></div>
+          <div class="card"><strong>Outbox Relay</strong><p><code>outbox_events</code> 발행, retry, DLQ, <code>published</code>/<code>failed</code> 상태 전환은 outbox-relay-service 후속 작업에서 확정합니다.</p></div>
+          <div class="card"><strong>후속 작업</strong><p>상세 백로그는 <a href="../../development/services/auth-iam-service.html">auth-iam-service 개발 문서</a>의 후속 작업 백로그를 기준으로 관리합니다.</p></div>
+        </div>
+      </section>
+
+      <p class="footer"><a href="../index.html">API 문서 허브로 돌아가기</a></p>
+    </main>
+  </body>
+</html>
