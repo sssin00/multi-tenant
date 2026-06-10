@@ -4,25 +4,28 @@ AWS 인프라 코드를 관리합니다.
 
 ECS, RDS, Redis, EventBridge, SQS, S3, IAM, Security Group 등은 CDK로 재현 가능하게 관리합니다.
 
-## gateway-service 1차 배포 흐름
+## gateway-service/auth-iam-service 1차 배포 흐름
 
-현재 CDK는 `gateway-service` 배포를 위한 최소 dev 인프라를 생성합니다.
+현재 CDK는 `gateway-service`와 `auth-iam-service` 배포를 위한 최소 dev 인프라를 생성합니다.
 
-- ECR repository
+- ECR repository per service
 - VPC public/private subnets
 - ECS cluster
-- ECS Fargate task definition/service
+- ECS Fargate task definition/service per service
 - ALB listener/target group
-- ElastiCache Redis for gateway rate limit
-- CloudWatch log group
+- Cloud Map private DNS namespace
+- ElastiCache Redis for gateway rate limit and auth cache/session dependency
+- CloudWatch log group per service
 - Security groups
 
-첫 CDK 배포는 ECR repository를 먼저 만들 수 있도록 `gatewayDesiredCount=0`을 기본값으로 사용합니다.
-이미지를 ECR에 push한 뒤 `gatewayDesiredCount=1`로 올려 서비스를 실행합니다.
+첫 CDK 배포는 ECR repository를 먼저 만들 수 있도록 `gatewayDesiredCount=0`, `authDesiredCount=0`을 기본값으로 사용합니다.
+이미지를 ECR에 push하고 runtime secret을 준비한 뒤 desired count를 올려 서비스를 실행합니다.
 
 기본 구성은 private subnet + NAT Gateway 배치입니다. dev 계정의 Elastic IP 한도 때문에 NAT Gateway를 만들 수 없을 때는 `-c gatewayUseNatGateway=false`를 붙여 임시로 public subnet에 Fargate task를 배치할 수 있습니다. 이 경우에도 task ingress는 ALB security group에서 오는 `3000` 포트만 허용합니다.
 
-gateway-service rate limit 저장소는 AWS 배포에서 ElastiCache Redis를 사용합니다. CDK는 gateway-service와 같은 app subnet에 Redis subnet group을 만들고, gateway-service security group에서 Redis `6379` 포트로만 접근하도록 제한합니다. 기본 노드 타입은 `cache.t4g.micro`이며 `-c gatewayRedisNodeType=...`으로 조정할 수 있습니다.
+gateway-service rate limit 저장소와 auth-iam-service cache/session 의존성은 AWS 배포에서 ElastiCache Redis를 사용합니다. CDK는 app subnet에 Redis subnet group을 만들고, gateway-service/auth-iam-service security group에서 Redis `6379` 포트로만 접근하도록 제한합니다. 기본 노드 타입은 `cache.t4g.micro`이며 `-c gatewayRedisNodeType=...`으로 조정할 수 있습니다.
+
+auth-iam-service는 ALB target으로 직접 노출하지 않습니다. gateway-service가 Cloud Map 내부 DNS와 auth base path를 포함한 `http://auth-iam-service.{envName}.multi-tenant.local:3000/api/auth`로 호출하고, 외부 요청은 gateway의 `/api/auth/**` proxy route를 통해 전달합니다.
 
 ## gateway-service HTTPS, ACM, DNS 연결
 
@@ -53,9 +56,10 @@ pnpm infra:deploy
 # 2-a. Elastic IP 한도 때문에 NAT Gateway 생성이 막힌 dev 계정에서만 사용
 pnpm --filter @multi-tenant/infra-cdk exec cdk deploy \
   -c gatewayDesiredCount=0 \
+  -c authDesiredCount=0 \
   -c gatewayUseNatGateway=false
 
-# 3. 출력된 GatewayServiceRepositoryUri로 linux/amd64 이미지 push
+# 3. 출력된 RepositoryUri로 linux/amd64 이미지 push
 aws ecr get-login-password --region ap-northeast-2 \
   | docker login --username AWS --password-stdin {account_id}.dkr.ecr.ap-northeast-2.amazonaws.com
 
@@ -65,11 +69,23 @@ docker buildx build \
   -t {GatewayServiceRepositoryUri}:latest \
   --push .
 
-# 4. 이미지 push 후 desired count를 1로 올려 재배포
+docker buildx build \
+  --platform linux/amd64 \
+  -f apps/auth-iam-service/Dockerfile \
+  -t {AuthIamServiceRepositoryUri}:latest \
+  --push .
+
+# 4. 이미지와 secret 준비 후 desired count를 올려 재배포
 pnpm --filter @multi-tenant/infra-cdk deploy \
   -c gatewayDesiredCount=1 \
+  -c authDesiredCount=1 \
   -c gatewayUseNatGateway=false \
-  -c gatewayImageTag=latest
+  -c gatewayImageTag=latest \
+  -c authImageTag=latest \
+  -c gatewayJwtSecretArn={gateway_jwt_secret_arn} \
+  -c authDatabaseUrlSecretArn={auth_database_url_secret_arn} \
+  -c authJwtSecretArn={auth_jwt_secret_arn} \
+  -c authInternalAuthSecretArn={auth_internal_auth_secret_arn}
 ```
 
 배포 후 CDK output의 `GatewayLoadBalancerDns`로 health check를 확인합니다.
@@ -86,7 +102,9 @@ curl https://{GatewayDomainName}/health
 
 ## gateway-service GitHub Actions 배포 자동화
 
-`deploy-gateway-service.yml`은 브랜치 기준으로 배포 환경을 고정합니다.
+`deploy-gateway-service.yml`은 브랜치 기준으로 배포 환경을 고정하고 gateway-service 이미지만 build/push합니다.
+같은 CDK 스택 안의 auth-iam-service 리소스와 task definition context는 함께 갱신할 수 있지만, auth-iam-service 이미지를 만들거나 desired count를 1로 올리지는 않습니다.
+Auth/IAM 실행 배포는 별도 workflow를 추가해 처리합니다.
 
 | Branch | GitHub Environment | APP_ENV/CDK envName |
 | --- | --- | --- |
@@ -98,10 +116,10 @@ curl https://{GatewayDomainName}/health
 
 1. `gateway-service` typecheck/build
 2. CDK typecheck
-3. CDK deploy with `gatewayDesiredCount=0`
+3. CDK deploy with `gatewayDesiredCount=0`, `authDesiredCount=0`
 4. ECR repository URI 조회
-5. Docker image build/push
-6. CDK deploy with target desired count
+5. gateway-service Docker image build/push
+6. CDK deploy with target gateway desired count and `authDesiredCount=0`
 
 각 GitHub Environment에는 아래 값을 설정합니다.
 
@@ -123,10 +141,25 @@ curl https://{GatewayDomainName}/health
 | `GATEWAY_ACM_CERTIFICATE_ARN` | empty | ALB HTTPS listener에 연결할 ACM certificate ARN |
 | `GATEWAY_DOMAIN_NAME` | empty | CDK output에 표시할 gateway domain |
 | `GATEWAY_CORS_ALLOWED_ORIGINS` | CDK 기본값 | 환경별 허용 CORS origin 목록 |
-| `AUTH_IAM_SERVICE_URL` | `http://auth-iam-service:3000` | Auth/IAM upstream URL |
+| `AUTH_IMAGE_TAG` | `latest` | auth-iam-service task definition에 기록할 image tag. 현재 workflow에서는 이 이미지를 push하지 않음 |
+| `AUTH_CORS_ALLOWED_ORIGINS` | CDK 기본값 | Auth/IAM 환경별 허용 CORS origin 목록 |
+| `AUTH_JWT_ALGORITHM` | `HS256` | Auth/IAM access token 서명 알고리즘 |
+| `AUTH_IAM_SERVICE_URL` | Cloud Map 내부 DNS + `/api/auth` | Auth/IAM upstream URL override. auth-iam-service 컨트롤러 경로와 맞추기 위해 `/api/auth` base path까지 포함합니다. |
 | `ADMIN_BFF_SERVICE_URL` | `http://admin-bff-service:3000` | Admin BFF upstream URL |
 | `USER_BFF_SERVICE_URL` | `http://user-bff-service:3000` | User BFF upstream URL |
 | `TENANT_SERVICE_URL` | `http://tenant-service:3000` | Tenant service upstream URL |
+
+### Optional Auth/IAM context secrets
+
+아래 secret은 gateway workflow에서도 CDK task definition context로 전달할 수 있습니다. 다만 이 workflow는 항상 `authDesiredCount=0`으로 배포하므로, 실제 Auth/IAM task 실행에는 별도 auth 배포 workflow가 필요합니다.
+
+| Name | Description |
+| --- | --- |
+| `AUTH_DATABASE_URL_SECRET_ARN` | Auth/IAM ECS task에 `DATABASE_URL`로 주입할 Secrets Manager secret ARN |
+| `AUTH_JWT_SECRET_ARN` | HS256 JWT secret ARN |
+| `AUTH_JWT_PRIVATE_KEY_SECRET_ARN` | RS256 private key secret ARN |
+| `AUTH_JWT_PUBLIC_KEY_SECRET_ARN` | RS256 public key secret ARN |
+| `AUTH_INTERNAL_AUTH_SECRET_ARN` | 내부 서비스 호출 인증용 secret ARN |
 
 AWS IAM role은 최소한 CloudFormation/CDK deploy, ECR push, ECS/ALB/VPC/ElastiCache/Logs/Secrets Manager 참조 권한이 필요합니다.
 

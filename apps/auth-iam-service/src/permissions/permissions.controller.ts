@@ -5,7 +5,7 @@ import { InternalService } from "../internal-auth/internal-service.decorator.js"
 import { PermissionsService } from "./permissions.service.js";
 import { RbacService } from "./rbac.service.js";
 
-@Controller("api/v1/auth")
+@Controller("api/auth")
 export class PermissionsController {
   constructor(
     @Inject(PermissionsService)

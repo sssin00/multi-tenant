@@ -67,6 +67,6 @@ export class AuditLogClientService {
   }
 
   private auditLogsUrl(): string {
-    return `${this.config.audit.serviceUrl?.replace(/\/$/, "")}/api/v1/internal/audit/logs`;
+    return `${this.config.audit.serviceUrl?.replace(/\/$/, "")}/api/internal/audit/logs`;
   }
 }

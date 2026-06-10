@@ -21,6 +21,15 @@ export interface GatewayServiceStackProps extends cdk.StackProps {
   gatewayDomainName?: string;
   gatewayCorsAllowedOrigins?: string;
   gatewayJwtSecretArn?: string;
+  authImageTag: string;
+  authDesiredCount: number;
+  authCorsAllowedOrigins?: string;
+  authJwtAlgorithm: "HS256" | "RS256";
+  authDatabaseUrlSecretArn?: string;
+  authJwtSecretArn?: string;
+  authJwtPrivateKeySecretArn?: string;
+  authJwtPublicKeySecretArn?: string;
+  authInternalAuthSecretArn?: string;
   authIamServiceUrl?: string;
   adminBffServiceUrl?: string;
   userBffServiceUrl?: string;
@@ -33,13 +42,33 @@ export class GatewayServiceStack extends cdk.Stack {
 
     const namePrefix = `${props.project}-${props.envName}`;
     const serviceName = "gateway-service";
+    const authServiceName = "auth-iam-service";
+    const cloudMapNamespaceName = `${props.envName}.${props.project}.local`;
     const isHttpsEnabled = props.gatewayAcmCertificateArn !== undefined && props.gatewayAcmCertificateArn.length > 0;
     const isJwtSecretConfigured = props.gatewayJwtSecretArn !== undefined && props.gatewayJwtSecretArn.length > 0;
     const corsAllowedOrigins =
       props.gatewayCorsAllowedOrigins ??
       (props.envName === "prod" ? "https://app.example.com,https://admin.example.com" : "https://dev.example.com");
+    const authCorsAllowedOrigins =
+      props.authCorsAllowedOrigins ??
+      (props.envName === "prod" ? "https://app.example.com,https://admin.example.com" : "https://dev.example.com");
     const jwtSecret = isJwtSecretConfigured
       ? secretsmanager.Secret.fromSecretCompleteArn(this, "GatewayJwtSecret", props.gatewayJwtSecretArn as string)
+      : undefined;
+    const authDatabaseUrlSecret = props.authDatabaseUrlSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "AuthDatabaseUrlSecret", props.authDatabaseUrlSecretArn)
+      : undefined;
+    const authJwtSecret = props.authJwtSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "AuthJwtSecret", props.authJwtSecretArn)
+      : undefined;
+    const authJwtPrivateKeySecret = props.authJwtPrivateKeySecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "AuthJwtPrivateKeySecret", props.authJwtPrivateKeySecretArn)
+      : undefined;
+    const authJwtPublicKeySecret = props.authJwtPublicKeySecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "AuthJwtPublicKeySecret", props.authJwtPublicKeySecretArn)
+      : undefined;
+    const authInternalAuthSecret = props.authInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "AuthInternalAuthSecret", props.authInternalAuthSecretArn)
       : undefined;
 
     const repository = new ecr.Repository(this, "GatewayServiceRepository", {
@@ -49,6 +78,19 @@ export class GatewayServiceStack extends cdk.Stack {
         {
           maxImageCount: 20,
           description: "Keep the latest 20 gateway-service images"
+        }
+      ],
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+      emptyOnDelete: props.envName !== "prod"
+    });
+
+    const authRepository = new ecr.Repository(this, "AuthIamServiceRepository", {
+      repositoryName: `${namePrefix}-${authServiceName}`,
+      imageScanOnPush: true,
+      lifecycleRules: [
+        {
+          maxImageCount: 20,
+          description: "Keep the latest 20 auth-iam-service images"
         }
       ],
       removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
@@ -82,6 +124,9 @@ export class GatewayServiceStack extends cdk.Stack {
       vpc,
       containerInsightsV2: ecs.ContainerInsights.ENABLED
     });
+    const cloudMapNamespace = cluster.addDefaultCloudMapNamespace({
+      name: cloudMapNamespaceName
+    });
 
     const albSecurityGroup = new ec2.SecurityGroup(this, "AlbSecurityGroup", {
       vpc,
@@ -102,6 +147,18 @@ export class GatewayServiceStack extends cdk.Stack {
     });
     serviceSecurityGroup.addIngressRule(albSecurityGroup, ec2.Port.tcp(3000), "Allow ALB to gateway-service");
 
+    const authServiceSecurityGroup = new ec2.SecurityGroup(this, "AuthIamServiceSecurityGroup", {
+      vpc,
+      securityGroupName: `${namePrefix}-${authServiceName}-sg`,
+      description: "Allow gateway-service traffic to auth-iam-service",
+      allowAllOutbound: true
+    });
+    authServiceSecurityGroup.addIngressRule(
+      serviceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow gateway-service to auth-iam-service"
+    );
+
     const redisSecurityGroup = new ec2.SecurityGroup(this, "GatewayRedisSecurityGroup", {
       vpc,
       securityGroupName: `${namePrefix}-${serviceName}-redis-sg`,
@@ -112,6 +169,11 @@ export class GatewayServiceStack extends cdk.Stack {
       serviceSecurityGroup,
       ec2.Port.tcp(6379),
       "Allow gateway-service to Redis"
+    );
+    redisSecurityGroup.addIngressRule(
+      authServiceSecurityGroup,
+      ec2.Port.tcp(6379),
+      "Allow auth-iam-service to Redis"
     );
 
     const appSubnets = vpc.selectSubnets({
@@ -143,6 +205,7 @@ export class GatewayServiceStack extends cdk.Stack {
       ":",
       redisCluster.attrRedisEndpointPort
     ]);
+    const authIamInternalUrl = `http://${authServiceName}.${cloudMapNamespaceName}:3000/api/auth`;
 
     const loadBalancer = new elbv2.ApplicationLoadBalancer(this, "ApplicationLoadBalancer", {
       vpc,
@@ -188,6 +251,12 @@ export class GatewayServiceStack extends cdk.Stack {
 
     const logGroup = new logs.LogGroup(this, "GatewayServiceLogGroup", {
       logGroupName: `/${props.project}/${props.envName}/${serviceName}`,
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
+    });
+
+    const authLogGroup = new logs.LogGroup(this, "AuthIamServiceLogGroup", {
+      logGroupName: `/${props.project}/${props.envName}/${authServiceName}`,
       retention: logs.RetentionDays.ONE_MONTH,
       removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
     });
@@ -238,7 +307,7 @@ export class GatewayServiceStack extends cdk.Stack {
         GATEWAY_RATE_LIMIT_AUTH_PER_WINDOW: "60",
         GATEWAY_RATE_LIMIT_ADMIN_PER_WINDOW: "300",
         GATEWAY_RATE_LIMIT_APP_PER_WINDOW: "600",
-        AUTH_IAM_SERVICE_URL: props.authIamServiceUrl ?? "http://auth-iam-service:3000",
+        AUTH_IAM_SERVICE_URL: props.authIamServiceUrl ?? authIamInternalUrl,
         ADMIN_BFF_SERVICE_URL: props.adminBffServiceUrl ?? "http://admin-bff-service:3000",
         USER_BFF_SERVICE_URL: props.userBffServiceUrl ?? "http://user-bff-service:3000"
       },
@@ -300,14 +369,132 @@ export class GatewayServiceStack extends cdk.Stack {
       }
     });
 
+    const authTaskDefinition = new ecs.FargateTaskDefinition(this, "AuthIamTaskDefinition", {
+      family: `${namePrefix}-${authServiceName}`,
+      cpu: 256,
+      memoryLimitMiB: 512,
+      runtimePlatform: {
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        cpuArchitecture: ecs.CpuArchitecture.X86_64
+      }
+    });
+
+    const authContainerSecrets: Record<string, ecs.Secret> = {};
+    if (authDatabaseUrlSecret) {
+      authContainerSecrets.DATABASE_URL = ecs.Secret.fromSecretsManager(authDatabaseUrlSecret);
+    }
+    if (authJwtSecret) {
+      authContainerSecrets.JWT_SECRET = ecs.Secret.fromSecretsManager(authJwtSecret);
+    }
+    if (authJwtPrivateKeySecret) {
+      authContainerSecrets.JWT_PRIVATE_KEY = ecs.Secret.fromSecretsManager(authJwtPrivateKeySecret);
+    }
+    if (authJwtPublicKeySecret) {
+      authContainerSecrets.JWT_PUBLIC_KEY = ecs.Secret.fromSecretsManager(authJwtPublicKeySecret);
+    }
+    if (authInternalAuthSecret) {
+      authContainerSecrets.AUTH_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(authInternalAuthSecret);
+    }
+
+    const authContainer = authTaskDefinition.addContainer("AuthIamContainer", {
+      containerName: authServiceName,
+      image: ecs.ContainerImage.fromEcrRepository(authRepository, props.authImageTag),
+      essential: true,
+      environment: {
+        NODE_ENV: "production",
+        APP_ENV: props.envName,
+        SERVICE_NAME: authServiceName,
+        AUTH_PORT: "3000",
+        LOG_LEVEL: "info",
+        AWS_REGION: cdk.Stack.of(this).region,
+        REQUEST_ID_HEADER: "x-request-id",
+        TENANT_HEADER: "x-tenant-id",
+        AUTH_SECURITY_HEADERS_ENABLED: "true",
+        AUTH_CORS_ALLOWED_ORIGINS: authCorsAllowedOrigins,
+        AUTH_CORS_ALLOWED_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        AUTH_CORS_ALLOWED_HEADERS:
+          "Authorization,Content-Type,Accept,X-Request-Id,X-Tenant-Id,Idempotency-Key,X-Internal-Service-Id,X-Internal-Timestamp,X-Internal-Signature",
+        AUTH_CORS_EXPOSED_HEADERS: "X-Request-Id,X-Tenant-Id",
+        AUTH_CORS_CREDENTIALS: "true",
+        AUTH_CORS_MAX_AGE_SECONDS: "600",
+        AUTH_ACCESS_TOKEN_TTL_SECONDS: "1800",
+        AUTH_REFRESH_TOKEN_TTL_SECONDS: "1209600",
+        AUTH_INTERNAL_AUTH_ENABLED: "true",
+        AUTH_INTERNAL_AUTH_ALLOWED_SERVICES: "gateway-service,admin-bff-service,user-bff-service,wms-service",
+        AUTH_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS: "300",
+        JWT_ALGORITHM: props.authJwtAlgorithm,
+        JWT_ISSUER: "multi-tenant-auth-iam-service",
+        JWT_AUDIENCE: "multi-tenant-gateway-service",
+        REDIS_URL: redisUrl,
+        AUDIT_LOG_SERVICE_URL: ""
+      },
+      secrets: Object.keys(authContainerSecrets).length > 0 ? authContainerSecrets : undefined,
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: authLogGroup,
+        streamPrefix: authServiceName
+      }),
+      healthCheck: {
+        command: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"],
+        interval: Duration.seconds(30),
+        timeout: Duration.seconds(5),
+        retries: 3,
+        startPeriod: Duration.seconds(15)
+      }
+    });
+    authContainer.addPortMappings({
+      containerPort: 3000,
+      protocol: ecs.Protocol.TCP
+    });
+
+    new ecs.FargateService(this, "AuthIamFargateService", {
+      serviceName: `${namePrefix}-${authServiceName}`,
+      cluster,
+      taskDefinition: authTaskDefinition,
+      desiredCount: props.authDesiredCount,
+      circuitBreaker: {
+        rollback: true
+      },
+      minHealthyPercent: 100,
+      maxHealthyPercent: 200,
+      assignPublicIp: !props.gatewayUseNatGateway,
+      securityGroups: [authServiceSecurityGroup],
+      vpcSubnets: {
+        subnetType: props.gatewayUseNatGateway ? ec2.SubnetType.PRIVATE_WITH_EGRESS : ec2.SubnetType.PUBLIC
+      },
+      cloudMapOptions: {
+        cloudMapNamespace,
+        name: authServiceName
+      },
+      enableExecuteCommand: props.envName !== "prod"
+    });
+
     cdk.Tags.of(this).add("Project", props.project);
     cdk.Tags.of(this).add("Environment", props.envName);
-    cdk.Tags.of(this).add("Service", serviceName);
     cdk.Tags.of(this).add("ManagedBy", "cdk");
 
     new cdk.CfnOutput(this, "GatewayServiceRepositoryUri", {
       value: repository.repositoryUri,
       description: "ECR repository URI for gateway-service"
+    });
+
+    new cdk.CfnOutput(this, "AuthIamServiceRepositoryUri", {
+      value: authRepository.repositoryUri,
+      description: "ECR repository URI for auth-iam-service"
+    });
+
+    new cdk.CfnOutput(this, "AuthIamServiceImageTag", {
+      value: props.authImageTag,
+      description: "Image tag used by the auth-iam-service ECS task definition"
+    });
+
+    new cdk.CfnOutput(this, "AuthIamServiceDesiredCount", {
+      value: String(props.authDesiredCount),
+      description: "Current desired count for auth-iam-service"
+    });
+
+    new cdk.CfnOutput(this, "AuthIamServiceInternalUrl", {
+      value: authIamInternalUrl,
+      description: "Cloud Map internal URL used by gateway-service to reach auth-iam-service"
     });
 
     new cdk.CfnOutput(this, "GatewayServiceImageTag", {

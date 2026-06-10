@@ -23,8 +23,8 @@
                   <tr><th>타입/인터페이스</th><td><code>PascalCase</code>. <code>I</code> 접두어는 쓰지 않습니다. 예: <code>TenantContext</code>, <code>EventPublisher</code></td></tr>
                   <tr><th>함수/변수</th><td><code>camelCase</code>. 예: <code>resolveTenantContext</code>, <code>tenantId</code></td></tr>
                   <tr><th>상수/환경 변수</th><td><code>UPPER_SNAKE_CASE</code>. 예: <code>TENANT_HEADER</code>, <code>DATABASE_URL</code></td></tr>
-                  <tr><th>API URL</th><td><code>/api/v1/{surface}/{domain}/{resource}</code>, <code>kebab-case</code>, 복수형 리소스. 예: <code>/api/v1/app/wms/inventory-adjustments</code></td></tr>
-                  <tr><th>이벤트</th><td><code>dot.case</code>, 과거형. 예: <code>wms.inventory.changed</code>, <code>tenant.created</code></td></tr>
+                  <tr><th>API URL</th><td><code>/api/{surface}/{domain}/{resource}</code>, <code>kebab-case</code>, 복수형 리소스. 예: <code>/api/app/wms/inventory-adjustments</code></td></tr>
+                  <tr><th>이벤트</th><td><code>dot.case</code>, 과거형. 예: <code>wms.inventory.adjusted</code>, <code>wms.outbound.shipped</code>, <code>tenant.created</code></td></tr>
                   <tr><th>AWS 리소스</th><td><code>{project}-{env}-{resource}</code>. 예: <code>multi-tenant-dev-wms-service</code></td></tr>
                   <tr><th>브랜치/커밋</th><td>브랜치: <code>feature/wms-inventory</code>. 커밋: <code>feat(wms): add inventory adjustment</code></td></tr>
                 </tbody>

@@ -19,7 +19,7 @@
         <table>
           <tr><th>위치</th><td><code>apps/auth-iam-service</code></td></tr>
           <tr><th>책임</th><td>사용자 인증, JWT 발급, refresh token rotation, 사용자/역할/권한 관리, permission summary/check 제공</td></tr>
-          <tr><th>연동</th><td>gateway-service의 <code>/api/v1/auth/**</code> proxy route 뒤에서 동작하고, BFF와 도메인 서비스에 권한 조회 API를 제공합니다.</td></tr>
+          <tr><th>연동</th><td>gateway-service의 <code>/api/auth/**</code> proxy route 뒤에서 동작하고, BFF와 도메인 서비스에 권한 조회 API를 제공합니다.</td></tr>
           <tr><th>주의</th><td>JWT에는 <code>roles</code>, <code>permissions</code>를 넣지 않습니다. WMS 재고/입출고 업무 규칙은 <code>wms-service</code>에 둡니다.</td></tr>
         </table>
       </section>
@@ -67,7 +67,7 @@
               <p><label><input type="checkbox" checked disabled /> auth/user/permission 변경 outbox event 저장</label></p>
               <p><label><input type="checkbox" checked disabled /> 내부 서비스 호출 인증 기준 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> Auth/IAM API 상세 문서 추가</label></p>
-              <p><label><input type="checkbox" checked disabled /> <code>GET /api/v1/auth/me</code> 구현과 상세 문서 전환</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /api/auth/me</code> 구현과 상세 문서 전환</label></p>
             </div>
           </div>
           <div class="card">
@@ -214,12 +214,12 @@
             <summary>Login, JWT, Refresh Token</summary>
             <div class="detail-body">
               <div class="compact-grid">
-                <div class="card"><strong>Login</strong><p><code>POST /api/v1/auth/login</code>은 tenant context, email, password를 검증하고 active 사용자에게만 token을 발급합니다.</p></div>
+                <div class="card"><strong>Login</strong><p><code>POST /api/auth/login</code>은 tenant context, email, password를 검증하고 active 사용자에게만 token을 발급합니다.</p></div>
                 <div class="card"><strong>Password</strong><p>password hash는 <code>scrypt</code>와 사용자별 random salt를 사용합니다. 저장 형식은 <code>scrypt$salt$key</code>이며 비교는 timing-safe 방식으로 처리합니다.</p></div>
                 <div class="card"><strong>JWT</strong><p>access token은 기본 30분이며 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</p></div>
-                <div class="card"><strong>Refresh</strong><p><code>POST /api/v1/auth/token/refresh</code>는 기존 refresh token을 폐기하고 새 access/refresh token을 발급합니다. 재사용된 token은 <code>401 AUTH_INVALID_TOKEN</code>으로 실패합니다.</p></div>
-                <div class="card"><strong>Revoke</strong><p><code>POST /api/v1/auth/logout</code>은 refresh token 단건 폐기 또는 gateway가 전달한 사용자 context 기반 전체 token 폐기를 지원합니다.</p></div>
-                <div class="card"><strong>Me</strong><p><code>GET /api/v1/auth/me</code>는 gateway가 전달한 <code>X-Tenant-Id</code>, <code>X-User-Id</code> 기준으로 현재 사용자, role, permission 요약을 반환합니다.</p></div>
+                <div class="card"><strong>Refresh</strong><p><code>POST /api/auth/token/refresh</code>는 기존 refresh token을 폐기하고 새 access/refresh token을 발급합니다. 재사용된 token은 <code>401 AUTH_INVALID_TOKEN</code>으로 실패합니다.</p></div>
+                <div class="card"><strong>Revoke</strong><p><code>POST /api/auth/logout</code>은 refresh token 단건 폐기 또는 gateway가 전달한 사용자 context 기반 전체 token 폐기를 지원합니다.</p></div>
+                <div class="card"><strong>Me</strong><p><code>GET /api/auth/me</code>는 gateway가 전달한 <code>X-Tenant-Id</code>, <code>X-User-Id</code> 기준으로 현재 사용자, role, permission 요약을 반환합니다.</p></div>
                 <div class="card"><strong>Gateway</strong><p>gateway-service의 <code>JWT_ALGORITHM</code>, <code>JWT_SECRET</code>/<code>JWT_PUBLIC_KEY</code>, <code>JWT_ISSUER</code>, <code>JWT_AUDIENCE</code> 검증과 일치해야 합니다.</p></div>
               </div>
               <div class="doc-chip-list">
@@ -232,10 +232,10 @@
                 </div>
                 <div class="doc-chip-label">API</div>
                 <div class="doc-chip-items">
-                  <code>POST /api/v1/auth/login</code>
-                  <code>POST /api/v1/auth/token/refresh</code>
-                  <code>GET /api/v1/auth/me</code>
-                  <code>POST /api/v1/auth/logout</code>
+                  <code>POST /api/auth/login</code>
+                  <code>POST /api/auth/token/refresh</code>
+                  <code>GET /api/auth/me</code>
+                  <code>POST /api/auth/logout</code>
                 </div>
               </div>
             </div>
@@ -244,11 +244,11 @@
             <summary>User CRUD와 상태 관리</summary>
             <div class="detail-body">
               <div class="compact-grid">
-                <div class="card"><strong>Create</strong><p><code>POST /api/v1/auth/users</code>는 <code>X-Tenant-Id</code> 기준으로 사용자를 생성합니다. email은 같은 tenant 안에서만 unique이며 password는 hash만 저장합니다.</p></div>
-                <div class="card"><strong>Read</strong><p><code>GET /api/v1/auth/users</code>와 <code>GET /api/v1/auth/users/{userId}</code>는 항상 <code>tenantId</code> 조건을 포함합니다. cross-tenant 조회는 <code>404 AUTH_USER_NOT_FOUND</code>로 실패합니다.</p></div>
-                <div class="card"><strong>Update</strong><p><code>PATCH /api/v1/auth/users/{userId}</code>는 email과 displayName 변경을 지원합니다. email 중복은 tenant 안에서 <code>409 AUTH_USER_EMAIL_CONFLICT</code>로 차단합니다.</p></div>
-                <div class="card"><strong>Status</strong><p><code>PATCH /api/v1/auth/users/{userId}/status</code>는 <code>active</code>, <code>inactive</code>, <code>locked</code>를 지원하며 active가 아닌 상태로 바뀌면 refresh token을 revoke합니다.</p></div>
-                <div class="card"><strong>Delete</strong><p><code>DELETE /api/v1/auth/users/{userId}</code>는 hard delete가 아니라 <code>inactive</code> 전환으로 처리하고 active refresh token을 폐기합니다.</p></div>
+                <div class="card"><strong>Create</strong><p><code>POST /api/auth/users</code>는 <code>X-Tenant-Id</code> 기준으로 사용자를 생성합니다. email은 같은 tenant 안에서만 unique이며 password는 hash만 저장합니다.</p></div>
+                <div class="card"><strong>Read</strong><p><code>GET /api/auth/users</code>와 <code>GET /api/auth/users/{userId}</code>는 항상 <code>tenantId</code> 조건을 포함합니다. cross-tenant 조회는 <code>404 AUTH_USER_NOT_FOUND</code>로 실패합니다.</p></div>
+                <div class="card"><strong>Update</strong><p><code>PATCH /api/auth/users/{userId}</code>는 email과 displayName 변경을 지원합니다. email 중복은 tenant 안에서 <code>409 AUTH_USER_EMAIL_CONFLICT</code>로 차단합니다.</p></div>
+                <div class="card"><strong>Status</strong><p><code>PATCH /api/auth/users/{userId}/status</code>는 <code>active</code>, <code>inactive</code>, <code>locked</code>를 지원하며 active가 아닌 상태로 바뀌면 refresh token을 revoke합니다.</p></div>
+                <div class="card"><strong>Delete</strong><p><code>DELETE /api/auth/users/{userId}</code>는 hard delete가 아니라 <code>inactive</code> 전환으로 처리하고 active refresh token을 폐기합니다.</p></div>
                 <div class="card"><strong>Envelope</strong><p>list 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용합니다. 사용자 응답에는 <code>passwordHash</code>를 포함하지 않습니다.</p></div>
               </div>
               <div class="doc-chip-list">
@@ -259,12 +259,12 @@
                 </div>
                 <div class="doc-chip-label">API</div>
                 <div class="doc-chip-items">
-                  <code>POST /api/v1/auth/users</code>
-                  <code>GET /api/v1/auth/users</code>
-                  <code>GET /api/v1/auth/users/{userId}</code>
-                  <code>PATCH /api/v1/auth/users/{userId}</code>
-                  <code>PATCH /api/v1/auth/users/{userId}/status</code>
-                  <code>DELETE /api/v1/auth/users/{userId}</code>
+                  <code>POST /api/auth/users</code>
+                  <code>GET /api/auth/users</code>
+                  <code>GET /api/auth/users/{userId}</code>
+                  <code>PATCH /api/auth/users/{userId}</code>
+                  <code>PATCH /api/auth/users/{userId}/status</code>
+                  <code>DELETE /api/auth/users/{userId}</code>
                 </div>
               </div>
             </div>
@@ -273,12 +273,12 @@
             <summary>Role과 Permission</summary>
             <div class="detail-body">
               <div class="compact-grid">
-                <div class="card"><strong>Permission</strong><p><code>POST/GET /api/v1/auth/permissions</code>는 전역 permission catalog를 관리합니다. permission code는 <code>{domain}.{resource}.{action}</code> 형식을 사용합니다.</p></div>
-                <div class="card"><strong>Role</strong><p><code>POST/GET/PATCH /api/v1/auth/roles</code>는 <code>X-Tenant-Id</code> 기준 tenant-scoped role을 관리합니다.</p></div>
-                <div class="card"><strong>Mapping</strong><p><code>PUT /api/v1/auth/roles/{roleId}/permissions</code>는 role의 permission mapping을 교체합니다.</p></div>
-                <div class="card"><strong>Assignment</strong><p><code>POST /api/v1/auth/users/{userId}/roles</code>는 사용자에게 role을 부여하고 optional <code>warehouseId</code> scope를 둘 수 있습니다.</p></div>
-                <div class="card"><strong>Summary</strong><p><code>GET /api/v1/auth/permissions/summary</code>는 BFF 화면 구성용 role/permission 요약을 반환합니다.</p></div>
-                <div class="card"><strong>Check</strong><p><code>POST /api/v1/auth/permissions/check</code>는 도메인 서비스가 업무 수행 전 permission과 warehouse scope를 확인하는 API입니다.</p></div>
+                <div class="card"><strong>Permission</strong><p><code>POST/GET /api/auth/permissions</code>는 전역 permission catalog를 관리합니다. permission code는 <code>{domain}.{resource}.{action}</code> 형식을 사용합니다.</p></div>
+                <div class="card"><strong>Role</strong><p><code>POST/GET/PATCH /api/auth/roles</code>는 <code>X-Tenant-Id</code> 기준 tenant-scoped role을 관리합니다.</p></div>
+                <div class="card"><strong>Mapping</strong><p><code>PUT /api/auth/roles/{roleId}/permissions</code>는 role의 permission mapping을 교체합니다.</p></div>
+                <div class="card"><strong>Assignment</strong><p><code>POST /api/auth/users/{userId}/roles</code>는 사용자에게 role을 부여하고 optional <code>warehouseId</code> scope를 둘 수 있습니다.</p></div>
+                <div class="card"><strong>Summary</strong><p><code>GET /api/auth/permissions/summary</code>는 BFF 화면 구성용 role/permission 요약을 반환합니다.</p></div>
+                <div class="card"><strong>Check</strong><p><code>POST /api/auth/permissions/check</code>는 도메인 서비스가 업무 수행 전 permission과 warehouse scope를 확인하는 API입니다.</p></div>
                 <div class="card"><strong>Internal Auth</strong><p><code>summary</code>와 <code>check</code>는 <code>X-Internal-Service-Id</code>, <code>X-Internal-Timestamp</code>, <code>X-Internal-Signature</code> 기반 HMAC 인증을 통과해야 합니다.</p></div>
                 <div class="card"><strong>Caller Scope</strong><p><code>summary</code>는 <code>admin-bff-service</code>, <code>user-bff-service</code>만 허용하고, <code>check</code>는 <code>wms-service</code>까지 허용합니다.</p></div>
                 <div class="card"><strong>Admin Scope</strong><p><code>system_admin</code>은 tenant-scoped role API에서 생성할 수 없습니다. <code>system.*</code> permission은 tenant role에 mapping하거나 tenant permission check에서 사용할 수 없습니다.</p></div>
@@ -294,12 +294,18 @@
                 </div>
                 <div class="doc-chip-label">API</div>
                 <div class="doc-chip-items">
-                  <code>POST /api/v1/auth/permissions</code>
-                  <code>POST /api/v1/auth/roles</code>
-                  <code>PUT /api/v1/auth/roles/{roleId}/permissions</code>
-                  <code>POST /api/v1/auth/users/{userId}/roles</code>
-                  <code>GET /api/v1/auth/permissions/summary</code>
-                  <code>POST /api/v1/auth/permissions/check</code>
+                  <code>POST /api/auth/permissions</code>
+                  <code>GET /api/auth/permissions</code>
+                  <code>GET /api/auth/permissions/{permissionId}</code>
+                  <code>POST /api/auth/roles</code>
+                  <code>GET /api/auth/roles</code>
+                  <code>GET /api/auth/roles/{roleId}</code>
+                  <code>PUT /api/auth/roles/{roleId}/permissions</code>
+                  <code>POST /api/auth/users/{userId}/roles</code>
+                  <code>GET /api/auth/users/{userId}/roles</code>
+                  <code>DELETE /api/auth/user-roles/{userRoleId}</code>
+                  <code>GET /api/auth/permissions/summary</code>
+                  <code>POST /api/auth/permissions/check</code>
                 </div>
               </div>
             </div>
@@ -310,7 +316,7 @@
               <div class="compact-grid">
                 <div class="card"><strong>범위</strong><p><code>docs/apis/auth-iam-service/index.html</code>에 Health, Ready, Login, Refresh, Logout, User CRUD, RBAC, Permission Summary/Check, side effect, error code를 정리했습니다.</p></div>
                 <div class="card"><strong>Internal</strong><p>내부 API는 HMAC header와 caller allowlist를 문서화했습니다. <code>summary</code>는 BFF 전용, <code>check</code>는 BFF와 <code>wms-service</code>를 허용합니다.</p></div>
-                <div class="card"><strong>Me</strong><p><code>GET /api/v1/auth/me</code>를 구현했고 endpoint 목록에서 <code>Implemented</code>로 전환했습니다.</p></div>
+                <div class="card"><strong>Me</strong><p><code>GET /api/auth/me</code>를 구현했고 endpoint 목록에서 <code>Implemented</code>로 전환했습니다.</p></div>
                 <div class="card"><strong>Side effects</strong><p>Audit-log-service 호출과 <code>outbox_events</code> 저장 대상 API를 별도 섹션으로 분리했습니다.</p></div>
               </div>
               <div class="doc-chip-list">
@@ -413,12 +419,19 @@
   auth/auth.service.ts
   auth/password-hasher.ts
   auth/jwt-signer.ts
+  auth/public.decorator.ts
+  cache/redis.service.ts
   users/users.controller.ts
   users/users.service.ts
-  users/users.repository.ts
   permissions/permissions.controller.ts
   permissions/permissions.service.ts
-  permissions/permissions.repository.ts
+  permissions/rbac.service.ts
+  permissions/rbac-utils.ts
+  database/prisma.service.ts
+  internal-auth/internal-service-auth.guard.ts
+  internal-auth/internal-service.decorator.ts
+  logging/access-log.middleware.ts
+  security/security-headers.middleware.ts
   audit/audit-log-client.service.ts
   outbox/outbox-event.service.ts</code></pre>
             </div>
@@ -598,7 +611,7 @@
           <ul>
             <li>gateway-service 개발 문서 구조에 맞춰 Auth/IAM 개발 문서를 재구성했습니다.</li>
             <li>문서 구조를 서비스 역할, 첫 구현 범위, 기능 TODO, 기능별 작업 내역, 테스트 시나리오, 향후 연동 작업, 개발 기록 순서로 맞췄습니다.</li>
-            <li>현재 <code>apps/auth-iam-service/src</code>에는 <code>.gitkeep</code>만 있으므로 다음 단계는 NestJS 서비스 기본 구성입니다.</li>
+            <li>당시 <code>apps/auth-iam-service/src</code>에는 서비스 기본 구성이 필요했으며, 이후 NestJS/Prisma 기반 구현으로 확장했습니다.</li>
             <li>Auth/IAM API 시작점은 <a href="../../apis/auth-iam-service/index.html"><code>docs/apis/auth-iam-service/index.html</code></a>에 기록했습니다.</li>
           </ul>
         </article>
@@ -656,10 +669,23 @@
           </ul>
         </article>
         <article>
+          <h3>2026-06-10 Auth/IAM CDK 배포 구성</h3>
+          <ul>
+            <li><code>infra/cdk/lib/gateway-service-stack.ts</code>에 Auth/IAM용 ECR repository, ECS Fargate task definition/service, CloudWatch log group, security group을 추가했습니다.</li>
+            <li>첫 인프라 배포에서 비어 있는 ECR 때문에 task가 실패하지 않도록 <code>authDesiredCount=0</code>을 기본값으로 사용합니다.</li>
+            <li>서비스 실행은 이미지 push와 runtime secret 준비 후 <code>authDesiredCount=1</code>, <code>authImageTag=...</code>로 재배포해 시작합니다.</li>
+            <li>Auth/IAM은 ALB target으로 직접 노출하지 않고 Cloud Map 내부 DNS와 auth base path를 포함한 <code>auth-iam-service.{envName}.multi-tenant.local:3000/api/auth</code>로 gateway-service가 호출합니다.</li>
+            <li><code>DATABASE_URL</code>, JWT secret/key, 내부 호출 인증 secret은 Secrets Manager ARN context로 받아 ECS task secret에 주입합니다.</li>
+            <li>security group은 gateway-service에서 Auth/IAM <code>3000</code> 포트 접근만 허용하고, Auth/IAM에서 Redis <code>6379</code> 포트 접근만 허용합니다.</li>
+            <li>현재 <code>deploy-gateway-service.yml</code>은 Auth/IAM 리소스와 task definition context만 갱신하고 <code>authDesiredCount=0</code>을 유지합니다. Auth/IAM image build/push와 실행 배포는 별도 workflow가 필요합니다.</li>
+            <li><code>pnpm --filter @multi-tenant/infra-cdk typecheck</code>와 <code>pnpm --filter @multi-tenant/infra-cdk exec cdk synth -c gatewayDesiredCount=0 -c authDesiredCount=0 -c gatewayUseNatGateway=false</code>가 통과했습니다.</li>
+          </ul>
+        </article>
+        <article>
           <h3>2026-06-09 Password Hash와 Login API 구현</h3>
           <ul>
             <li><code>PasswordHasher</code>를 추가해 <code>scrypt</code>, random salt, timing-safe 비교 방식으로 password hash를 처리합니다.</li>
-            <li><code>POST /api/v1/auth/login</code>을 구현했고 body/header tenant mismatch는 <code>403 TENANT_MISMATCH</code>로 차단합니다.</li>
+            <li><code>POST /api/auth/login</code>을 구현했고 body/header tenant mismatch는 <code>403 TENANT_MISMATCH</code>로 차단합니다.</li>
             <li>성공 응답은 표준 envelope에 <code>accessToken</code>, <code>expiresIn</code>, <code>refreshToken</code>, <code>refreshExpiresIn</code>, <code>tokenType</code>을 담아 <code>200</code>으로 반환합니다.</li>
             <li>access token은 <code>HS256</code> 또는 <code>RS256</code> 설정을 지원하며 JWT payload에는 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</li>
             <li>refresh token은 opaque token으로 반환하고 DB에는 SHA-256 hash만 저장합니다. rotation과 revoke API는 별도 단계에서 이어서 구현했습니다.</li>
@@ -670,9 +696,9 @@
         <article>
           <h3>2026-06-09 Refresh Token Rotation과 Revoke 구현</h3>
           <ul>
-            <li><code>POST /api/v1/auth/token/refresh</code>를 추가해 기존 refresh token을 <code>revokedAt</code>과 <code>replacedBy</code>로 폐기하고 새 access/refresh token을 발급합니다.</li>
+            <li><code>POST /api/auth/token/refresh</code>를 추가해 기존 refresh token을 <code>revokedAt</code>과 <code>replacedBy</code>로 폐기하고 새 access/refresh token을 발급합니다.</li>
             <li>존재하지 않거나 만료되었거나 이미 폐기된 refresh token, 비활성 사용자 token은 <code>401 AUTH_INVALID_TOKEN</code>으로 실패합니다.</li>
-            <li><code>POST /api/v1/auth/logout</code>을 추가해 refresh token 단건 revoke와 <code>X-Tenant-Id</code>, <code>X-User-Id</code> 기반 전체 active refresh token revoke를 지원합니다.</li>
+            <li><code>POST /api/auth/logout</code>을 추가해 refresh token 단건 revoke와 <code>X-Tenant-Id</code>, <code>X-User-Id</code> 기반 전체 active refresh token revoke를 지원합니다.</li>
             <li>refresh/logout 요청에서 body tenant와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 차단합니다.</li>
             <li><code>pnpm --filter auth-iam-service typecheck</code>와 <code>pnpm --filter auth-iam-service build</code>가 통과했습니다.</li>
             <li>로컬 DB/Redis 연결 상태에서 login, refresh rotation, 이전 refresh token 재사용 실패, logout revoke, 폐기된 refresh token 재사용 실패를 확인했습니다.</li>
@@ -682,12 +708,12 @@
         <article>
           <h3>2026-06-09 Tenant-scoped User CRUD와 상태 관리 구현</h3>
           <ul>
-            <li><code>UsersController</code>와 <code>UsersService</code>를 추가하고 <code>POST/GET/PATCH/DELETE /api/v1/auth/users</code> 계열 API를 구현했습니다.</li>
+            <li><code>UsersController</code>와 <code>UsersService</code>를 추가하고 <code>POST/GET/PATCH/DELETE /api/auth/users</code> 계열 API를 구현했습니다.</li>
             <li>모든 사용자 create/list/detail/update/status/delete 경로는 <code>X-Tenant-Id</code>를 필수 tenant context로 사용하며 DB 접근 조건에 <code>tenantId</code>를 포함합니다.</li>
             <li>사용자 생성 시 password는 <code>PasswordHasher</code>로 hash만 저장하고 API 응답에는 <code>passwordHash</code>를 반환하지 않습니다.</li>
             <li>같은 email은 tenant 안에서만 중복 차단하며, 다른 tenant에서는 같은 email 사용자를 생성할 수 있습니다.</li>
             <li>상태는 <code>active</code>, <code>inactive</code>, <code>locked</code>를 지원하고, <code>inactive</code> 또는 <code>locked</code> 전환 시 active refresh token을 revoke합니다.</li>
-            <li><code>DELETE /api/v1/auth/users/{userId}</code>는 hard delete가 아니라 <code>inactive</code> 전환으로 처리합니다.</li>
+            <li><code>DELETE /api/auth/users/{userId}</code>는 hard delete가 아니라 <code>inactive</code> 전환으로 처리합니다.</li>
             <li><code>pnpm --filter auth-iam-service typecheck</code>와 <code>pnpm --filter auth-iam-service build</code>가 통과했습니다.</li>
             <li>로컬 DB/Redis 연결 상태에서 생성, 목록, 상세, 수정, 상태 변경, 소프트 삭제, cross-tenant 상세 조회 차단, 상태 변경 후 refresh token 재사용 실패를 확인했습니다.</li>
           </ul>
@@ -740,7 +766,7 @@
           <h3>2026-06-09 내부 서비스 호출 인증 적용</h3>
           <ul>
             <li><code>InternalServiceAuthGuard</code>와 <code>@InternalService()</code> decorator를 추가했습니다.</li>
-            <li><code>GET /api/v1/auth/permissions/summary</code>와 <code>POST /api/v1/auth/permissions/check</code>에 HMAC 기반 내부 서비스 인증을 적용했습니다.</li>
+            <li><code>GET /api/auth/permissions/summary</code>와 <code>POST /api/auth/permissions/check</code>에 HMAC 기반 내부 서비스 인증을 적용했습니다.</li>
             <li>서명 payload는 <code>METHOD</code>, <code>originalUrl</code>, <code>X-Internal-Timestamp</code>, <code>X-Request-Id</code>, body SHA-256 hash를 줄바꿈으로 연결한 값입니다.</li>
             <li>인증 header 누락은 <code>401 AUTH_INTERNAL_AUTH_REQUIRED</code>, 서명 불일치는 <code>401 AUTH_INTERNAL_SIGNATURE_INVALID</code>, 허용되지 않은 caller는 <code>403 AUTH_INTERNAL_SERVICE_FORBIDDEN</code>으로 실패합니다.</li>
             <li><code>/ready</code>에서 <code>AUTH_INTERNAL_AUTH_SECRET</code>, 허용 서비스 목록, timestamp skew 설정을 확인합니다.</li>
@@ -769,10 +795,10 @@
         <article>
           <h3>2026-06-09 Me API 구현과 상세 문서 전환</h3>
           <ul>
-            <li><code>GET /api/v1/auth/me</code>를 추가해 gateway가 전달한 <code>X-Tenant-Id</code>, <code>X-User-Id</code> 기준으로 현재 사용자 정보를 조회합니다.</li>
+            <li><code>GET /api/auth/me</code>를 추가해 gateway가 전달한 <code>X-Tenant-Id</code>, <code>X-User-Id</code> 기준으로 현재 사용자 정보를 조회합니다.</li>
             <li>응답에는 사용자 기본 정보, tenant-scoped role assignment, 정렬된 permission code 목록을 포함하고 JWT에는 role/permission을 넣지 않는 규칙을 유지합니다.</li>
             <li>tenant context 누락은 <code>400 TENANT_REQUIRED</code>, user context 누락은 <code>401 AUTH_INVALID_TOKEN</code>, 비활성 사용자는 <code>403 AUTH_ACCOUNT_LOCKED</code>, tenant 내 사용자가 없으면 <code>404 AUTH_USER_NOT_FOUND</code>로 처리합니다.</li>
-            <li>Auth/IAM API 상세 문서의 endpoint 목록에서 <code>GET /api/v1/auth/me</code>를 <code>Planned</code>에서 <code>Implemented</code>로 전환하고 Me 섹션에 request context, response data, error code 예시를 추가했습니다.</li>
+            <li>Auth/IAM API 상세 문서의 endpoint 목록에서 <code>GET /api/auth/me</code>를 <code>Planned</code>에서 <code>Implemented</code>로 전환하고 Me 섹션에 request context, response data, error code 예시를 추가했습니다.</li>
             <li>로컬 DB/Redis 연결 상태에서 사용자, permission, role, mapping, assignment를 생성한 뒤 <code>/me</code> 성공 응답과 user context 누락 실패 응답을 확인했고 검증 데이터는 정리했습니다.</li>
           </ul>
         </article>

@@ -4,7 +4,7 @@ import type { AuthIamRequest } from "../context/request-context.js";
 import { AuthService } from "./auth.service.js";
 import { Public } from "./public.decorator.js";
 
-@Controller("api/v1/auth")
+@Controller("api/auth")
 export class AuthController {
   constructor(
     @Inject(AuthService)

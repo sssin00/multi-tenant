@@ -1,21 +1,72 @@
-name: gateway-service-local
+name: multi-tenant-local
 
 services:
+  auth-iam-db-push:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      target: deps
+    container_name: multi-tenant-auth-iam-db-push
+    env_file:
+      - ../env/auth-iam-service/.env.local
+    command: pnpm --filter auth-iam-service prisma:push
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  auth-iam-service:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      args:
+        APP_NAME: auth-iam-service
+        APP_PORT: 3000
+    container_name: multi-tenant-auth-iam-service
+    env_file:
+      - ../env/auth-iam-service/.env.local
+    ports:
+      - "3001:3000"
+    depends_on:
+      auth-iam-db-push:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
   gateway-service:
     build:
       context: ../..
       dockerfile: docker/services/Dockerfile.nest
       args:
         APP_NAME: gateway-service
+        APP_PORT: 3000
     container_name: multi-tenant-gateway-service
     env_file:
       - ../env/gateway-service/.env.local
     ports:
       - "3000:3000"
     depends_on:
-      - postgres
-      - redis
-      - localstack
+      auth-iam-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   postgres:
     image: postgres:16-alpine
@@ -28,12 +79,23 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d multi_tenant"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
     container_name: multi-tenant-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   localstack:
     image: localstack/localstack:3
@@ -46,6 +108,12 @@ services:
     volumes:
       - localstack_data:/var/lib/localstack
       - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:4566/_localstack/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
 volumes:
   postgres_data:

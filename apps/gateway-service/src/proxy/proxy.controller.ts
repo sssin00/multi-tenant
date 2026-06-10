@@ -5,7 +5,7 @@ import { getAppConfig } from "../config/app.config.js";
 import type { GatewayRequest } from "../context/request-context.js";
 import { ProxyService } from "./proxy.service.js";
 
-@Controller("api/v1")
+@Controller("api")
 export class ProxyController {
   private readonly routes = getAppConfig().routes;
 

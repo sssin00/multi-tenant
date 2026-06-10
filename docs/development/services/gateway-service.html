@@ -30,7 +30,7 @@
           <div class="card"><strong>Auth</strong><p>JWT guard 기본 구조와 public/private route 구분</p></div>
           <div class="card"><strong>Routing</strong><p>user-bff, admin-bff, auth-iam으로 프록시 라우팅</p></div>
           <div class="card"><strong>Log</strong><p>tenant_id, request_id, user_id 기반 access log</p></div>
-          <div class="card"><strong>Later</strong><p>Redis rate limit, tenant status check, 보안 헤더</p></div>
+          <div class="card"><strong>Policy</strong><p>Redis rate limit, tenant status check, 보안 header/CORS 운영 기준</p></div>
         </div>
       </section>
       <section>
@@ -49,7 +49,7 @@
               <p><label><input type="checkbox" checked disabled /> Bearer token 기반 auth guard 기본 구조</label></p>
               <p><label><input type="checkbox" checked disabled /> JWT payload의 <code>sub</code>, <code>tenantId</code> 추출</label></p>
               <p><label><input type="checkbox" checked disabled /> JWT <code>tenantId</code>와 header tenant mismatch 차단</label></p>
-              <p><label><input type="checkbox" checked disabled /> <code>/api/v1/auth/**</code>, <code>/api/v1/admin/**</code>, <code>/api/v1/app/**</code> proxy route map</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code> proxy route map</label></p>
               <p><label><input type="checkbox" checked disabled /> upstream으로 <code>x-request-id</code>, <code>x-tenant-id</code>, <code>x-user-id</code> 전파</label></p>
               <p><label><input type="checkbox" checked disabled /> Proxy request body 전달 처리</label></p>
               <p><label><input type="checkbox" checked disabled /> Global exception filter로 API 에러 응답 포맷 통일</label></p>
@@ -62,6 +62,7 @@
               <p><label><input type="checkbox" checked disabled /> 보안 header와 CORS 운영 기준 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> HTTPS, ACM, Route53 연결 기준 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> GitHub Actions 배포 자동화</label></p>
+              <p><label><input type="checkbox" checked disabled /> AWS 배포에서 Auth/IAM Cloud Map 내부 DNS upstream 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> gateway 테스트 시나리오 문서화</label></p>
             </div>
           </div>
@@ -139,7 +140,7 @@
             <summary>Proxy Routing, Body 전달, Timeout/Retry</summary>
             <div class="detail-body">
               <div class="compact-grid">
-                <div class="card"><strong>Route Map</strong><p><code>/api/v1/auth/**</code>, <code>/api/v1/admin/**</code>, <code>/api/v1/app/**</code>를 각각 Auth/IAM, Admin BFF, User BFF로 전달합니다.</p></div>
+                <div class="card"><strong>Route Map</strong><p><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>를 각각 Auth/IAM, Admin BFF, User BFF로 전달합니다.</p></div>
                 <div class="card"><strong>전달</strong><p>request body, query string, request context headers를 upstream으로 보존해 전달합니다.</p></div>
                 <div class="card"><strong>Timeout</strong><p>auth는 기본 <code>3000ms</code>, admin/app은 기본 <code>5000ms</code>입니다.</p></div>
                 <div class="card"><strong>Retry</strong><p><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout/network error/502/503/504에서 재시도합니다.</p></div>
@@ -179,7 +180,7 @@
             <div class="detail-body">
               <div class="compact-grid">
                 <div class="card"><strong>Security</strong><p>공통 보안 header, 명시 origin 기반 CORS, HTTPS 요청 HSTS를 적용했습니다.</p></div>
-                <div class="card"><strong>Infra</strong><p>ACM ARN이 있으면 ALB HTTPS listener를 만들고 HTTP를 HTTPS로 redirect합니다.</p></div>
+                <div class="card"><strong>Infra</strong><p>ACM ARN이 있으면 ALB HTTPS listener를 만들고 HTTP를 HTTPS로 redirect합니다. AWS 배포에서 Auth/IAM upstream 기본값은 Cloud Map 내부 DNS입니다.</p></div>
                 <div class="card"><strong>CI/CD</strong><p><code>dev</code>, <code>staging</code>, <code>main</code> 브랜치를 각각 dev, staging, prod 환경으로 배포합니다.</p></div>
                 <div class="card"><strong>Docs</strong><p>API 문서, 개발 기록, 테스트 시나리오, 향후 서비스 연동 작업을 함께 갱신했습니다.</p></div>
               </div>
@@ -229,7 +230,7 @@
               <td><code>GWS-AUTH-001</code></td>
               <td>Private API는 bearer token 없이 차단된다</td>
               <td><code>P0</code></td>
-              <td><code>/api/v1/app/**</code> 요청에 token이 없으면 <code>401 UNAUTHORIZED</code> envelope로 응답한다.</td>
+              <td><code>/api/app/**</code> 요청에 token이 없으면 <code>401 UNAUTHORIZED</code> envelope로 응답한다.</td>
               <td>response JSON, status code, <code>requestId</code></td>
             </tr>
             <tr>
@@ -257,7 +258,7 @@
               <td><code>GWS-PROXY-001</code></td>
               <td>Proxy route가 request context와 body를 upstream으로 전달한다</td>
               <td><code>P0</code></td>
-              <td><code>/api/v1/auth/**</code>, <code>/api/v1/admin/**</code>, <code>/api/v1/app/**</code>가 각각 설정된 upstream으로 전달되고 body, query, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>가 보존된다.</td>
+              <td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>가 각각 설정된 upstream으로 전달되고 body, query, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>가 보존된다.</td>
               <td>upstream mock 수신 headers/body/query, gateway access log</td>
             </tr>
             <tr>
@@ -330,17 +331,17 @@
             </tr>
             <tr>
               <td><code>tenant-service</code> 구현</td>
-              <td><code>GET /internal/tenants/{tenantId}/status</code> 계약을 확정하고 tenant status check를 기본 활성화할 환경을 결정합니다.</td>
-              <td>tenant status 시나리오, Redis cache key, tenant 개발 문서 갱신</td>
+              <td>Gateway guard와 cache 기준은 구현되어 있습니다. tenant-service 구현 후 <code>GET /internal/tenants/{tenantId}/status</code> 실제 응답 계약과 운영 활성화 환경을 검증합니다.</td>
+              <td>tenant status 통합 시나리오, Redis cache key, tenant 개발 문서 갱신</td>
             </tr>
             <tr>
               <td><code>admin-bff-service</code> 구현</td>
-              <td><code>/api/v1/admin/**</code> route map, timeout, rate limit 기준을 실제 admin 화면 API에 맞춰 조정합니다.</td>
+              <td><code>/api/admin/**</code> route map, timeout, rate limit 기준을 실제 admin 화면 API에 맞춰 조정합니다.</td>
               <td>admin proxy 시나리오, API 문서, CORS allowed origin 확인</td>
             </tr>
             <tr>
               <td><code>user-bff-service</code> 구현</td>
-              <td><code>/api/v1/app/**</code> route map, request body 전달, tenant/user context 전파를 실제 app API로 검증합니다.</td>
+              <td><code>/api/app/**</code> route map, request body 전달, tenant/user context 전파를 실제 app API로 검증합니다.</td>
               <td>app proxy 시나리오, upstream mock 또는 dev BFF 수신 로그</td>
             </tr>
             <tr>
@@ -355,7 +356,7 @@
             </tr>
             <tr>
               <td>새 private API surface 추가</td>
-              <td><code>/api/v1/{surface}/**</code> route group, upstream URL env, timeout, retry, rate limit, access log 필드를 추가합니다.</td>
+              <td><code>/api/{surface}/**</code> route group, upstream URL env, timeout, retry, rate limit, access log 필드를 추가합니다.</td>
               <td>proxy route API 문서, gateway 테스트 시나리오 추가</td>
             </tr>
             <tr>
@@ -424,15 +425,15 @@
             <li><code>X-Request-Id</code>가 없으면 gateway-service가 UUID를 생성하고 응답 header와 upstream 요청에 전파합니다.</li>
             <li><code>X-Tenant-Id</code>는 request context에 먼저 담고, 인증 후 JWT <code>tenantId</code>와 불일치하면 <code>403 TENANT_MISMATCH</code>로 차단합니다.</li>
             <li>요청 완료 시 JSON access log를 남기며 <code>method</code>, <code>path</code>, <code>statusCode</code>, <code>durationMs</code>, <code>requestId</code>, <code>tenantId</code>, <code>userId</code>를 포함합니다.</li>
-            <li><code>/health</code>, <code>/ready</code>는 public route로 유지하고, <code>/api/v1/**</code>는 기본 private route로 처리합니다.</li>
+            <li><code>/health</code>, <code>/ready</code>는 public route로 유지하고, <code>/api/**</code>는 기본 private route로 처리합니다.</li>
             <li>JWT verifier는 local-dev 기본 구조로 시작하며 <code>sub</code>, <code>tenantId</code>, <code>exp</code>를 확인합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</li>
-            <li><code>/api/v1/auth/**</code>, <code>/api/v1/admin/**</code>, <code>/api/v1/app/**</code> proxy routing 뼈대를 추가했습니다.</li>
+            <li><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code> proxy routing 뼈대를 추가했습니다.</li>
             <li>Proxy route API 문서는 <a href="../../apis/gateway-service/proxy-routes.html"><code>docs/apis/gateway-service/proxy-routes.html</code></a>에 기록합니다.</li>
           </ul>
           <table>
             <tbody>
               <tr><th>GWS-CTX-001</th><td><code>GET /health</code> 호출 시 <code>X-Request-Id</code>가 응답 header로 전파되고 access log에 남는다.</td></tr>
-              <tr><th>GWS-AUTH-001</th><td><code>/api/v1/app/**</code> 호출 시 bearer token이 없으면 <code>401 UNAUTHORIZED</code>로 차단된다.</td></tr>
+              <tr><th>GWS-AUTH-001</th><td><code>/api/app/**</code> 호출 시 bearer token이 없으면 <code>401 UNAUTHORIZED</code>로 차단된다.</td></tr>
               <tr><th>GWS-TENANT-001</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 차단된다.</td></tr>
               <tr><th>GWS-PROXY-001</th><td>JWT와 tenant header가 일치하면 request context header를 upstream으로 전파하는 proxy 흐름까지 진입한다.</td></tr>
             </tbody>
@@ -483,7 +484,7 @@
           <h3>2026-06-09 Upstream Timeout과 Retry 정책</h3>
           <ul>
             <li>proxy route별 upstream timeout을 추가했습니다.</li>
-            <li><code>/api/v1/auth/**</code>는 기본 <code>3000ms</code>, <code>/api/v1/admin/**</code>와 <code>/api/v1/app/**</code>는 기본 <code>5000ms</code>를 적용합니다.</li>
+            <li><code>/api/auth/**</code>는 기본 <code>3000ms</code>, <code>/api/admin/**</code>와 <code>/api/app/**</code>는 기본 <code>5000ms</code>를 적용합니다.</li>
             <li><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout, network error, upstream <code>502</code>, <code>503</code>, <code>504</code> 응답에 대해 기본 1회 재시도합니다.</li>
             <li><code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>는 중복 실행 위험 때문에 재시도하지 않습니다.</li>
             <li>최종 timeout은 <code>504 GATEWAY_TIMEOUT</code>, 최종 연결 실패는 <code>503 UPSTREAM_UNAVAILABLE</code>로 응답합니다.</li>

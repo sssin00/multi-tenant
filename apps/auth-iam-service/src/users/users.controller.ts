@@ -3,7 +3,7 @@ import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Qu
 import type { AuthIamRequest } from "../context/request-context.js";
 import { UsersService } from "./users.service.js";
 
-@Controller("api/v1/auth/users")
+@Controller("api/auth/users")
 export class UsersController {
   constructor(
     @Inject(UsersService)

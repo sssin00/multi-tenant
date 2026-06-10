@@ -18,10 +18,10 @@
               <h2>API 규칙</h2>
               <table>
                 <tbody>
-                  <tr><th>기본 구조</th><td><code>/api/v1/{surface}/{domain}/{resource}</code> 형식을 사용합니다.</td></tr>
-                  <tr><th>버전 위치</th><td>API 버전은 <code>/api</code> 바로 뒤에 둡니다. 예: <code>/api/v1/app/wms/items</code></td></tr>
+                  <tr><th>기본 구조</th><td><code>/api/{surface}/{domain}/{resource}</code> 형식을 사용합니다.</td></tr>
+                  <tr><th>버전 정책</th><td>초기 MVP와 내부 서비스 API는 URL에 버전을 넣지 않습니다. 호환성 문제가 커질 때 별도 버전 전략을 재검토합니다.</td></tr>
                   <tr><th>기본 원칙</th><td>URL은 명사 중심, 리소스는 복수형, 단어는 <code>kebab-case</code>를 사용합니다.</td></tr>
-                  <tr><th>좋은 예</th><td><code>GET /api/v1/admin/tenants</code>, <code>POST /api/v1/app/wms/outbound-orders</code></td></tr>
+                  <tr><th>좋은 예</th><td><code>GET /api/admin/tenants</code>, <code>POST /api/app/wms/outbound-orders</code></td></tr>
                   <tr><th>피할 예</th><td><code>POST /createOutboundOrder</code>, <code>POST /adjustInventory</code></td></tr>
                 </tbody>
               </table>

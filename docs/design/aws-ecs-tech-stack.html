@@ -397,8 +397,8 @@
         <h1>AWS ECS 기반 멀티 테넌트 WMS 앱 개발 기술스택</h1>
         <p class="lead">
           모든 인프라는 AWS 서비스를 사용하고, 실행 환경은 ECS Fargate를 기준으로 합니다.
-          초기에는 WMS를 빠르게 완성하되, 이후 MES, QMS, FMS, EMS를 같은 패턴으로 확장할 수 있도록
-          애플리케이션 구조와 AWS 서비스 선택을 정리합니다.
+          이 문서는 장기 기술스택과 현재 CDK 구현 상태를 함께 정리합니다.
+          2026-06-10 현재 CDK는 gateway-service와 auth-iam-service를 먼저 배포하는 구조입니다.
         </p>
       </header>
 
@@ -415,7 +415,7 @@
           </div>
           <div class="decision-card">
             <strong>Database</strong>
-            <span>WMS 정합성을 위해 RDS PostgreSQL을 메인 데이터베이스로 사용합니다.</span>
+            <span>WMS 정합성을 위해 PostgreSQL을 기준으로 하되, 현재 CDK는 DB를 만들지 않고 외부 secret을 참조합니다.</span>
           </div>
           <div class="decision-card">
             <strong>Event</strong>
@@ -430,6 +430,46 @@
             <span>초기에는 Shared DB + tenant_id, VIP는 별도 DB로 확장 가능한 구조를 둡니다.</span>
           </div>
         </div>
+      </section>
+
+      <section>
+        <h2>현재 CDK 구현 기준</h2>
+        <table class="stack-table">
+          <tbody>
+            <tr>
+              <th>스택</th>
+              <td><code>multi-tenant-{env}-gateway-service-stack</code> 단일 CloudFormation 스택입니다.</td>
+            </tr>
+            <tr>
+              <th>배포 서비스</th>
+              <td><code>gateway-service</code>와 <code>auth-iam-service</code>입니다. 두 서비스 모두 ECR repository, ECS Fargate task/service, CloudWatch log group을 가집니다.</td>
+            </tr>
+            <tr>
+              <th>외부 진입점</th>
+              <td>인터넷 facing ALB는 gateway-service만 target으로 연결합니다. ACM ARN이 있으면 HTTPS 443 listener를 만들고 HTTP 80은 HTTPS로 리다이렉트합니다.</td>
+            </tr>
+            <tr>
+              <th>내부 연결</th>
+              <td><code>auth-iam-service</code>는 ALB에 직접 노출하지 않고 ECS Cloud Map private DNS와 auth base path를 포함한 <code>auth-iam-service.{env}.multi-tenant.local:3000/api/auth</code>로 gateway-service가 호출합니다.</td>
+            </tr>
+            <tr>
+              <th>Redis</th>
+              <td>ElastiCache Redis 1노드를 gateway rate limit과 Auth/IAM cache/session 의존성에 공유합니다. 서비스별 key prefix로 논리 분리합니다.</td>
+            </tr>
+            <tr>
+              <th>PostgreSQL</th>
+              <td>RDS/Aurora 리소스는 아직 CDK에 없습니다. Auth/IAM은 <code>authDatabaseUrlSecretArn</code>으로 기존 Secrets Manager secret을 ECS task secret <code>DATABASE_URL</code>에 주입합니다.</td>
+            </tr>
+            <tr>
+              <th>아직 CDK 미포함</th>
+              <td>Route53 record, RDS/Aurora, EventBridge, SQS, S3, CloudFront, OpenSearch는 현재 스택 밖입니다.</td>
+            </tr>
+            <tr>
+              <th>기준 문서</th>
+              <td>상세 리소스와 context는 <a href="../infra/2026-06-10/index.html">2026-06-10 CDK 인프라 코드 분석</a>을 기준으로 합니다.</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section>
@@ -454,7 +494,7 @@
             </tr>
             <tr>
               <th>Database</th>
-              <td>Amazon RDS PostgreSQL. 재고, 입고, 출고 같은 트랜잭션 정합성이 중요한 업무에 적합합니다.</td>
+              <td>Amazon RDS PostgreSQL 또는 Aurora PostgreSQL. 현재 CDK는 DB를 생성하지 않으며, Auth/IAM은 외부 Secrets Manager secret의 <code>DATABASE_URL</code>을 참조합니다.</td>
             </tr>
             <tr>
               <th>ORM</th>
@@ -486,7 +526,7 @@
             </tr>
             <tr>
               <th>CI/CD</th>
-              <td>GitHub Actions + ECR + ECS service update. 초기에는 rolling deploy, 운영 안정화 후 blue/green 배포를 검토합니다.</td>
+              <td>GitHub Actions + CDK + ECR. 현재 <code>deploy-gateway-service.yml</code>은 gateway-service 이미지만 build/push하고, auth-iam-service는 리소스와 task definition context만 준비합니다.</td>
             </tr>
           </tbody>
         </table>
@@ -516,16 +556,16 @@
           </article>
           <article class="service-card">
             <h3>데이터</h3>
-            <p>업무 데이터는 RDS PostgreSQL, 캐시는 ElastiCache Redis, 파일은 S3를 사용합니다.</p>
+            <p>업무 데이터는 PostgreSQL을 기준으로 합니다. 현재 CDK는 Redis만 생성하고, Auth/IAM PostgreSQL은 외부 secret으로 연결합니다.</p>
             <div class="pill-row">
-              <span class="pill">RDS PostgreSQL</span>
+              <span class="pill">RDS/Aurora later</span>
               <span class="pill">ElastiCache Redis</span>
-              <span class="pill">S3</span>
+              <span class="pill">S3 later</span>
             </div>
           </article>
           <article class="service-card">
             <h3>이벤트/비동기</h3>
-            <p>초기 WMS MVP는 EventBridge와 SQS로 운영 부담을 낮추고, 스트리밍 요구가 명확해질 때 MSK를 도입합니다.</p>
+            <p>초기 WMS MVP 방향은 EventBridge와 SQS이지만, 현재 CDK에는 아직 포함하지 않았습니다. outbox-relay-service 배포 시점에 추가합니다.</p>
             <div class="pill-row">
               <span class="pill">EventBridge</span>
               <span class="pill">SQS</span>
@@ -570,22 +610,22 @@
             <div class="layer-title">ECS Services</div>
             <div class="layer-items">
               <span class="pill">gateway-service</span>
-              <span class="pill">admin-bff-service</span>
-              <span class="pill">user-bff-service</span>
-              <span class="pill">tenant-service</span>
-              <span class="pill">auth-service</span>
-              <span class="pill">wms-service</span>
-              <span class="pill">outbox-relay-service</span>
+              <span class="pill">auth-iam-service</span>
+              <span class="pill">admin-bff later</span>
+              <span class="pill">user-bff later</span>
+              <span class="pill">tenant-service later</span>
+              <span class="pill">wms-service later</span>
+              <span class="pill">outbox-relay later</span>
             </div>
           </div>
           <div class="layer">
             <div class="layer-title">Private Data</div>
             <div class="layer-items">
-              <span class="pill">RDS PostgreSQL</span>
               <span class="pill">ElastiCache Redis</span>
-              <span class="pill">S3</span>
-              <span class="pill">EventBridge</span>
-              <span class="pill">SQS</span>
+              <span class="pill">External DB secret</span>
+              <span class="pill">RDS/Aurora later</span>
+              <span class="pill">S3 later</span>
+              <span class="pill">EventBridge/SQS later</span>
             </div>
           </div>
           <div class="layer">
@@ -602,8 +642,8 @@
         <div class="note">
           <strong>네트워크 기준</strong>
           <p>
-            ALB만 public subnet에 두고, ECS 서비스, RDS, Redis는 private subnet에 둡니다.
-            ECS task는 IAM Role을 통해 S3, SQS, EventBridge, Secrets Manager에 접근합니다.
+            기본 구성은 ALB만 public subnet에 두고 ECS 서비스와 Redis를 private subnet에 둡니다.
+            dev에서 NAT Gateway 비용 또는 Elastic IP 한도 문제가 있으면 <code>gatewayUseNatGateway=false</code>로 task를 public subnet에 배치할 수 있습니다.
           </p>
         </div>
       </section>
@@ -615,24 +655,17 @@
             <h3>처음부터 만들 서비스</h3>
             <ul>
               <li>gateway-service</li>
-              <li>admin-bff-service</li>
-              <li>user-bff-service</li>
-              <li>tenant-service</li>
-              <li>auth-service</li>
-              <li>wms-service</li>
-              <li>outbox-relay-service</li>
+              <li>auth-iam-service</li>
             </ul>
           </div>
           <div class="panel">
-            <h3>WMS 이후 추가할 서비스</h3>
+            <h3>WMS 도메인 완성 전후 추가 서비스</h3>
             <ul>
-              <li>audit-log-service</li>
-              <li>notification-service</li>
-              <li>file-service</li>
-              <li>scheduler-service</li>
-              <li>erp-integration-service</li>
-              <li>search-service</li>
-              <li>analytics-service</li>
+              <li>admin-bff-service</li>
+              <li>user-bff-service</li>
+              <li>tenant-service</li>
+              <li>wms-service</li>
+              <li>outbox-relay-service</li>
             </ul>
           </div>
         </div>
@@ -699,7 +732,7 @@
           <li>Monorepo 구조를 <code>pnpm workspace + Turborepo</code>로 확정합니다.</li>
           <li>서비스 기본 템플릿을 NestJS로 만듭니다.</li>
           <li>로컬 개발용 Docker Compose에 PostgreSQL, Redis, LocalStack 또는 AWS mock을 구성합니다.</li>
-          <li>ECR, ECS Cluster, ALB, RDS, Redis, S3, SQS, EventBridge 리소스 기준을 문서화합니다.</li>
+          <li>ECR, ECS Cluster, ALB, Cloud Map, Redis, Secrets Manager 참조 기준을 먼저 문서화합니다.</li>
           <li>Tenant Context, 인증, 권한, 공통 로깅 패키지를 먼저 구현합니다.</li>
           <li>WMS service를 모듈형 구조로 만들고 기준정보, 재고, 입고, 출고 순서로 개발합니다.</li>
           <li>Outbox Relay와 EventBridge/SQS 발행 구조를 붙입니다.</li>
@@ -738,7 +771,7 @@
         </div>
       </section>
 
-      <p class="footer">작성일: 2026-05-29 · 프로젝트: multi-tenant smart factory · 기준: AWS ECS Fargate</p>
+      <p class="footer">작성일: 2026-05-29 · 현행화: 2026-06-10 · 프로젝트: multi-tenant smart factory · 기준: AWS ECS Fargate</p>
     </main>
   </body>
 </html>

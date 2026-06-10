@@ -72,12 +72,12 @@
       <header>
         <p class="eyebrow">gateway-service API</p>
         <h1>Proxy Routes</h1>
-        <p class="lead">인증된 <code>/api/v1/**</code> 요청에 request context를 붙이고 내부 서비스로 전달합니다.</p>
+        <p class="lead">인증된 <code>/api/**</code> 요청에 request context를 붙이고 내부 서비스로 전달합니다.</p>
         <div class="endpoint">
           <span class="method">ANY</span>
-          <code>/api/v1/auth/**</code>
-          <code>/api/v1/admin/**</code>
-          <code>/api/v1/app/**</code>
+          <code>/api/auth/**</code>
+          <code>/api/admin/**</code>
+          <code>/api/app/**</code>
           <span class="tag done">ACTIVE</span>
         </div>
       </header>
@@ -86,8 +86,8 @@
         <h2>기본 정보</h2>
         <table>
           <tbody>
-            <tr><th>인증</th><td>필수. <code>Authorization: Bearer {token}</code>이 필요합니다.</td></tr>
-            <tr><th>Public 예외</th><td><code>/health</code>, <code>/ready</code>만 public입니다.</td></tr>
+            <tr><th>인증</th><td>필수. <code>Authorization: Bearer {token}</code>이 필요합니다. 단, 로그인과 토큰 갱신 endpoint는 JWT 없이 auth-iam-service로 전달합니다.</td></tr>
+            <tr><th>Public 예외</th><td><code>/health</code>, <code>/ready</code>, <code>POST /api/auth/login</code>, <code>POST /api/auth/token/refresh</code>입니다.</td></tr>
             <tr><th>Tenant</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 차단합니다.</td></tr>
             <tr><th>JWT Claim</th><td><code>sub</code>, <code>tenantId</code>만 request context에 반영합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</td></tr>
             <tr><th>JWT Signature</th><td><code>HS256</code>, <code>RS256</code> 서명 검증을 지원합니다. 로컬 기본값은 <code>HS256</code>입니다.</td></tr>
@@ -112,9 +112,9 @@
           <div class="details-body">
             <table>
               <tbody>
-                <tr><th><code>/api/v1/auth/**</code></th><td><code>AUTH_IAM_SERVICE_URL</code>로 전달합니다.</td></tr>
-                <tr><th><code>/api/v1/admin/**</code></th><td><code>ADMIN_BFF_SERVICE_URL</code>로 전달합니다.</td></tr>
-                <tr><th><code>/api/v1/app/**</code></th><td><code>USER_BFF_SERVICE_URL</code>로 전달합니다.</td></tr>
+                <tr><th><code>/api/auth/**</code></th><td><code>AUTH_IAM_SERVICE_URL</code>로 전달합니다. auth upstream URL은 auth-iam-service 컨트롤러 경로와 맞도록 <code>/api/auth</code> base path까지 포함합니다.</td></tr>
+                <tr><th><code>/api/admin/**</code></th><td><code>ADMIN_BFF_SERVICE_URL</code>로 전달합니다.</td></tr>
+                <tr><th><code>/api/app/**</code></th><td><code>USER_BFF_SERVICE_URL</code>로 전달합니다.</td></tr>
               </tbody>
             </table>
           </div>
@@ -168,7 +168,7 @@
                 <tr><th>저장소</th><td>로컬 Docker 환경은 compose Redis를 사용하고, AWS 배포 환경은 ElastiCache Redis를 사용합니다.</td></tr>
                 <tr><th><code>REDIS_URL</code></th><td>gateway-service가 rate limit 저장소로 연결할 Redis URL입니다. ECS 배포에서는 CDK가 ElastiCache endpoint로 주입합니다.</td></tr>
                 <tr><th>Algorithm</th><td><code>INCR</code>와 <code>EXPIRE</code>를 사용하는 60초 fixed window 방식입니다.</td></tr>
-                <tr><th>Route group</th><td><code>/api/v1/auth/**</code>는 <code>auth</code>, <code>/api/v1/admin/**</code>는 <code>admin</code>, <code>/api/v1/app/**</code>는 <code>app</code>입니다.</td></tr>
+                <tr><th>Route group</th><td><code>/api/auth/**</code>는 <code>auth</code>, <code>/api/admin/**</code>는 <code>admin</code>, <code>/api/app/**</code>는 <code>app</code>입니다.</td></tr>
                 <tr><th>인증 후 Key</th><td><code>rate-limit:{env}:gateway:{tenantId}:{userId}:{routeGroup}</code></td></tr>
                 <tr><th>인증 전 Key</th><td><code>rate-limit:{env}:gateway:anonymous:{ip}:{routeGroup}</code></td></tr>
                 <tr><th><code>auth</code></th><td>기본 <code>60 requests / 60 seconds</code></td></tr>
@@ -188,9 +188,9 @@
           <div class="details-body">
             <table>
               <tbody>
-                <tr><th><code>GATEWAY_AUTH_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/v1/auth/**</code> upstream timeout입니다. 기본값은 <code>3000</code>입니다.</td></tr>
-                <tr><th><code>GATEWAY_ADMIN_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/v1/admin/**</code> upstream timeout입니다. 기본값은 <code>5000</code>입니다.</td></tr>
-                <tr><th><code>GATEWAY_APP_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/v1/app/**</code> upstream timeout입니다. 기본값은 <code>5000</code>입니다.</td></tr>
+                <tr><th><code>GATEWAY_AUTH_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/auth/**</code> upstream timeout입니다. 기본값은 <code>3000</code>입니다.</td></tr>
+                <tr><th><code>GATEWAY_ADMIN_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/admin/**</code> upstream timeout입니다. 기본값은 <code>5000</code>입니다.</td></tr>
+                <tr><th><code>GATEWAY_APP_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/app/**</code> upstream timeout입니다. 기본값은 <code>5000</code>입니다.</td></tr>
                 <tr><th><code>GATEWAY_SAFE_METHOD_RETRIES</code></th><td>safe method 재시도 횟수입니다. 기본값은 <code>1</code>입니다.</td></tr>
                 <tr><th>Retry method</th><td><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 재시도합니다.</td></tr>
                 <tr><th>Retry condition</th><td>network error, timeout, upstream <code>502</code>, <code>503</code>, <code>504</code> 응답입니다.</td></tr>

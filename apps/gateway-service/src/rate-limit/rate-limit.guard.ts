@@ -37,7 +37,7 @@ export class RateLimitGuard implements CanActivate {
     }
 
     const req = context.switchToHttp().getRequest<GatewayRequest>();
-    if (!req.path.startsWith("/api/v1/")) {
+    if (!req.path.startsWith("/api/")) {
       return true;
     }
 
@@ -82,15 +82,15 @@ export class RateLimitGuard implements CanActivate {
   }
 
   private getRouteGroup(path: string): ProxyRouteConfig["key"] | undefined {
-    if (path === "/api/v1/auth" || path.startsWith("/api/v1/auth/")) {
+    if (path === "/api/auth" || path.startsWith("/api/auth/")) {
       return "auth";
     }
 
-    if (path === "/api/v1/admin" || path.startsWith("/api/v1/admin/")) {
+    if (path === "/api/admin" || path.startsWith("/api/admin/")) {
       return "admin";
     }
 
-    if (path === "/api/v1/app" || path.startsWith("/api/v1/app/")) {
+    if (path === "/api/app" || path.startsWith("/api/app/")) {
       return "app";
     }
 

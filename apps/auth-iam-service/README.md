@@ -32,7 +32,7 @@ curl http://localhost:3001/ready
 Login:
 
 ```bash
-curl -X POST http://localhost:3001/api/v1/auth/login \
+curl -X POST http://localhost:3001/api/auth/login \
   -H 'Content-Type: application/json' \
   -H 'X-Request-Id: req-login-local' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
@@ -44,7 +44,7 @@ curl -X POST http://localhost:3001/api/v1/auth/login \
 Refresh token rotation:
 
 ```bash
-curl -X POST http://localhost:3001/api/v1/auth/token/refresh \
+curl -X POST http://localhost:3001/api/auth/token/refresh \
   -H 'Content-Type: application/json' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
   -d '{"refreshToken":"opaque-refresh-token"}'
@@ -53,7 +53,7 @@ curl -X POST http://localhost:3001/api/v1/auth/token/refresh \
 Logout/revoke:
 
 ```bash
-curl -X POST http://localhost:3001/api/v1/auth/logout \
+curl -X POST http://localhost:3001/api/auth/logout \
   -H 'Content-Type: application/json' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
   -d '{"refreshToken":"opaque-refresh-token"}'
@@ -64,56 +64,56 @@ Refresh 성공 시 기존 refresh token은 `revokedAt`과 `replacedBy`로 폐기
 Me:
 
 ```bash
-curl http://localhost:3001/api/v1/auth/me \
+curl http://localhost:3001/api/auth/me \
   -H 'X-Request-Id: req-me-local' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
   -H 'X-User-Id: user-uuid'
 ```
 
-`GET /api/v1/auth/me`는 gateway가 검증한 access token에서 전달한 사용자 context를 기준으로 현재 사용자, role, permission 요약을 반환합니다. JWT에는 role/permission을 넣지 않습니다.
+`GET /api/auth/me`는 gateway가 검증한 access token에서 전달한 사용자 context를 기준으로 현재 사용자, role, permission 요약을 반환합니다. JWT에는 role/permission을 넣지 않습니다.
 
 User CRUD:
 
 ```bash
-curl -X POST http://localhost:3001/api/v1/auth/users \
+curl -X POST http://localhost:3001/api/auth/users \
   -H 'Content-Type: application/json' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
   -d '{"email":"worker@example.com","displayName":"Worker","password":"user-password"}'
 
-curl 'http://localhost:3001/api/v1/auth/users?page=1&size=20' \
+curl 'http://localhost:3001/api/auth/users?page=1&size=20' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111'
 
-curl -X PATCH http://localhost:3001/api/v1/auth/users/{userId}/status \
+curl -X PATCH http://localhost:3001/api/auth/users/{userId}/status \
   -H 'Content-Type: application/json' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
   -d '{"status":"locked"}'
 ```
 
-모든 사용자 API는 `X-Tenant-Id` 기준으로 DB 접근을 제한합니다. 사용자 응답에는 `passwordHash`를 포함하지 않고, `inactive` 또는 `locked` 상태 전환 시 active refresh token을 revoke합니다. `DELETE /api/v1/auth/users/{userId}`는 hard delete가 아니라 `inactive` 전환입니다.
+모든 사용자 API는 `X-Tenant-Id` 기준으로 DB 접근을 제한합니다. 사용자 응답에는 `passwordHash`를 포함하지 않고, `inactive` 또는 `locked` 상태 전환 시 active refresh token을 revoke합니다. `DELETE /api/auth/users/{userId}`는 hard delete가 아니라 `inactive` 전환입니다.
 
 RBAC:
 
 ```bash
-curl -X POST http://localhost:3001/api/v1/auth/permissions \
+curl -X POST http://localhost:3001/api/auth/permissions \
   -H 'Content-Type: application/json' \
   -d '{"code":"wms.inventory.adjust","description":"Adjust inventory"}'
 
-curl -X POST http://localhost:3001/api/v1/auth/roles \
+curl -X POST http://localhost:3001/api/auth/roles \
   -H 'Content-Type: application/json' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
   -d '{"code":"inventory_manager","name":"Inventory Manager"}'
 
-curl -X PUT http://localhost:3001/api/v1/auth/roles/{roleId}/permissions \
+curl -X PUT http://localhost:3001/api/auth/roles/{roleId}/permissions \
   -H 'Content-Type: application/json' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
   -d '{"permissionCodes":["wms.inventory.adjust"]}'
 
-curl -X POST http://localhost:3001/api/v1/auth/users/{userId}/roles \
+curl -X POST http://localhost:3001/api/auth/users/{userId}/roles \
   -H 'Content-Type: application/json' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
   -d '{"roleId":"role-uuid","warehouseId":"warehouse-uuid"}'
 
-curl -X POST http://localhost:3001/api/v1/auth/permissions/check \
+curl -X POST http://localhost:3001/api/auth/permissions/check \
   -H 'Content-Type: application/json' \
   -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
   -d '{"userId":"user-uuid","permission":"wms.inventory.adjust","scope":{"warehouseId":"warehouse-uuid"}}'
@@ -129,11 +129,11 @@ Admin scope:
 
 Internal service auth:
 
-`GET /api/v1/auth/permissions/summary`와 `POST /api/v1/auth/permissions/check`는 내부 서비스 HMAC 인증을 요구합니다. 호출 서비스는 `X-Internal-Service-Id`, `X-Internal-Timestamp`, `X-Internal-Signature`를 전달해야 합니다.
+`GET /api/auth/permissions/summary`와 `POST /api/auth/permissions/check`는 내부 서비스 HMAC 인증을 요구합니다. 호출 서비스는 `X-Internal-Service-Id`, `X-Internal-Timestamp`, `X-Internal-Signature`를 전달해야 합니다.
 
 ```bash
 AUTH_INTERNAL_AUTH_ENABLED=true
-AUTH_INTERNAL_AUTH_SECRET=local-internal-auth-secret-change-me-32chars
+AUTH_INTERNAL_AUTH_SECRET=replace-with-local-internal-secret-32chars
 AUTH_INTERNAL_AUTH_ALLOWED_SERVICES=admin-bff-service,user-bff-service,wms-service
 AUTH_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS=300
 ```
@@ -148,7 +148,7 @@ Audit log:
 AUDIT_LOG_SERVICE_URL=
 ```
 
-현재 호출 경로는 `POST /api/v1/internal/audit/logs`이며 `X-Request-Id`, `X-Tenant-Id`, actor, action, resource, result, details를 전달합니다. 로컬 개발에서는 audit-log-service를 별도로 만들기 전까지 `AUDIT_LOG_SERVICE_URL`을 비워두고 audit 전송을 건너뜁니다.
+현재 호출 경로는 `POST /api/internal/audit/logs`이며 `X-Request-Id`, `X-Tenant-Id`, actor, action, resource, result, details를 전달합니다. 로컬 개발에서는 audit-log-service를 별도로 만들기 전까지 `AUDIT_LOG_SERVICE_URL`을 비워두고 audit 전송을 건너뜁니다.
 
 Outbox event:
 

@@ -39,11 +39,19 @@ jobs:
       GATEWAY_ACM_CERTIFICATE_ARN_INPUT: ${{ vars.GATEWAY_ACM_CERTIFICATE_ARN }}
       GATEWAY_DOMAIN_NAME_INPUT: ${{ vars.GATEWAY_DOMAIN_NAME }}
       GATEWAY_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.GATEWAY_CORS_ALLOWED_ORIGINS }}
+      AUTH_IMAGE_TAG_INPUT: ${{ vars.AUTH_IMAGE_TAG }}
+      AUTH_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.AUTH_CORS_ALLOWED_ORIGINS }}
+      AUTH_JWT_ALGORITHM_INPUT: ${{ vars.AUTH_JWT_ALGORITHM }}
       AUTH_IAM_SERVICE_URL_INPUT: ${{ vars.AUTH_IAM_SERVICE_URL }}
       ADMIN_BFF_SERVICE_URL_INPUT: ${{ vars.ADMIN_BFF_SERVICE_URL }}
       USER_BFF_SERVICE_URL_INPUT: ${{ vars.USER_BFF_SERVICE_URL }}
       TENANT_SERVICE_URL_INPUT: ${{ vars.TENANT_SERVICE_URL }}
       GATEWAY_JWT_SECRET_ARN_INPUT: ${{ secrets.GATEWAY_JWT_SECRET_ARN }}
+      AUTH_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.AUTH_DATABASE_URL_SECRET_ARN }}
+      AUTH_JWT_SECRET_ARN_INPUT: ${{ secrets.AUTH_JWT_SECRET_ARN }}
+      AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT: ${{ secrets.AUTH_JWT_PRIVATE_KEY_SECRET_ARN }}
+      AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT: ${{ secrets.AUTH_JWT_PUBLIC_KEY_SECRET_ARN }}
+      AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.AUTH_INTERNAL_AUTH_SECRET_ARN }}
 
     steps:
       - name: Checkout
@@ -76,6 +84,7 @@ jobs:
           use_nat_gateway="${GATEWAY_USE_NAT_GATEWAY_INPUT:-true}"
           redis_node_type="${GATEWAY_REDIS_NODE_TYPE_INPUT:-cache.t4g.micro}"
           image_tag="${deploy_env}-${GITHUB_SHA::12}"
+          auth_image_tag="${AUTH_IMAGE_TAG_INPUT:-latest}"
           stack_name="multi-tenant-${deploy_env}-gateway-service-stack"
 
           {
@@ -85,6 +94,7 @@ jobs:
             echo "use-nat-gateway=${use_nat_gateway}"
             echo "redis-node-type=${redis_node_type}"
             echo "image-tag=${image_tag}"
+            echo "auth-image-tag=${auth_image_tag}"
             echo "stack-name=${stack_name}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -128,6 +138,8 @@ jobs:
             -c "gatewayUseNatGateway=${{ steps.context.outputs.use-nat-gateway }}"
             -c "gatewayRedisNodeType=${{ steps.context.outputs.redis-node-type }}"
             -c "gatewayImageTag=${{ steps.context.outputs.image-tag }}"
+            -c "authDesiredCount=0"
+            -c "authImageTag=${{ steps.context.outputs.auth-image-tag }}"
           )
 
           append_context() {
@@ -142,6 +154,13 @@ jobs:
           append_context "gatewayDomainName" "${GATEWAY_DOMAIN_NAME_INPUT}"
           append_context "gatewayCorsAllowedOrigins" "${GATEWAY_CORS_ALLOWED_ORIGINS_INPUT}"
           append_context "gatewayJwtSecretArn" "${GATEWAY_JWT_SECRET_ARN_INPUT}"
+          append_context "authCorsAllowedOrigins" "${AUTH_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "authJwtAlgorithm" "${AUTH_JWT_ALGORITHM_INPUT}"
+          append_context "authDatabaseUrlSecretArn" "${AUTH_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "authJwtSecretArn" "${AUTH_JWT_SECRET_ARN_INPUT}"
+          append_context "authJwtPrivateKeySecretArn" "${AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT}"
+          append_context "authJwtPublicKeySecretArn" "${AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT}"
+          append_context "authInternalAuthSecretArn" "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
           append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
@@ -195,6 +214,8 @@ jobs:
             -c "gatewayUseNatGateway=${{ steps.context.outputs.use-nat-gateway }}"
             -c "gatewayRedisNodeType=${{ steps.context.outputs.redis-node-type }}"
             -c "gatewayImageTag=${{ steps.context.outputs.image-tag }}"
+            -c "authDesiredCount=0"
+            -c "authImageTag=${{ steps.context.outputs.auth-image-tag }}"
           )
 
           append_context() {
@@ -209,6 +230,13 @@ jobs:
           append_context "gatewayDomainName" "${GATEWAY_DOMAIN_NAME_INPUT}"
           append_context "gatewayCorsAllowedOrigins" "${GATEWAY_CORS_ALLOWED_ORIGINS_INPUT}"
           append_context "gatewayJwtSecretArn" "${GATEWAY_JWT_SECRET_ARN_INPUT}"
+          append_context "authCorsAllowedOrigins" "${AUTH_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "authJwtAlgorithm" "${AUTH_JWT_ALGORITHM_INPUT}"
+          append_context "authDatabaseUrlSecretArn" "${AUTH_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "authJwtSecretArn" "${AUTH_JWT_SECRET_ARN_INPUT}"
+          append_context "authJwtPrivateKeySecretArn" "${AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT}"
+          append_context "authJwtPublicKeySecretArn" "${AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT}"
+          append_context "authInternalAuthSecretArn" "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
           append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
@@ -227,4 +255,5 @@ jobs:
             echo "- Environment: \`${{ steps.context.outputs.deploy-env }}\`"
             echo "- Stack: \`${{ steps.context.outputs.stack-name }}\`"
             echo "- Image: \`${{ steps.ecr.outputs.repository-uri }}:${{ steps.context.outputs.image-tag }}\`"
+            echo "- Auth/IAM: resources and task definition context only, desired count kept at \`0\`"
           } >> "${GITHUB_STEP_SUMMARY}"

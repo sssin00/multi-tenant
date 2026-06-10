@@ -32,7 +32,11 @@ export class GatewayAuthGuard implements CanActivate {
     }
 
     const req = context.switchToHttp().getRequest<GatewayRequest>();
-    if (!req.path.startsWith("/api/v1/")) {
+    if (!req.path.startsWith("/api/")) {
+      return true;
+    }
+
+    if (this.isPublicAuthEndpoint(req)) {
       return true;
     }
 
@@ -64,5 +68,14 @@ export class GatewayAuthGuard implements CanActivate {
     }
 
     return authorization.slice("Bearer ".length).trim();
+  }
+
+  private isPublicAuthEndpoint(req: GatewayRequest): boolean {
+    if (req.method.toUpperCase() !== "POST") {
+      return false;
+    }
+
+    const path = req.path.endsWith("/") ? req.path.slice(0, -1) : req.path;
+    return path === "/api/auth/login" || path === "/api/auth/token/refresh";
   }
 }

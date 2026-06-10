@@ -536,7 +536,7 @@
               <div class="task-grid">
                 <div class="task"><strong>Outbox Table</strong><span>WMS DB 내부에 이벤트 저장 테이블 추가</span></div>
                 <div class="task"><strong>Outbox Relay</strong><span>미발행 이벤트를 Kafka로 전송하고 재시도 처리</span></div>
-                <div class="task"><strong>Topic 설계</strong><span><code>wms.inventory.changed</code>, <code>wms.shipment.completed</code> 등 업무 이벤트 정의</span></div>
+                <div class="task"><strong>Topic 설계</strong><span><code>wms.inventory.adjusted</code>, <code>wms.inbound.confirmed</code>, <code>wms.outbound.allocated</code>, <code>wms.outbound.shipped</code> 등 업무 이벤트 정의</span></div>
                 <div class="task"><strong>Schema Version</strong><span>이벤트 payload 버전과 하위 호환 정책 정의</span></div>
               </div>
             </div>

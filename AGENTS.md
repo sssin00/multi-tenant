@@ -18,7 +18,7 @@
 - Class/Type/Interface: `PascalCase`
 - Function/Variable: `camelCase`
 - Constant/Environment variable: `UPPER_SNAKE_CASE`
-- API URL: `/api/v1/{surface}/{domain}/{resource}`, `kebab-case`, plural resource
+- API URL: `/api/{surface}/{domain}/{resource}`, `kebab-case`, plural resource
 - Event name: `{domain}.{resource}.{pastAction}`, `dot.case`, past tense
 - AWS resource name: `{project}-{env}-{resource}`
 - Branch: `type/short-description`
@@ -134,7 +134,9 @@
 - Common settings may be unprefixed, e.g. `APP_ENV`, `LOG_LEVEL`, `AWS_REGION`.
 - Service-specific settings use service prefixes, e.g. `WMS_`, `AUTH_`, `TENANT_`, `GATEWAY_`, `BFF_`, `OUTBOX_`, `ERP_`.
 - Service URL variables use `{SERVICE_NAME}_SERVICE_URL`, e.g. `AUTH_IAM_SERVICE_URL`, `TENANT_SERVICE_URL`, `WMS_SERVICE_URL`, `USER_BFF_SERVICE_URL`, `ADMIN_BFF_SERVICE_URL`.
-- `.env.example` is committed. `.env.local` and real environment files are not committed.
+- Environment files must use only `.env.local`, `.env.dev`, `.env.staging`, or `.env.prod`.
+- Do not create `.env.example` or other environment file names.
+- Real secret values must not be committed; use placeholders locally and AWS Secrets Manager or SSM Parameter Store for deployed secrets.
 - Services validate environment variables at startup. Prefer schema validation such as `zod`.
 - Defaults must live in the config module or schema, not scattered through implementation code.
 - In ECS task definitions, non-secret settings use `environment`; secrets use `secrets`.
@@ -149,7 +151,7 @@
 - External gateway traffic uses ALB HTTPS with ACM. HTTP must redirect to HTTPS when the HTTPS listener is enabled.
 - Route53 is not configured yet. Until a hosted zone is introduced, gateway DNS records are managed outside CDK and point to the ALB DNS name.
 - ACM certificates for ALB must be in the same AWS region as the ALB.
-- Admin APIs use a separate surface such as `/api/v1/admin`.
+- Admin APIs use a separate surface such as `/api/admin`.
 - Rate limiting is applied at `gateway-service`.
 - File uploads validate extension, MIME type, and size.
 - S3 objects are not public by default; use pre-signed URLs for access.

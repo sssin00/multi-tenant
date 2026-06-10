@@ -136,21 +136,21 @@ export function getAppConfig(): AppConfig {
     routes: {
       auth: {
         key: "auth",
-        publicPathPrefix: "/api/v1/auth",
-        upstreamUrl: readString("AUTH_IAM_SERVICE_URL", "http://auth-iam-service:3000"),
+        publicPathPrefix: "/api/auth",
+        upstreamUrl: readString("AUTH_IAM_SERVICE_URL", "http://auth-iam-service:3000/api/auth"),
         timeoutMs: readNumber("GATEWAY_AUTH_UPSTREAM_TIMEOUT_MS", 3000),
         retryCount: readNumber("GATEWAY_SAFE_METHOD_RETRIES", DEFAULT_SAFE_METHOD_RETRY_COUNT)
       },
       admin: {
         key: "admin",
-        publicPathPrefix: "/api/v1/admin",
+        publicPathPrefix: "/api/admin",
         upstreamUrl: readString("ADMIN_BFF_SERVICE_URL", "http://admin-bff-service:3000"),
         timeoutMs: readNumber("GATEWAY_ADMIN_UPSTREAM_TIMEOUT_MS", 5000),
         retryCount: readNumber("GATEWAY_SAFE_METHOD_RETRIES", DEFAULT_SAFE_METHOD_RETRY_COUNT)
       },
       app: {
         key: "app",
-        publicPathPrefix: "/api/v1/app",
+        publicPathPrefix: "/api/app",
         upstreamUrl: readString("USER_BFF_SERVICE_URL", "http://user-bff-service:3000"),
         timeoutMs: readNumber("GATEWAY_APP_UPSTREAM_TIMEOUT_MS", 5000),
         retryCount: readNumber("GATEWAY_SAFE_METHOD_RETRIES", DEFAULT_SAFE_METHOD_RETRY_COUNT)

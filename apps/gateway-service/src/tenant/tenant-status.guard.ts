@@ -35,7 +35,7 @@ export class TenantStatusGuard implements CanActivate {
     }
 
     const req = context.switchToHttp().getRequest<GatewayRequest>();
-    if (!req.path.startsWith("/api/v1/")) {
+    if (!req.path.startsWith("/api/")) {
       return true;
     }
 

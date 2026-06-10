@@ -30,7 +30,7 @@
                   <tr><th>CORS</th><td>운영 환경에서는 허용 origin을 명시하고 wildcard를 사용하지 않습니다. gateway-service는 <code>GATEWAY_CORS_ALLOWED_ORIGINS</code> 기준으로 origin을 허용합니다.</td></tr>
                   <tr><th>Security Header</th><td>gateway-service는 content sniffing, frame embedding, referrer leakage, 과도한 browser permission을 제한하는 공통 보안 header를 적용합니다.</td></tr>
                   <tr><th>HTTPS</th><td>외부 진입점은 ALB HTTPS listener와 ACM 인증서를 사용합니다. HTTP listener는 HTTPS로 리다이렉트합니다.</td></tr>
-                  <tr><th>Admin API</th><td>관리자 API는 일반 사용자 API와 surface를 분리합니다. 예: <code>/api/v1/admin</code></td></tr>
+                  <tr><th>Admin API</th><td>관리자 API는 일반 사용자 API와 surface를 분리합니다. 예: <code>/api/admin</code></td></tr>
                   <tr><th>Rate Limit</th><td>요청 제한은 <code>gateway-service</code>에서 적용합니다.</td></tr>
                   <tr><th>파일 업로드</th><td>업로드 파일은 확장자, MIME type, 크기를 검증합니다.</td></tr>
                   <tr><th>S3 접근</th><td>S3 object는 public으로 열지 않고 pre-signed URL을 사용합니다.</td></tr>
@@ -81,7 +81,6 @@
                   <strong>공통 태그</strong>
                   <pre><code>Project=multi-tenant
 Environment=dev
-Service=wms-service
 ManagedBy=cdk</code></pre>
                 </div>
                 <div class="card">
