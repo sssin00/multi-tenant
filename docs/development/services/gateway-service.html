@@ -181,7 +181,7 @@
               <div class="compact-grid">
                 <div class="card"><strong>Security</strong><p>공통 보안 header, 명시 origin 기반 CORS, HTTPS 요청 HSTS를 적용했습니다.</p></div>
                 <div class="card"><strong>Infra</strong><p>ACM ARN이 있으면 ALB HTTPS listener를 만들고 HTTP를 HTTPS로 redirect합니다. AWS 배포에서 Auth/IAM upstream 기본값은 Cloud Map 내부 DNS입니다.</p></div>
-                <div class="card"><strong>CI/CD</strong><p><code>dev</code>, <code>staging</code>, <code>main</code> 브랜치를 각각 dev, staging, prod 환경으로 배포합니다.</p></div>
+                <div class="card"><strong>CI/CD</strong><p>push 자동 배포는 당분간 비활성화되어 있으며, GitHub Actions 수동 실행으로 배포합니다. 자동 배포를 다시 켜면 <code>dev</code>, <code>staging</code>, <code>main</code> 브랜치를 각각 dev, staging, prod 환경으로 매핑합니다.</p></div>
                 <div class="card"><strong>Docs</strong><p>API 문서, 개발 기록, 테스트 시나리오, 향후 서비스 연동 작업을 함께 갱신했습니다.</p></div>
               </div>
               <div class="doc-chip-list">
@@ -553,7 +553,8 @@
           <h3>2026-06-09 GitHub Actions 배포 자동화</h3>
           <ul>
             <li><code>.github/workflows/deploy-gateway-service.yml</code>을 추가했습니다.</li>
-            <li><code>dev</code> 브랜치는 <code>dev</code> 환경, <code>staging</code> 브랜치는 <code>staging</code> 환경, <code>main</code> 브랜치는 <code>prod</code> 환경으로 배포합니다.</li>
+            <li>현재 push 자동 배포는 당분간 비활성화되어 있으며, GitHub Actions 수동 실행으로만 배포합니다.</li>
+            <li>자동 배포를 다시 켜면 <code>dev</code> 브랜치는 <code>dev</code> 환경, <code>staging</code> 브랜치는 <code>staging</code> 환경, <code>main</code> 브랜치는 <code>prod</code> 환경으로 배포합니다.</li>
             <li>배포는 GitHub OIDC로 AWS role을 assume하는 방식이며, 환경별 GitHub Environment secret <code>AWS_ROLE_ARN</code>을 사용합니다.</li>
             <li>첫 배포도 가능하도록 CDK를 <code>gatewayDesiredCount=0</code>으로 먼저 실행해 ECR/기본 인프라를 만들고, 이미지를 ECR에 push한 뒤 실제 desired count로 다시 배포합니다.</li>
             <li>이미지 tag는 <code>{env}-{gitSha12}</code> 형식을 사용합니다.</li>

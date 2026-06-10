@@ -1,20 +1,8 @@
 name: Deploy gateway-service
 
 on:
-  push:
-    branches:
-      - dev
-      - staging
-      - main
-    paths:
-      - ".github/workflows/deploy-gateway-service.yml"
-      - "apps/gateway-service/**"
-      - "infra/cdk/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "tsconfig.base.json"
-      - "turbo.json"
+  # Automatic push deploys are temporarily disabled.
+  # Run this workflow manually from GitHub Actions when deployment is needed.
   workflow_dispatch:
 
 permissions:

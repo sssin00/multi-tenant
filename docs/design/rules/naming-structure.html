@@ -26,7 +26,7 @@
                   <tr><th>API URL</th><td><code>/api/{surface}/{domain}/{resource}</code>, <code>kebab-case</code>, 복수형 리소스. 예: <code>/api/app/wms/inventory-adjustments</code></td></tr>
                   <tr><th>이벤트</th><td><code>dot.case</code>, 과거형. 예: <code>wms.inventory.adjusted</code>, <code>wms.outbound.shipped</code>, <code>tenant.created</code></td></tr>
                   <tr><th>AWS 리소스</th><td><code>{project}-{env}-{resource}</code>. 예: <code>multi-tenant-dev-wms-service</code></td></tr>
-                  <tr><th>브랜치/커밋</th><td>브랜치: <code>feature/wms-inventory</code>. 커밋: <code>feat(wms): add inventory adjustment</code></td></tr>
+                  <tr><th>브랜치/커밋</th><td>브랜치: <code>feature/wms-inventory</code>. 커밋 제목: <code>feat(wms): add inventory adjustment</code>. 커밋 본문에는 주요 변경, 영향 범위, 검증 결과를 함께 기록합니다.</td></tr>
                 </tbody>
               </table>
             </section>
@@ -48,7 +48,7 @@
                 <div class="card">
                   <strong>Git/브랜치/커밋 규칙</strong>
                   <p>
-                    현재는 브랜치 <code>type/short-description</code>, 커밋 Conventional Commits 정도만 유지합니다.
+                    현재는 브랜치 <code>type/short-description</code>, 커밋 Conventional Commits, 상세 커밋 본문 작성을 유지합니다.
                     기능 개발이 시작되면 커밋 단위, PR 단위, 브랜치 보호 기준을 확정합니다.
                   </p>
                 </div>
@@ -62,8 +62,25 @@
               </div>
               <pre><code># 현재 유지할 최소 Git 기준
 branch: feature/wms-inventory
-commit: feat(wms): add inventory adjustment
-commit: docs(rules): update logging rules</code></pre>
+commit subject: feat(wms): add inventory adjustment
+
+commit body:
+- Changes: Add inventory adjustment command and validation.
+- Docs: Update WMS service development notes.
+- Verification: Run wms-service typecheck and related scenario checks.</code></pre>
+            </section>
+
+      <section>
+              <h2>커밋 메시지 상세 작성 규칙</h2>
+              <p>커밋 메시지는 변경 이력을 나중에 추적할 수 있도록 제목과 본문을 함께 작성합니다. 단순 오타 수정처럼 정말 작은 변경만 한 줄 커밋을 허용합니다.</p>
+              <table>
+                <tbody>
+                  <tr><th>제목</th><td>Conventional Commits 형식을 사용합니다. 예: <code>feat(wms): add inventory adjustment</code></td></tr>
+                  <tr><th>본문</th><td>주요 변경, 영향 범위, 문서 갱신, 검증 결과를 짧은 bullet로 기록합니다.</td></tr>
+                  <tr><th>검증</th><td>실행한 테스트나 typecheck를 적습니다. 실행하지 못했다면 그 이유를 명시합니다.</td></tr>
+                  <tr><th>금지</th><td><code>update docs</code>, <code>fix</code>, <code>changes</code>처럼 변경 내용을 추적하기 어려운 단문 메시지를 피합니다.</td></tr>
+                </tbody>
+              </table>
             </section>
 
       <section>

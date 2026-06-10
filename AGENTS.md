@@ -23,6 +23,8 @@
 - AWS resource name: `{project}-{env}-{resource}`
 - Branch: `type/short-description`
 - Commit: Conventional Commits, e.g. `feat(wms): add inventory adjustment`
+- Commit messages must be detailed by default. Use a Conventional Commit subject plus a body that summarizes key changes, affected areas, and verification results. Single-line commit messages are allowed only for truly trivial changes.
+- For broad changes, write commit bodies with short bullet points such as `Changes`, `Docs`, and `Verification`. If tests were not run, state that explicitly.
 - TypeScript interfaces use `PascalCase` without an `I` prefix.
 - NestJS file suffixes should follow local type: `*.module.ts`, `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.dto.ts`, `*.entity.ts`, `*.event.ts`, `*.guard.ts`, `*.middleware.ts`, `*.interceptor.ts`, `*.policy.ts`.
 
@@ -167,7 +169,8 @@
 
 ## Deployment Rules
 
-- GitHub Actions deploys `gateway-service` by branch: `dev` to `dev`, `staging` to `staging`, and `main` to `prod`.
+- GitHub Actions automatic push deploys are temporarily disabled. Deployment workflows must be run manually with `workflow_dispatch` until automatic deploys are explicitly re-enabled.
+- When automatic deploys are re-enabled, branch mapping should be `dev` to `dev`, `staging` to `staging`, and `main` to `prod`.
 - GitHub deployment environments must be named `dev`, `staging`, and `prod`.
 - AWS authentication in GitHub Actions uses OIDC and an environment secret named `AWS_ROLE_ARN`.
 - Runtime secrets are injected through AWS Secrets Manager or SSM Parameter Store references, not plain GitHub Action environment values.
