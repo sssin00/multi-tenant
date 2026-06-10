@@ -145,10 +145,10 @@ Audit log:
 `auth-iam-service`는 `audit_logs` 테이블을 직접 소유하지 않습니다. 사용자, role, permission, user-role 변경이 성공하면 `AUDIT_LOG_SERVICE_URL`로 설정된 별도 audit-log-service의 내부 API에 audit record 저장을 요청합니다.
 
 ```bash
-AUDIT_LOG_SERVICE_URL=http://localhost:3005
+AUDIT_LOG_SERVICE_URL=
 ```
 
-현재 호출 경로는 `POST /api/v1/internal/audit/logs`이며 `X-Request-Id`, `X-Tenant-Id`, actor, action, resource, result, details를 전달합니다. 로컬 개발에서 `AUDIT_LOG_SERVICE_URL`이 비어 있으면 audit 전송은 건너뜁니다.
+현재 호출 경로는 `POST /api/v1/internal/audit/logs`이며 `X-Request-Id`, `X-Tenant-Id`, actor, action, resource, result, details를 전달합니다. 로컬 개발에서는 audit-log-service를 별도로 만들기 전까지 `AUDIT_LOG_SERVICE_URL`을 비워두고 audit 전송을 건너뜁니다.
 
 Outbox event:
 
