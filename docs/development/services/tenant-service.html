@@ -11,29 +11,241 @@
       <header>
         <p class="eyebrow">Development Process</p>
         <h1>tenant-service 개발과정</h1>
-        <p class="lead">테넌트 생성, 상태, 사용 모듈, 도메인, DB 라우팅 전략을 관리합니다.</p>
+        <p class="lead">
+          tenant-service는 테넌트 기본 정보, 상태, 사용 모듈, 도메인, DB 전략을 관리합니다.
+          1차 목표는 gateway-service가 tenant 상태를 확인하고, 이후 WMS와 BFF가 tenant context를 안정적으로 사용할 수 있게 만드는 것입니다.
+        </p>
       </header>
+
       <section>
         <h2>서비스 역할</h2>
         <table>
-          <tr><th>위치</th><td><code>apps/tenant-service</code></td></tr>
-          <tr><th>핵심 엔티티</th><td><code>tenants</code>, <code>tenant_domains</code>, <code>tenant_modules</code></td></tr>
-          <tr><th>DB 전략</th><td>일반 테넌트는 Shared DB + tenant_id, VIP는 Database per tenant later</td></tr>
-          <tr><th>이벤트</th><td><code>tenant.created</code>, <code>tenant.status_changed</code>, <code>tenant.module_enabled</code></td></tr>
+          <tbody>
+            <tr><th>위치</th><td><code>apps/tenant-service</code></td></tr>
+            <tr><th>책임</th><td>테넌트 생성, 상태 관리, 활성 module 관리, domain 관리, tenant 설정 조회</td></tr>
+            <tr><th>초기 연동</th><td><code>gateway-service</code>가 내부 API로 tenant 상태를 조회합니다.</td></tr>
+            <tr><th>핵심 엔티티</th><td><code>tenants</code>, <code>tenant_domains</code>, <code>tenant_modules</code>, <code>tenant_settings</code>, <code>outbox_events</code></td></tr>
+            <tr><th>초기 DB 전략</th><td>Shared DB + <code>tenantId</code> 전략만 구현합니다. schema/database 분리는 later로 둡니다.</td></tr>
+            <tr><th>주의</th><td>tenant-service는 WMS 재고/입출고 업무 규칙을 소유하지 않습니다. tenant 상태와 설정 경계만 소유합니다.</td></tr>
+          </tbody>
         </table>
       </section>
+
       <section>
-        <h2>첫 구현 범위</h2>
+        <h2>1차 개발 목표</h2>
         <div class="grid">
-          <div class="card"><strong>Tenant CRUD</strong><p>생성, 조회, 상태 변경</p></div>
-          <div class="card"><strong>Module</strong><p>enabled_modules 관리</p></div>
-          <div class="card"><strong>DB Strategy</strong><p><code>db_strategy</code> 필드와 라우팅 기준 정의</p></div>
+          <div class="card">
+            <strong>Tenant Status</strong>
+            <p><code>gateway-service</code>가 업무 API 진입 전에 tenant 상태를 확인할 수 있도록 내부 상태 API를 제공합니다.</p>
+          </div>
+          <div class="card">
+            <strong>Tenant Admin</strong>
+            <p>운영자가 tenant를 생성하고, 상태와 module 활성화 여부를 관리할 수 있는 admin API를 제공합니다.</p>
+          </div>
+          <div class="card">
+            <strong>Module Scope</strong>
+            <p>초기 module은 <code>wms</code>를 중심으로 관리하고, 이후 MES/QMS/FMS/EMS 확장을 준비합니다.</p>
+          </div>
+          <div class="card">
+            <strong>Outbox</strong>
+            <p>tenant 생성, 상태 변경, module 변경은 outbox event로 남겨 이후 outbox-relay-service와 연결합니다.</p>
+          </div>
         </div>
       </section>
+
+      <section>
+        <h2>개발 순서</h2>
+        <div class="flow-list">
+          <div class="flow-item">
+            <span class="step-number">1</span>
+            <div>
+              <strong>NestJS 기본 서비스 구성</strong>
+              <p><code>apps/tenant-service</code>를 실제 NestJS 앱으로 전환하고 config, health, readiness를 먼저 만듭니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">2</span>
+            <div>
+              <strong>Tenant 데이터 모델 설계</strong>
+              <p><code>tenants</code>, <code>tenant_domains</code>, <code>tenant_modules</code>, <code>tenant_settings</code>, <code>outbox_events</code> 모델을 정의합니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">3</span>
+            <div>
+              <strong>Gateway 연동 API 구현</strong>
+              <p><code>GET /internal/tenants/{tenantId}/status</code>를 먼저 구현해 gateway tenant status check와 연결합니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">4</span>
+            <div>
+              <strong>Admin API 구현</strong>
+              <p>tenant 생성, 목록, 상세, 상태 변경, module 변경 API를 구현합니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">5</span>
+            <div>
+              <strong>Event와 Outbox 추가</strong>
+              <p>tenant 관련 상태 변경을 outbox event로 저장하고, 이후 outbox-relay-service에서 발행할 수 있게 준비합니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">6</span>
+            <div>
+              <strong>Docker와 Local 연동</strong>
+              <p>local compose에 tenant-service를 추가하고 gateway의 <code>TENANT_SERVICE_URL</code>을 실제 tenant-service로 연결합니다.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Tenant 기능 TODO</h2>
+        <div class="grid two">
+          <div class="card">
+            <strong>서비스 기본 구성</strong>
+            <p><label><input type="checkbox" disabled /> NestJS 앱 기본 구조 생성</label></p>
+            <p><label><input type="checkbox" disabled /> <code>TENANT_PORT</code>, <code>DATABASE_URL</code>, <code>REDIS_URL</code> config 구성</label></p>
+            <p><label><input type="checkbox" disabled /> <code>GET /health</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> <code>GET /ready</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> API envelope와 global exception filter 적용</label></p>
+          </div>
+          <div class="card">
+            <strong>데이터 모델</strong>
+            <p><label><input type="checkbox" disabled /> DB 접근 방식 확정</label></p>
+            <p><label><input type="checkbox" disabled /> <code>tenants</code> 모델 작성</label></p>
+            <p><label><input type="checkbox" disabled /> <code>tenant_domains</code> 모델 작성</label></p>
+            <p><label><input type="checkbox" disabled /> <code>tenant_modules</code> 모델 작성</label></p>
+            <p><label><input type="checkbox" disabled /> <code>tenant_settings</code> 또는 <code>tenant_configs</code> 모델 작성</label></p>
+            <p><label><input type="checkbox" disabled /> <code>outbox_events</code> 모델 작성</label></p>
+          </div>
+          <div class="card">
+            <strong>Gateway 연동</strong>
+            <p><label><input type="checkbox" disabled /> <code>GET /internal/tenants/{tenantId}/status</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> <code>GET /internal/tenants/{tenantId}/modules</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> internal service 인증 방식 적용</label></p>
+            <p><label><input type="checkbox" disabled /> gateway <code>TENANT_SERVICE_URL</code>과 연동</label></p>
+            <p><label><input type="checkbox" disabled /> gateway tenant status check local 검증</label></p>
+          </div>
+          <div class="card">
+            <strong>Admin API</strong>
+            <p><label><input type="checkbox" disabled /> <code>POST /api/admin/tenants</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> <code>GET /api/admin/tenants</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> <code>GET /api/admin/tenants/{tenantId}</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> <code>PATCH /api/admin/tenants/{tenantId}</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> <code>PATCH /api/admin/tenants/{tenantId}/status</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> <code>PUT /api/admin/tenants/{tenantId}/modules</code> 구현</label></p>
+          </div>
+          <div class="card">
+            <strong>Domain과 Module</strong>
+            <p><label><input type="checkbox" disabled /> <code>GET /api/admin/tenants/{tenantId}/domains</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> <code>POST /api/admin/tenants/{tenantId}/domains</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> <code>DELETE /api/admin/tenants/{tenantId}/domains/{domainId}</code> 구현</label></p>
+            <p><label><input type="checkbox" disabled /> module code 기본값 <code>wms</code> 정의</label></p>
+            <p><label><input type="checkbox" disabled /> tenant별 enabled module 조회 구현</label></p>
+          </div>
+          <div class="card">
+            <strong>Event와 문서화</strong>
+            <p><label><input type="checkbox" disabled /> <code>tenant.created</code> outbox event 저장</label></p>
+            <p><label><input type="checkbox" disabled /> <code>tenant.status.changed</code> outbox event 저장</label></p>
+            <p><label><input type="checkbox" disabled /> <code>tenant.module.enabled</code> outbox event 저장</label></p>
+            <p><label><input type="checkbox" disabled /> <code>tenant.module.disabled</code> outbox event 저장</label></p>
+            <p><label><input type="checkbox" disabled /> tenant error code 정리</label></p>
+            <p><label><input type="checkbox" disabled /> <code>docs/apis/tenant-service/index.html</code> 생성</label></p>
+            <p><label><input type="checkbox" disabled /> <code>docs/index.html</code> API 메뉴에 tenant-service 추가</label></p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>추천 API 초안</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>Endpoint</th><th>인증</th><th>목적</th><th>1차 여부</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>GET /health</code></td><td>Public</td><td>프로세스 생존 확인</td><td><span class="tag done">1차</span></td></tr>
+              <tr><td><code>GET /ready</code></td><td>Public</td><td>DB, Redis, config 준비 상태 확인</td><td><span class="tag done">1차</span></td></tr>
+              <tr><td><code>GET /internal/tenants/{tenantId}/status</code></td><td>Internal</td><td>gateway tenant status check</td><td><span class="tag done">1차 최우선</span></td></tr>
+              <tr><td><code>GET /internal/tenants/{tenantId}/modules</code></td><td>Internal</td><td>BFF와 domain service가 tenant module 활성화 상태 조회</td><td><span class="tag done">1차</span></td></tr>
+              <tr><td><code>POST /api/admin/tenants</code></td><td>Admin</td><td>tenant 생성</td><td><span class="tag done">1차</span></td></tr>
+              <tr><td><code>GET /api/admin/tenants</code></td><td>Admin</td><td>tenant 목록 조회</td><td><span class="tag done">1차</span></td></tr>
+              <tr><td><code>GET /api/admin/tenants/{tenantId}</code></td><td>Admin</td><td>tenant 상세 조회</td><td><span class="tag done">1차</span></td></tr>
+              <tr><td><code>PATCH /api/admin/tenants/{tenantId}</code></td><td>Admin</td><td>tenant 기본 정보 수정</td><td><span class="tag">1차</span></td></tr>
+              <tr><td><code>PATCH /api/admin/tenants/{tenantId}/status</code></td><td>Admin</td><td>tenant 상태 변경</td><td><span class="tag done">1차</span></td></tr>
+              <tr><td><code>PUT /api/admin/tenants/{tenantId}/modules</code></td><td>Admin</td><td>tenant 활성 module 교체</td><td><span class="tag done">1차</span></td></tr>
+              <tr><td><code>GET /api/admin/tenants/{tenantId}/domains</code></td><td>Admin</td><td>tenant domain 목록</td><td><span class="tag">1차</span></td></tr>
+              <tr><td><code>POST /api/admin/tenants/{tenantId}/domains</code></td><td>Admin</td><td>tenant domain 추가</td><td><span class="tag">1차</span></td></tr>
+              <tr><td><code>DELETE /api/admin/tenants/{tenantId}/domains/{domainId}</code></td><td>Admin</td><td>tenant domain 삭제</td><td><span class="tag">1차</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>상태와 이벤트</h2>
+        <div class="grid two">
+          <div class="card">
+            <strong>Tenant Status</strong>
+            <p><code>provisioning</code>, <code>active</code>, <code>suspended</code>, <code>deleted</code>를 기본 상태로 사용합니다.</p>
+          </div>
+          <div class="card">
+            <strong>Gateway 허용 기준</strong>
+            <p>업무 API는 <code>active</code> tenant만 허용합니다. 그 외 상태는 <code>403 TENANT_NOT_READY</code> 또는 적절한 tenant error code로 차단합니다.</p>
+          </div>
+          <div class="card">
+            <strong>1차 이벤트</strong>
+            <p><code>tenant.created</code>, <code>tenant.status.changed</code>, <code>tenant.module.enabled</code>, <code>tenant.module.disabled</code></p>
+          </div>
+          <div class="card">
+            <strong>Event Payload</strong>
+            <p>event에는 <code>eventId</code>, <code>eventType</code>, <code>schemaVersion</code>, <code>tenantId</code>, <code>requestId</code>, <code>occurredAt</code>, <code>source</code>, <code>data</code>를 포함합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>1차에서 미룰 것</h2>
+        <div class="grid two">
+          <div class="card"><strong>VIP DB 자동화</strong><p>tenant별 DB 생성, schema 생성, migration 자동화는 WMS 이후 별도 단계에서 결정합니다.</p></div>
+          <div class="card"><strong>Custom Domain 인증서</strong><p>ACM 인증서 자동 발급과 Route53 자동 연결은 Route53 hosted zone 도입 후 처리합니다.</p></div>
+          <div class="card"><strong>Billing과 Plan</strong><p>요금제, 계약, quota, 사용량 집계는 초기 WMS 흐름 이후 분리합니다.</p></div>
+          <div class="card"><strong>Tenant Proxy Access</strong><p>대리 접속은 승인, 감사 로그, 권한 제한 규칙이 확정되기 전까지 제공하지 않습니다.</p></div>
+          <div class="card"><strong>Feature Flag 고도화</strong><p>초기에는 module 활성화 정도만 관리하고, tenant별 세부 feature flag는 이후로 미룹니다.</p></div>
+          <div class="card"><strong>운영자 UI</strong><p>초기에는 API와 문서 중심으로 검증하고, web-admin 화면은 tenant-service 안정화 후 연결합니다.</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>테스트 시나리오 초안</h2>
+        <table>
+          <tbody>
+            <tr><th>TS-TENANT-001</th><td>active tenant는 gateway tenant status check를 통과한다.</td></tr>
+            <tr><th>TS-TENANT-002</th><td>suspended tenant는 gateway에서 업무 API 접근이 차단된다.</td></tr>
+            <tr><th>TS-TENANT-003</th><td>deleted tenant는 gateway에서 업무 API 접근이 차단된다.</td></tr>
+            <tr><th>TS-TENANT-004</th><td>tenant 생성 시 기본 module <code>wms</code> 활성화 여부가 기대대로 저장된다.</td></tr>
+            <tr><th>TS-TENANT-005</th><td>tenant 상태 변경 시 outbox event가 같은 transaction에서 저장된다.</td></tr>
+            <tr><th>TS-TENANT-006</th><td>tenant domain 중복 등록은 <code>TENANT_DOMAIN_CONFLICT</code>로 실패한다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
       <section>
         <h2>개발 기록</h2>
-        <p>아직 구현 전입니다.</p>
+        <article>
+          <h3>2026-06-10 개발 계획 수립</h3>
+          <ul>
+            <li>tenant-service의 1차 목표를 gateway tenant status check, admin tenant 관리, module 활성화 관리로 정리했습니다.</li>
+            <li>첫 구현 시작점은 <code>GET /internal/tenants/{tenantId}/status</code>로 정했습니다.</li>
+            <li>초기 DB 전략은 Shared DB + <code>tenantId</code>이며, schema/database 분리는 later로 분리했습니다.</li>
+            <li>1차 TODO, 추천 API, 이벤트, 테스트 시나리오 초안을 이 문서에 추가했습니다.</li>
+          </ul>
+        </article>
       </section>
+
       <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
     </main>
   </body>
