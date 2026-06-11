@@ -21,6 +21,7 @@ export interface GatewayServiceStackProps extends cdk.StackProps {
   gatewayDomainName?: string;
   gatewayCorsAllowedOrigins?: string;
   gatewayJwtSecretArn?: string;
+  gatewayTenantStatusCheckEnabled: boolean;
   authImageTag: string;
   authDesiredCount: number;
   authCorsAllowedOrigins?: string;
@@ -30,6 +31,11 @@ export interface GatewayServiceStackProps extends cdk.StackProps {
   authJwtPrivateKeySecretArn?: string;
   authJwtPublicKeySecretArn?: string;
   authInternalAuthSecretArn?: string;
+  tenantImageTag: string;
+  tenantDesiredCount: number;
+  tenantCorsAllowedOrigins?: string;
+  tenantDatabaseUrlSecretArn?: string;
+  tenantInternalAuthSecretArn?: string;
   authIamServiceUrl?: string;
   adminBffServiceUrl?: string;
   userBffServiceUrl?: string;
@@ -43,6 +49,7 @@ export class GatewayServiceStack extends cdk.Stack {
     const namePrefix = `${props.project}-${props.envName}`;
     const serviceName = "gateway-service";
     const authServiceName = "auth-iam-service";
+    const tenantServiceName = "tenant-service";
     const cloudMapNamespaceName = `${props.envName}.${props.project}.local`;
     const isHttpsEnabled = props.gatewayAcmCertificateArn !== undefined && props.gatewayAcmCertificateArn.length > 0;
     const isJwtSecretConfigured = props.gatewayJwtSecretArn !== undefined && props.gatewayJwtSecretArn.length > 0;
@@ -51,6 +58,9 @@ export class GatewayServiceStack extends cdk.Stack {
       (props.envName === "prod" ? "https://app.example.com,https://admin.example.com" : "https://dev.example.com");
     const authCorsAllowedOrigins =
       props.authCorsAllowedOrigins ??
+      (props.envName === "prod" ? "https://app.example.com,https://admin.example.com" : "https://dev.example.com");
+    const tenantCorsAllowedOrigins =
+      props.tenantCorsAllowedOrigins ??
       (props.envName === "prod" ? "https://app.example.com,https://admin.example.com" : "https://dev.example.com");
     const jwtSecret = isJwtSecretConfigured
       ? secretsmanager.Secret.fromSecretCompleteArn(this, "GatewayJwtSecret", props.gatewayJwtSecretArn as string)
@@ -69,6 +79,12 @@ export class GatewayServiceStack extends cdk.Stack {
       : undefined;
     const authInternalAuthSecret = props.authInternalAuthSecretArn
       ? secretsmanager.Secret.fromSecretCompleteArn(this, "AuthInternalAuthSecret", props.authInternalAuthSecretArn)
+      : undefined;
+    const tenantDatabaseUrlSecret = props.tenantDatabaseUrlSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "TenantDatabaseUrlSecret", props.tenantDatabaseUrlSecretArn)
+      : undefined;
+    const tenantInternalAuthSecret = props.tenantInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "TenantInternalAuthSecret", props.tenantInternalAuthSecretArn)
       : undefined;
 
     const repository = new ecr.Repository(this, "GatewayServiceRepository", {
@@ -91,6 +107,19 @@ export class GatewayServiceStack extends cdk.Stack {
         {
           maxImageCount: 20,
           description: "Keep the latest 20 auth-iam-service images"
+        }
+      ],
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+      emptyOnDelete: props.envName !== "prod"
+    });
+
+    const tenantRepository = new ecr.Repository(this, "TenantServiceRepository", {
+      repositoryName: `${namePrefix}-${tenantServiceName}`,
+      imageScanOnPush: true,
+      lifecycleRules: [
+        {
+          maxImageCount: 20,
+          description: "Keep the latest 20 tenant-service images"
         }
       ],
       removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
@@ -159,6 +188,18 @@ export class GatewayServiceStack extends cdk.Stack {
       "Allow gateway-service to auth-iam-service"
     );
 
+    const tenantServiceSecurityGroup = new ec2.SecurityGroup(this, "TenantServiceSecurityGroup", {
+      vpc,
+      securityGroupName: `${namePrefix}-${tenantServiceName}-sg`,
+      description: "Allow gateway-service traffic to tenant-service",
+      allowAllOutbound: true
+    });
+    tenantServiceSecurityGroup.addIngressRule(
+      serviceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow gateway-service to tenant-service"
+    );
+
     const redisSecurityGroup = new ec2.SecurityGroup(this, "GatewayRedisSecurityGroup", {
       vpc,
       securityGroupName: `${namePrefix}-${serviceName}-redis-sg`,
@@ -174,6 +215,11 @@ export class GatewayServiceStack extends cdk.Stack {
       authServiceSecurityGroup,
       ec2.Port.tcp(6379),
       "Allow auth-iam-service to Redis"
+    );
+    redisSecurityGroup.addIngressRule(
+      tenantServiceSecurityGroup,
+      ec2.Port.tcp(6379),
+      "Allow tenant-service to Redis"
     );
 
     const appSubnets = vpc.selectSubnets({
@@ -206,6 +252,7 @@ export class GatewayServiceStack extends cdk.Stack {
       redisCluster.attrRedisEndpointPort
     ]);
     const authIamInternalUrl = `http://${authServiceName}.${cloudMapNamespaceName}:3000/api/auth`;
+    const tenantInternalUrl = `http://${tenantServiceName}.${cloudMapNamespaceName}:3000`;
 
     const loadBalancer = new elbv2.ApplicationLoadBalancer(this, "ApplicationLoadBalancer", {
       vpc,
@@ -261,6 +308,12 @@ export class GatewayServiceStack extends cdk.Stack {
       removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
     });
 
+    const tenantLogGroup = new logs.LogGroup(this, "TenantServiceLogGroup", {
+      logGroupName: `/${props.project}/${props.envName}/${tenantServiceName}`,
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
+    });
+
     const taskDefinition = new ecs.FargateTaskDefinition(this, "GatewayTaskDefinition", {
       family: `${namePrefix}-${serviceName}`,
       cpu: 256,
@@ -270,6 +323,14 @@ export class GatewayServiceStack extends cdk.Stack {
         cpuArchitecture: ecs.CpuArchitecture.X86_64
       }
     });
+
+    const gatewayContainerSecrets: Record<string, ecs.Secret> = {};
+    if (jwtSecret) {
+      gatewayContainerSecrets.JWT_SECRET = ecs.Secret.fromSecretsManager(jwtSecret);
+    }
+    if (tenantInternalAuthSecret) {
+      gatewayContainerSecrets.TENANT_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(tenantInternalAuthSecret);
+    }
 
     const container = taskDefinition.addContainer("GatewayContainer", {
       containerName: serviceName,
@@ -284,8 +345,8 @@ export class GatewayServiceStack extends cdk.Stack {
         AWS_REGION: cdk.Stack.of(this).region,
         REQUEST_ID_HEADER: "x-request-id",
         TENANT_HEADER: "x-tenant-id",
-        TENANT_SERVICE_URL: props.tenantServiceUrl ?? "http://tenant-service:3000",
-        GATEWAY_TENANT_STATUS_CHECK_ENABLED: "false",
+        TENANT_SERVICE_URL: props.tenantServiceUrl ?? tenantInternalUrl,
+        GATEWAY_TENANT_STATUS_CHECK_ENABLED: String(props.gatewayTenantStatusCheckEnabled),
         GATEWAY_TENANT_STATUS_CACHE_TTL_SECONDS: "30",
         GATEWAY_TENANT_STATUS_TIMEOUT_MS: "1000",
         GATEWAY_SECURITY_HEADERS_ENABLED: "true",
@@ -311,11 +372,7 @@ export class GatewayServiceStack extends cdk.Stack {
         ADMIN_BFF_SERVICE_URL: props.adminBffServiceUrl ?? "http://admin-bff-service:3000",
         USER_BFF_SERVICE_URL: props.userBffServiceUrl ?? "http://user-bff-service:3000"
       },
-      secrets: jwtSecret
-        ? {
-            JWT_SECRET: ecs.Secret.fromSecretsManager(jwtSecret)
-          }
-        : undefined,
+      secrets: Object.keys(gatewayContainerSecrets).length > 0 ? gatewayContainerSecrets : undefined,
       logging: ecs.LogDrivers.awsLogs({
         logGroup,
         streamPrefix: serviceName
@@ -468,6 +525,90 @@ export class GatewayServiceStack extends cdk.Stack {
       enableExecuteCommand: props.envName !== "prod"
     });
 
+    const tenantTaskDefinition = new ecs.FargateTaskDefinition(this, "TenantTaskDefinition", {
+      family: `${namePrefix}-${tenantServiceName}`,
+      cpu: 256,
+      memoryLimitMiB: 512,
+      runtimePlatform: {
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        cpuArchitecture: ecs.CpuArchitecture.X86_64
+      }
+    });
+
+    const tenantContainerSecrets: Record<string, ecs.Secret> = {};
+    if (tenantDatabaseUrlSecret) {
+      tenantContainerSecrets.DATABASE_URL = ecs.Secret.fromSecretsManager(tenantDatabaseUrlSecret);
+    }
+    if (tenantInternalAuthSecret) {
+      tenantContainerSecrets.TENANT_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(tenantInternalAuthSecret);
+    }
+
+    const tenantContainer = tenantTaskDefinition.addContainer("TenantContainer", {
+      containerName: tenantServiceName,
+      image: ecs.ContainerImage.fromEcrRepository(tenantRepository, props.tenantImageTag),
+      essential: true,
+      environment: {
+        NODE_ENV: "production",
+        APP_ENV: props.envName,
+        SERVICE_NAME: tenantServiceName,
+        TENANT_PORT: "3000",
+        LOG_LEVEL: "info",
+        AWS_REGION: cdk.Stack.of(this).region,
+        REQUEST_ID_HEADER: "x-request-id",
+        TENANT_HEADER: "x-tenant-id",
+        TENANT_SECURITY_HEADERS_ENABLED: "true",
+        TENANT_CORS_ALLOWED_ORIGINS: tenantCorsAllowedOrigins,
+        TENANT_CORS_ALLOWED_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        TENANT_CORS_ALLOWED_HEADERS:
+          "Authorization,Content-Type,Accept,X-Request-Id,X-Tenant-Id,X-User-Id,Idempotency-Key,X-Internal-Service-Id,X-Internal-Timestamp,X-Internal-Signature",
+        TENANT_CORS_EXPOSED_HEADERS: "X-Request-Id,X-Tenant-Id",
+        TENANT_CORS_CREDENTIALS: "true",
+        TENANT_CORS_MAX_AGE_SECONDS: "600",
+        TENANT_INTERNAL_AUTH_ENABLED: "true",
+        TENANT_INTERNAL_AUTH_ALLOWED_SERVICES: "gateway-service,admin-bff-service,user-bff-service,wms-service",
+        TENANT_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS: "300",
+        REDIS_URL: redisUrl
+      },
+      secrets: Object.keys(tenantContainerSecrets).length > 0 ? tenantContainerSecrets : undefined,
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: tenantLogGroup,
+        streamPrefix: tenantServiceName
+      }),
+      healthCheck: {
+        command: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"],
+        interval: Duration.seconds(30),
+        timeout: Duration.seconds(5),
+        retries: 3,
+        startPeriod: Duration.seconds(15)
+      }
+    });
+    tenantContainer.addPortMappings({
+      containerPort: 3000,
+      protocol: ecs.Protocol.TCP
+    });
+
+    new ecs.FargateService(this, "TenantFargateService", {
+      serviceName: `${namePrefix}-${tenantServiceName}`,
+      cluster,
+      taskDefinition: tenantTaskDefinition,
+      desiredCount: props.tenantDesiredCount,
+      circuitBreaker: {
+        rollback: true
+      },
+      minHealthyPercent: 100,
+      maxHealthyPercent: 200,
+      assignPublicIp: !props.gatewayUseNatGateway,
+      securityGroups: [tenantServiceSecurityGroup],
+      vpcSubnets: {
+        subnetType: props.gatewayUseNatGateway ? ec2.SubnetType.PRIVATE_WITH_EGRESS : ec2.SubnetType.PUBLIC
+      },
+      cloudMapOptions: {
+        cloudMapNamespace,
+        name: tenantServiceName
+      },
+      enableExecuteCommand: props.envName !== "prod"
+    });
+
     cdk.Tags.of(this).add("Project", props.project);
     cdk.Tags.of(this).add("Environment", props.envName);
     cdk.Tags.of(this).add("ManagedBy", "cdk");
@@ -482,9 +623,19 @@ export class GatewayServiceStack extends cdk.Stack {
       description: "ECR repository URI for auth-iam-service"
     });
 
+    new cdk.CfnOutput(this, "TenantServiceRepositoryUri", {
+      value: tenantRepository.repositoryUri,
+      description: "ECR repository URI for tenant-service"
+    });
+
     new cdk.CfnOutput(this, "AuthIamServiceImageTag", {
       value: props.authImageTag,
       description: "Image tag used by the auth-iam-service ECS task definition"
+    });
+
+    new cdk.CfnOutput(this, "TenantServiceImageTag", {
+      value: props.tenantImageTag,
+      description: "Image tag used by the tenant-service ECS task definition"
     });
 
     new cdk.CfnOutput(this, "AuthIamServiceDesiredCount", {
@@ -492,9 +643,19 @@ export class GatewayServiceStack extends cdk.Stack {
       description: "Current desired count for auth-iam-service"
     });
 
+    new cdk.CfnOutput(this, "TenantServiceDesiredCount", {
+      value: String(props.tenantDesiredCount),
+      description: "Current desired count for tenant-service"
+    });
+
     new cdk.CfnOutput(this, "AuthIamServiceInternalUrl", {
       value: authIamInternalUrl,
       description: "Cloud Map internal URL used by gateway-service to reach auth-iam-service"
+    });
+
+    new cdk.CfnOutput(this, "TenantServiceInternalUrl", {
+      value: tenantInternalUrl,
+      description: "Cloud Map internal URL used by gateway-service to reach tenant-service"
     });
 
     new cdk.CfnOutput(this, "GatewayServiceImageTag", {

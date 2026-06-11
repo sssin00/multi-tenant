@@ -23,8 +23,9 @@
           <tbody>
             <tr><th>위치</th><td><code>apps/tenant-service</code></td></tr>
             <tr><th>책임</th><td>테넌트 생성, 상태 관리, 활성 module 관리, domain 관리, tenant 설정 조회</td></tr>
-            <tr><th>초기 연동</th><td><code>gateway-service</code>가 내부 API로 tenant 상태를 조회합니다.</td></tr>
+            <tr><th>초기 연동</th><td><code>gateway-service</code>가 내부 API로 tenant 상태를 조회하고, 이후 <code>admin-bff-service</code>와 <code>user-bff-service</code>가 tenant context를 조합합니다.</td></tr>
             <tr><th>핵심 엔티티</th><td><code>tenants</code>, <code>tenant_domains</code>, <code>tenant_modules</code>, <code>tenant_settings</code>, <code>outbox_events</code></td></tr>
+            <tr><th>Tenant ID</th><td><code>tenantId</code>는 UUID 기반 내부 불변 식별자입니다. 사람이 읽는 운영 식별자는 <code>tenant.code</code>로 분리합니다.</td></tr>
             <tr><th>초기 DB 전략</th><td>Shared DB + <code>tenantId</code> 전략만 구현합니다. schema/database 분리는 later로 둡니다.</td></tr>
             <tr><th>주의</th><td>tenant-service는 WMS 재고/입출고 업무 규칙을 소유하지 않습니다. tenant 상태와 설정 경계만 소유합니다.</td></tr>
           </tbody>
@@ -39,8 +40,12 @@
             <p><code>gateway-service</code>가 업무 API 진입 전에 tenant 상태를 확인할 수 있도록 내부 상태 API를 제공합니다.</p>
           </div>
           <div class="card">
+            <strong>Tenant Identity</strong>
+            <p><code>tenantId</code>는 UUID로 생성하고 JWT, header, DB 접근 조건에 사용합니다. 화면과 운영자 입력에는 별도 <code>tenant.code</code>를 사용합니다.</p>
+          </div>
+          <div class="card">
             <strong>Tenant Admin</strong>
-            <p>운영자가 tenant를 생성하고, 상태와 module 활성화 여부를 관리할 수 있는 admin API를 제공합니다.</p>
+            <p>운영자가 사용하는 외부 API는 <code>admin-bff-service</code>가 제공하고, tenant-service는 BFF가 호출하는 내부 관리 API를 제공합니다.</p>
           </div>
           <div class="card">
             <strong>Module Scope</strong>
@@ -80,8 +85,8 @@
           <div class="flow-item">
             <span class="step-number">4</span>
             <div>
-              <strong>Admin API 구현</strong>
-              <p>tenant 생성, 목록, 상세, 상태 변경, module 변경 API를 구현합니다.</p>
+              <strong>내부 관리 API 구현</strong>
+              <p><code>admin-bff-service</code>가 호출할 tenant 생성, 목록, 상세, 상태 변경, module 변경 내부 API를 구현합니다.</p>
             </div>
           </div>
           <div class="flow-item">
@@ -103,85 +108,125 @@
 
       <section>
         <h2>Tenant 기능 TODO</h2>
+        <p>tenant-service 기능은 이 체크리스트를 기준으로 구현 내역에 맞춰 갱신합니다.</p>
         <div class="grid two">
           <div class="card">
-            <strong>서비스 기본 구성</strong>
-            <p><label><input type="checkbox" disabled /> NestJS 앱 기본 구조 생성</label></p>
-            <p><label><input type="checkbox" disabled /> <code>TENANT_PORT</code>, <code>DATABASE_URL</code>, <code>REDIS_URL</code> config 구성</label></p>
-            <p><label><input type="checkbox" disabled /> <code>GET /health</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> <code>GET /ready</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> API envelope와 global exception filter 적용</label></p>
+            <h3>완료</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> tenant-service 1차 목표와 개발 순서 정리</label></p>
+              <p><label><input type="checkbox" checked disabled /> gateway tenant status check 연동 API를 첫 구현 시작점으로 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> 초기 DB 전략을 Shared DB + <code>tenantId</code>로 정리</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>tenantId</code>는 UUID, 사람이 읽는 식별자는 <code>tenant.code</code>로 분리하는 규칙 정리</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant 생성 시 <code>tenant.code</code> 자동 unique 생성 규칙 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>admin-bff-service</code>, <code>user-bff-service</code> 앞단 구조에 맞춰 API 경계 재정리</label></p>
+              <p><label><input type="checkbox" checked disabled /> NestJS 서비스 기본 구성과 package scripts 설정</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>TENANT_PORT</code>, <code>DATABASE_URL</code>, <code>REDIS_URL</code>, internal auth 기본 config 구성</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /health</code>, <code>GET /ready</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> request context middleware와 JSON access log</label></p>
+              <p><label><input type="checkbox" checked disabled /> global exception filter와 API error envelope 통일</label></p>
+              <p><label><input type="checkbox" checked disabled /> 보안 header와 CORS 기본 정책 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> PostgreSQL + Prisma 7 기본 구성과 PrismaService 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> Redis env validation과 readiness check 구성</label></p>
+              <p><label><input type="checkbox" checked disabled /> internal service 인증 guard와 decorator 기본 구조 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant-service Dockerfile 추가</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant-service Docker env 파일과 local/deploy compose 연결</label></p>
+            </div>
           </div>
           <div class="card">
-            <strong>데이터 모델</strong>
-            <p><label><input type="checkbox" disabled /> DB 접근 방식 확정</label></p>
-            <p><label><input type="checkbox" disabled /> <code>tenants</code> 모델 작성</label></p>
-            <p><label><input type="checkbox" disabled /> <code>tenant_domains</code> 모델 작성</label></p>
-            <p><label><input type="checkbox" disabled /> <code>tenant_modules</code> 모델 작성</label></p>
-            <p><label><input type="checkbox" disabled /> <code>tenant_settings</code> 또는 <code>tenant_configs</code> 모델 작성</label></p>
-            <p><label><input type="checkbox" disabled /> <code>outbox_events</code> 모델 작성</label></p>
+            <h3>1차 구현</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> NestJS 앱 기본 구조 생성</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>TENANT_PORT</code>, <code>DATABASE_URL</code>, <code>REDIS_URL</code> config 구성</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /health</code>, <code>GET /ready</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> API envelope와 global exception filter 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>tenants</code>, <code>tenant_domains</code>, <code>tenant_modules</code>, <code>tenant_settings</code>, <code>outbox_events</code> 모델 작성</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /internal/tenants/{tenantId}/status</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /internal/tenants/{tenantId}/modules</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> internal service 인증 방식 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> gateway <code>TENANT_SERVICE_URL</code>과 연동</label></p>
+              <p><label><input type="checkbox" checked disabled /> gateway tenant status check local 연결 기준 정리</label></p>
+            </div>
           </div>
           <div class="card">
-            <strong>Gateway 연동</strong>
-            <p><label><input type="checkbox" disabled /> <code>GET /internal/tenants/{tenantId}/status</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> <code>GET /internal/tenants/{tenantId}/modules</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> internal service 인증 방식 적용</label></p>
-            <p><label><input type="checkbox" disabled /> gateway <code>TENANT_SERVICE_URL</code>과 연동</label></p>
-            <p><label><input type="checkbox" disabled /> gateway tenant status check local 검증</label></p>
+            <h3>BFF 연동 이후</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" disabled /> <code>GET /internal/tenants/{tenantId}/context</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>GET /internal/admin/tenants</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>POST /internal/admin/tenants</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>GET /internal/admin/tenants/{tenantId}</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>PATCH /internal/admin/tenants/{tenantId}</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>PATCH /internal/admin/tenants/{tenantId}/status</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>PUT /internal/admin/tenants/{tenantId}/modules</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>GET /internal/admin/tenants/{tenantId}/domains</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>POST /internal/admin/tenants/{tenantId}/domains</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>DELETE /internal/admin/tenants/{tenantId}/domains/{domainId}</code> 구현</label></p>
+            </div>
           </div>
           <div class="card">
-            <strong>Admin API</strong>
-            <p><label><input type="checkbox" disabled /> <code>POST /api/admin/tenants</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> <code>GET /api/admin/tenants</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> <code>GET /api/admin/tenants/{tenantId}</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> <code>PATCH /api/admin/tenants/{tenantId}</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> <code>PATCH /api/admin/tenants/{tenantId}/status</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> <code>PUT /api/admin/tenants/{tenantId}/modules</code> 구현</label></p>
-          </div>
-          <div class="card">
-            <strong>Domain과 Module</strong>
-            <p><label><input type="checkbox" disabled /> <code>GET /api/admin/tenants/{tenantId}/domains</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> <code>POST /api/admin/tenants/{tenantId}/domains</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> <code>DELETE /api/admin/tenants/{tenantId}/domains/{domainId}</code> 구현</label></p>
-            <p><label><input type="checkbox" disabled /> module code 기본값 <code>wms</code> 정의</label></p>
-            <p><label><input type="checkbox" disabled /> tenant별 enabled module 조회 구현</label></p>
-          </div>
-          <div class="card">
-            <strong>Event와 문서화</strong>
-            <p><label><input type="checkbox" disabled /> <code>tenant.created</code> outbox event 저장</label></p>
-            <p><label><input type="checkbox" disabled /> <code>tenant.status.changed</code> outbox event 저장</label></p>
-            <p><label><input type="checkbox" disabled /> <code>tenant.module.enabled</code> outbox event 저장</label></p>
-            <p><label><input type="checkbox" disabled /> <code>tenant.module.disabled</code> outbox event 저장</label></p>
-            <p><label><input type="checkbox" disabled /> tenant error code 정리</label></p>
-            <p><label><input type="checkbox" disabled /> <code>docs/apis/tenant-service/index.html</code> 생성</label></p>
-            <p><label><input type="checkbox" disabled /> <code>docs/index.html</code> API 메뉴에 tenant-service 추가</label></p>
+            <h3>후속 작업</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> 로컬 seed tenant의 기본 module <code>auth</code>, <code>tenant</code>, <code>wms</code> 정의</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant별 enabled module 조회 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>tenant.status.changed</code>, <code>tenant.module.enabled</code>, <code>tenant.module.disabled</code> outbox event 저장</label></p>
+              <p><label><input type="checkbox" disabled /> tenant error code 정리</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>docs/apis/tenant-service/index.html</code> 생성</label></p>
+              <p><label><input type="checkbox" disabled /> <code>docs/apis/admin-bff-service/index.html</code>에 외부 tenant 관리 API 정리</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>docs/index.html</code> API 메뉴에 tenant-service 연결</label></p>
+            </div>
           </div>
         </div>
       </section>
 
       <section>
+        <h2>Tenant Code 생성 규칙</h2>
+        <table>
+          <tbody>
+            <tr><th>목적</th><td><code>tenant.code</code>는 운영자와 화면에서 읽기 쉬운 tenant 식별자이며, 내부 식별자인 <code>tenantId</code>와 분리합니다.</td></tr>
+            <tr><th>형식</th><td>대문자 base 4자리와 sequence 4자리를 붙인 8자리 문자열입니다. 구분자는 사용하지 않습니다.</td></tr>
+            <tr><th>Domain 우선</th><td>생성 요청에 <code>domain</code>이 있으면 등록 도메인의 이름 label을 우선 사용합니다. 예: <code>acme.example.com</code>은 <code>EXAM0001</code>, <code>factory.acme.co.kr</code>은 <code>ACME0001</code></td></tr>
+            <tr><th>Name fallback</th><td><code>domain</code>이 없으면 <code>name</code>을 대문자 ASCII로 정규화해 base를 만듭니다. 예: <code>ACME 한국</code>은 <code>ACME0001</code></td></tr>
+            <tr><th>한글 fallback</th><td>ASCII label이 없고 한글이 있으면 첫 한글 음절을 로마자로 변환해 base로 사용합니다. 4자리가 모자라면 hash로 채웁니다. 예: <code>한국공장</code>은 <code>HANF0001</code></td></tr>
+            <tr><th>Hash fallback</th><td>ASCII label도 한글도 없으면 SHA-256 hash의 가운데 4글자를 base로 사용합니다.</td></tr>
+            <tr><th>충돌 처리</th><td>동일 base가 이미 있으면 sequence를 <code>0002</code>, <code>0003</code>처럼 증가시켜 unique code를 생성합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
         <h2>추천 API 초안</h2>
+        <p>
+          외부 관리자 API는 <code>admin-bff-service</code>의 <code>/api/admin/**</code> surface가 소유합니다.
+          tenant-service는 gateway와 BFF가 호출하는 내부 API를 우선 구현합니다.
+        </p>
         <div class="wide-table">
           <table>
             <thead>
-              <tr><th>Endpoint</th><th>인증</th><th>목적</th><th>1차 여부</th></tr>
+              <tr><th>Endpoint</th><th>호출자</th><th>목적</th><th>1차 여부</th></tr>
             </thead>
             <tbody>
               <tr><td><code>GET /health</code></td><td>Public</td><td>프로세스 생존 확인</td><td><span class="tag done">1차</span></td></tr>
               <tr><td><code>GET /ready</code></td><td>Public</td><td>DB, Redis, config 준비 상태 확인</td><td><span class="tag done">1차</span></td></tr>
-              <tr><td><code>GET /internal/tenants/{tenantId}/status</code></td><td>Internal</td><td>gateway tenant status check</td><td><span class="tag done">1차 최우선</span></td></tr>
-              <tr><td><code>GET /internal/tenants/{tenantId}/modules</code></td><td>Internal</td><td>BFF와 domain service가 tenant module 활성화 상태 조회</td><td><span class="tag done">1차</span></td></tr>
-              <tr><td><code>POST /api/admin/tenants</code></td><td>Admin</td><td>tenant 생성</td><td><span class="tag done">1차</span></td></tr>
-              <tr><td><code>GET /api/admin/tenants</code></td><td>Admin</td><td>tenant 목록 조회</td><td><span class="tag done">1차</span></td></tr>
-              <tr><td><code>GET /api/admin/tenants/{tenantId}</code></td><td>Admin</td><td>tenant 상세 조회</td><td><span class="tag done">1차</span></td></tr>
-              <tr><td><code>PATCH /api/admin/tenants/{tenantId}</code></td><td>Admin</td><td>tenant 기본 정보 수정</td><td><span class="tag">1차</span></td></tr>
-              <tr><td><code>PATCH /api/admin/tenants/{tenantId}/status</code></td><td>Admin</td><td>tenant 상태 변경</td><td><span class="tag done">1차</span></td></tr>
-              <tr><td><code>PUT /api/admin/tenants/{tenantId}/modules</code></td><td>Admin</td><td>tenant 활성 module 교체</td><td><span class="tag done">1차</span></td></tr>
-              <tr><td><code>GET /api/admin/tenants/{tenantId}/domains</code></td><td>Admin</td><td>tenant domain 목록</td><td><span class="tag">1차</span></td></tr>
-              <tr><td><code>POST /api/admin/tenants/{tenantId}/domains</code></td><td>Admin</td><td>tenant domain 추가</td><td><span class="tag">1차</span></td></tr>
-              <tr><td><code>DELETE /api/admin/tenants/{tenantId}/domains/{domainId}</code></td><td>Admin</td><td>tenant domain 삭제</td><td><span class="tag">1차</span></td></tr>
+              <tr><td><code>GET /internal/tenants/{tenantId}/status</code></td><td>gateway-service</td><td>tenant status check</td><td><span class="tag done">1차 최우선</span></td></tr>
+              <tr><td><code>GET /internal/tenants/{tenantId}/modules</code></td><td>gateway-service, BFF, domain service</td><td>tenant module 활성화 상태 조회</td><td><span class="tag done">1차</span></td></tr>
+              <tr><td><code>GET /internal/tenants/{tenantId}/context</code></td><td>admin-bff-service, user-bff-service</td><td>화면 조합용 tenant context 조회</td><td><span class="tag">BFF 연동</span></td></tr>
+              <tr><td><code>GET /internal/admin/tenants</code></td><td>admin-bff-service</td><td>tenant 목록 조회</td><td><span class="tag">BFF 연동</span></td></tr>
+              <tr><td><code>POST /internal/admin/tenants</code></td><td>admin-bff-service</td><td>tenant 생성과 <code>tenant.code</code> 자동 생성</td><td><span class="tag done">구현</span></td></tr>
+              <tr><td><code>GET /internal/admin/tenants/{tenantId}</code></td><td>admin-bff-service</td><td>tenant 상세 조회</td><td><span class="tag">BFF 연동</span></td></tr>
+              <tr><td><code>PATCH /internal/admin/tenants/{tenantId}</code></td><td>admin-bff-service</td><td>tenant 기본 정보 수정</td><td><span class="tag">BFF 연동</span></td></tr>
+              <tr><td><code>PATCH /internal/admin/tenants/{tenantId}/status</code></td><td>admin-bff-service</td><td>tenant 상태 변경</td><td><span class="tag">BFF 연동</span></td></tr>
+              <tr><td><code>PUT /internal/admin/tenants/{tenantId}/modules</code></td><td>admin-bff-service</td><td>tenant 활성 module 교체</td><td><span class="tag">BFF 연동</span></td></tr>
+              <tr><td><code>GET /internal/admin/tenants/{tenantId}/domains</code></td><td>admin-bff-service</td><td>tenant domain 목록</td><td><span class="tag">BFF 연동</span></td></tr>
+              <tr><td><code>POST /internal/admin/tenants/{tenantId}/domains</code></td><td>admin-bff-service</td><td>tenant domain 추가</td><td><span class="tag">BFF 연동</span></td></tr>
+              <tr><td><code>DELETE /internal/admin/tenants/{tenantId}/domains/{domainId}</code></td><td>admin-bff-service</td><td>tenant domain 삭제</td><td><span class="tag">BFF 연동</span></td></tr>
             </tbody>
           </table>
+        </div>
+        <div class="card">
+          <strong>BFF 외부 API 경계</strong>
+          <p>
+            <code>POST /api/admin/tenants</code>, <code>GET /api/admin/tenants</code> 같은 외부 관리자 API는
+            <code>admin-bff-service</code> API 문서에서 관리합니다. tenant-service API 문서는 내부 계약을 중심으로 작성합니다.
+          </p>
         </div>
       </section>
 
@@ -215,7 +260,7 @@
           <div class="card"><strong>Billing과 Plan</strong><p>요금제, 계약, quota, 사용량 집계는 초기 WMS 흐름 이후 분리합니다.</p></div>
           <div class="card"><strong>Tenant Proxy Access</strong><p>대리 접속은 승인, 감사 로그, 권한 제한 규칙이 확정되기 전까지 제공하지 않습니다.</p></div>
           <div class="card"><strong>Feature Flag 고도화</strong><p>초기에는 module 활성화 정도만 관리하고, tenant별 세부 feature flag는 이후로 미룹니다.</p></div>
-          <div class="card"><strong>운영자 UI</strong><p>초기에는 API와 문서 중심으로 검증하고, web-admin 화면은 tenant-service 안정화 후 연결합니다.</p></div>
+          <div class="card"><strong>운영자 UI</strong><p>초기에는 내부 API와 문서 중심으로 검증하고, web-admin 화면은 admin-bff-service 안정화 후 연결합니다.</p></div>
         </div>
       </section>
 
@@ -229,6 +274,7 @@
             <tr><th>TS-TENANT-004</th><td>tenant 생성 시 기본 module <code>wms</code> 활성화 여부가 기대대로 저장된다.</td></tr>
             <tr><th>TS-TENANT-005</th><td>tenant 상태 변경 시 outbox event가 같은 transaction에서 저장된다.</td></tr>
             <tr><th>TS-TENANT-006</th><td>tenant domain 중복 등록은 <code>TENANT_DOMAIN_CONFLICT</code>로 실패한다.</td></tr>
+            <tr><th>TS-TENANT-007</th><td>tenant 생성 시 domain/name/한글 fallback 규칙에 맞춰 8자리 대문자 <code>tenant.code</code>가 생성되고, 충돌 시 sequence가 증가한다.</td></tr>
           </tbody>
         </table>
       </section>
@@ -236,12 +282,92 @@
       <section>
         <h2>개발 기록</h2>
         <article>
+          <h3>2026-06-11 tenant-service API 문서 최신화</h3>
+          <ul>
+            <li><code>docs/apis/tenant-service/index.html</code>을 추가해 health/readiness, tenant status, modules, tenant 생성 내부 API 계약을 정리했습니다.</li>
+            <li>API 문서 허브와 문서 대시보드에 tenant-service API 링크를 연결했습니다.</li>
+            <li>tenant-service TODO에서 이미 구현된 enabled module 조회, API 문서 생성, 대시보드 연결 항목을 완료로 갱신했습니다.</li>
+          </ul>
+        </article>
+        <article>
           <h3>2026-06-10 개발 계획 수립</h3>
           <ul>
             <li>tenant-service의 1차 목표를 gateway tenant status check, admin tenant 관리, module 활성화 관리로 정리했습니다.</li>
             <li>첫 구현 시작점은 <code>GET /internal/tenants/{tenantId}/status</code>로 정했습니다.</li>
             <li>초기 DB 전략은 Shared DB + <code>tenantId</code>이며, schema/database 분리는 later로 분리했습니다.</li>
             <li>1차 TODO, 추천 API, 이벤트, 테스트 시나리오 초안을 이 문서에 추가했습니다.</li>
+            <li>API 경계를 BFF 앞단 구조에 맞춰 재정리했습니다. 외부 <code>/api/admin/**</code>는 admin-bff-service가 소유하고, tenant-service는 <code>/internal/**</code> 계약을 우선 구현합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-10 NestJS 기본 구조 생성</h3>
+          <ul>
+            <li><code>apps/tenant-service</code>를 실행 가능한 NestJS 앱으로 전환하고 <code>main.ts</code>, <code>app.module.ts</code>, health/readiness, config, request context, access log, security headers, global exception filter를 추가했습니다.</li>
+            <li>Prisma 7 기반 <code>prisma/schema.prisma</code>와 <code>PrismaService</code>를 추가하고, tenant 기본 모델과 <code>outbox_events</code> 모델을 정의했습니다.</li>
+            <li>Redis readiness check와 HMAC 기반 internal service auth guard/decorator를 추가해 gateway, BFF, domain service 내부 호출 인증을 준비했습니다.</li>
+            <li>배포 준비를 위해 <code>Dockerfile</code>, <code>tsconfig.json</code>, <code>tsconfig.build.json</code>, package scripts, Docker env 파일, local/deploy compose 연결을 추가했습니다.</li>
+            <li>검증: <code>pnpm --filter tenant-service prisma:validate</code>, <code>pnpm --filter tenant-service typecheck</code>, <code>pnpm --filter tenant-service build</code>, <code>docker compose -f docker/local/docker-compose.yml config</code>, <code>COMPOSE_ENV=dev docker compose -f docker/deploy/docker-compose.yml config</code>를 실행해 통과했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-10 서비스별 Database 분리</h3>
+          <ul>
+            <li>로컬 PostgreSQL 인스턴스는 공유하되 서비스 저장소는 database 단위로 분리하기로 정리했습니다.</li>
+            <li>tenant-service는 <code>tenant</code> database를 사용하고, auth-iam-service는 <code>auth_iam</code> database를 사용합니다.</li>
+            <li>테넌트별 저장 전략인 Shared DB + <code>tenantId</code>는 각 서비스 database 내부의 tenant-owned data 격리 기준이며, 서비스 간 database 공유를 의미하지 않습니다.</li>
+            <li>로컬 compose에 <code>service-databases-init</code> job을 추가해 기존 PostgreSQL volume에서도 서비스별 database를 idempotent하게 생성합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 Tenant ID 생성 규칙 정리</h3>
+          <ul>
+            <li><code>tenantId</code>는 시스템 내부 불변 식별자이며 UUID로 생성합니다.</li>
+            <li>회사명, 사업자번호, domain, 사람이 읽는 code는 <code>tenantId</code>로 사용하지 않습니다.</li>
+            <li>운영자와 화면에서 읽기 쉬운 식별자는 별도 unique <code>tenant.code</code>로 관리합니다.</li>
+            <li>JWT claim, <code>X-Tenant-Id</code>, tenant-scoped DB 접근 조건에는 <code>tenantId</code>를 사용합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 Tenant Code 자동 생성 구현</h3>
+          <ul>
+            <li><code>POST /internal/admin/tenants</code>를 추가해 admin-bff-service가 tenant 생성을 요청할 수 있게 했습니다.</li>
+            <li><code>tenant.code</code> 형식은 대문자 base 4자리와 sequence 4자리를 붙인 8자리 문자열로 통일했습니다.</li>
+            <li>요청 body에 <code>domain</code>이 있으면 등록 도메인의 이름 label을 기반으로 <code>tenant.code</code>를 생성하고, <code>domain</code>이 없으면 <code>name</code> 기반으로 fallback합니다.</li>
+            <li>domain은 ASCII hostname으로 정규화해 저장하며, 이미 등록된 domain은 <code>409 TENANT_DOMAIN_CONFLICT</code>로 차단합니다.</li>
+            <li>ASCII 정규화 결과가 비어 있고 한글이 있으면 첫 한글 음절을 로마자로 변환해 base로 사용하며, 4자리가 모자라면 hash로 채웁니다. 한글도 없으면 SHA-256 hash의 가운데 4글자를 base로 사용합니다.</li>
+            <li>예: <code>acme.example.com</code>은 <code>EXAM0001</code>, <code>factory.acme.co.kr</code>은 <code>ACME0001</code>, <code>한국공장</code>은 <code>HANF0001</code>, <code>ACME 한국</code>은 <code>ACME0001</code>입니다.</li>
+            <li>동일 base가 이미 있으면 <code>0002</code>, <code>0003</code>처럼 sequence를 증가시켜 unique code를 생성합니다.</li>
+            <li>tenant 생성과 <code>tenant.created</code> outbox event 저장을 같은 DB transaction에서 처리합니다.</li>
+            <li><code>Tenant Code 생성 규칙</code> 섹션과 테스트 시나리오 <code>TS-TENANT-007</code>을 추가해 구현 규칙과 검증 기준을 문서화했습니다.</li>
+            <li>검증: <code>pnpm --filter tenant-service typecheck</code>, <code>pnpm --filter tenant-service build</code>를 실행해 통과했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-10 내부 Tenant 조회 API 구현</h3>
+          <ul>
+            <li><code>GET /internal/tenants/{tenantId}/status</code>를 추가했습니다. gateway-service만 HMAC internal auth로 호출할 수 있으며, 응답은 tenant id, code, name, status를 포함합니다.</li>
+            <li><code>GET /internal/tenants/{tenantId}/modules</code>를 추가했습니다. gateway-service, admin-bff-service, user-bff-service, wms-service가 호출할 수 있으며, 응답은 tenant status와 정렬된 enabled module code 목록을 포함합니다.</li>
+            <li>잘못된 tenant id는 <code>400 TENANT_INVALID_ID</code>, 존재하지 않는 tenant는 <code>404 TENANT_NOT_FOUND</code>로 응답합니다.</li>
+            <li>응답 envelope는 <code>success</code>, <code>requestId</code>, <code>timestamp</code>, <code>data</code> 구조를 유지합니다.</li>
+            <li>검증: <code>pnpm --filter tenant-service typecheck</code>와 <code>pnpm --filter tenant-service build</code>를 순차 실행해 통과했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-10 AWS 배포 준비</h3>
+          <ul>
+            <li>CDK 스택에 tenant-service용 ECR repository, ECS Fargate task/service, CloudWatch log group, security group, Cloud Map service discovery를 추가했습니다.</li>
+            <li>tenant-service는 ALB에 직접 노출하지 않고 gateway-service가 <code>http://tenant-service.{env}.multi-tenant.local:3000</code> 내부 DNS로 호출합니다.</li>
+            <li>ECS task에는 <code>DATABASE_URL</code>과 <code>TENANT_INTERNAL_AUTH_SECRET</code>을 Secrets Manager ARN context로 주입하고, <code>REDIS_URL</code>은 같은 스택의 ElastiCache Redis endpoint를 사용합니다.</li>
+            <li>초기 배포 실패와 비용 발생을 막기 위해 기본 <code>tenantDesiredCount</code>는 <code>0</code>이며, 이미지 push와 runtime secret 준비 후에만 <code>1</code> 이상으로 올립니다.</li>
+            <li>자동 push 배포 없이 수동 실행 전용 <code>deploy-tenant-service.yml</code>을 추가했습니다. 이 workflow는 gateway/auth desired count와 image tag가 비어 있으면 실패해, 같은 스택의 다른 서비스를 암묵적으로 0대로 낮추지 않습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 로컬 API 테스트 Seed 추가</h3>
+          <ul>
+            <li><code>apps/tenant-service/prisma/seed.ts</code>를 추가해 활성 tenant <code>demo</code>, domain <code>demo.localhost</code>, 활성 module <code>auth</code>, <code>tenant</code>, <code>wms</code>, locale 설정을 생성합니다.</li>
+            <li>seed tenant id는 <code>11111111-1111-4111-8111-111111111111</code>이며 auth-iam-service seed 사용자와 같은 tenant를 사용합니다.</li>
+            <li>로컬 Docker compose에서는 <code>tenant-service-seed</code> job이 schema push 이후 seed를 실행합니다.</li>
           </ul>
         </article>
       </section>

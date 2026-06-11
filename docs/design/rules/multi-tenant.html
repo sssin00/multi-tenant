@@ -24,6 +24,9 @@
                 <tbody>
                   <tr><th>기본 원칙</th><td>모든 업무 API는 tenant context가 있어야 처리합니다.</td></tr>
                   <tr><th>예외 API</th><td>로그인, token refresh, health check, public config, tenant bootstrap API는 예외로 둘 수 있습니다.</td></tr>
+                  <tr><th>Tenant ID</th><td><code>tenantId</code>는 시스템 내부 불변 식별자이며 UUID로 생성합니다. 회사명, 사업자번호, domain, 사람이 읽는 code를 <code>tenantId</code>로 사용하지 않습니다.</td></tr>
+                  <tr><th>Tenant Code</th><td>운영자와 화면에서 읽기 쉬운 식별자는 별도 unique <code>tenant.code</code>로 관리합니다. 형식은 대문자 base 4자리와 sequence 4자리를 붙인 8자리입니다. 예: <code>DEMO0001</code>, <code>ACME0001</code></td></tr>
+                  <tr><th>Code 생성</th><td><code>tenant.code</code>는 tenant 생성 시 tenant 정보에서 자동 생성합니다. <code>domain</code>이 있으면 등록 도메인의 이름 label을 우선 사용하고, 없으면 이름을 대문자 ASCII로 정규화합니다. 예: <code>acme.example.com</code>은 <code>EXAM0001</code>, <code>factory.acme.co.kr</code>은 <code>ACME0001</code>. ASCII label이 없고 한글이 있으면 첫 한글 음절을 로마자로 변환해 base로 사용하며, 4자리가 모자라면 hash로 채웁니다. 예: <code>한국공장</code>은 <code>HANF0001</code>. 한글도 없으면 SHA-256 hash의 가운데 4글자를 base로 사용하고, 충돌 시 <code>0002</code>, <code>0003</code>처럼 4자리 sequence를 증가시킵니다.</td></tr>
                   <tr><th>기준값</th><td>인증된 요청의 기준 테넌트는 JWT의 <code>tenantId</code>입니다.</td></tr>
                   <tr><th>Header 검증</th><td><code>X-Tenant-Id</code>가 있으면 JWT의 <code>tenantId</code>와 반드시 일치해야 합니다.</td></tr>
                   <tr><th>Mismatch</th><td>JWT와 header의 tenant가 다르면 <code>403 TENANT_MISMATCH</code>로 거부합니다.</td></tr>
@@ -53,6 +56,10 @@
   enabledModules?: string[];
 };</code></pre>
               <div class="grid two">
+                <div class="card">
+                  <strong>ID와 Code 구분</strong>
+                  <p><code>tenantId</code>는 UUID 기반 내부 key이고, <code>tenantCode</code>는 사람이 읽는 unique business identifier입니다. JWT와 tenant-scoped data access 조건에는 <code>tenantId</code>를 사용합니다.</p>
+                </div>
                 <div class="card">
                   <strong>내부 전파 Header</strong>
                   <p><code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>, <code>X-Internal-Auth</code></p>

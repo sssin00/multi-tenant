@@ -174,6 +174,8 @@
 - GitHub deployment environments must be named `dev`, `staging`, and `prod`.
 - AWS authentication in GitHub Actions uses OIDC and an environment secret named `AWS_ROLE_ARN`.
 - Runtime secrets are injected through AWS Secrets Manager or SSM Parameter Store references, not plain GitHub Action environment values.
+- Service-specific deployment workflows update the shared CDK stack. Non-target service desired counts and image tags must be explicit inputs or environment variables; workflows must not silently default another running service to `0` or `latest`.
+- Desired count inputs must be validated as non-negative integers before CDK deploy.
 - Gateway Docker image tags use `{env}-{gitSha12}`.
 
 ## Testing Rules

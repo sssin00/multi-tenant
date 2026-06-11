@@ -11,6 +11,23 @@ services:
       - ../env/auth-iam-service/.env.local
     command: pnpm --filter auth-iam-service prisma:push
     depends_on:
+      service-databases-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  auth-iam-seed:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      target: deps
+    container_name: multi-tenant-auth-iam-seed
+    env_file:
+      - ../env/auth-iam-service/.env.local
+    command: pnpm --filter auth-iam-service prisma:seed
+    depends_on:
+      auth-iam-db-push:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
 
@@ -27,7 +44,65 @@ services:
     ports:
       - "3001:3000"
     depends_on:
+      auth-iam-seed:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  tenant-service-db-push:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      target: deps
+    container_name: multi-tenant-tenant-db-push
+    env_file:
+      - ../env/tenant-service/.env.local
+    command: pnpm --filter tenant-service prisma:push
+    depends_on:
+      service-databases-init:
+        condition: service_completed_successfully
       auth-iam-db-push:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  tenant-service-seed:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      target: deps
+    container_name: multi-tenant-tenant-service-seed
+    env_file:
+      - ../env/tenant-service/.env.local
+    command: pnpm --filter tenant-service prisma:seed
+    depends_on:
+      tenant-service-db-push:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  tenant-service:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      args:
+        APP_NAME: tenant-service
+        APP_PORT: 3000
+    container_name: multi-tenant-tenant-service
+    env_file:
+      - ../env/tenant-service/.env.local
+    ports:
+      - "3002:3000"
+    depends_on:
+      tenant-service-seed:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
@@ -55,6 +130,8 @@ services:
     depends_on:
       auth-iam-service:
         condition: service_healthy
+      tenant-service:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
@@ -74,23 +151,35 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: multi_tenant
+      POSTGRES_DB: postgres
     ports:
-      - "5432:5432"
+      - "55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d multi_tenant"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 10s
 
+  service-databases-init:
+    image: postgres:16-alpine
+    container_name: multi-tenant-service-databases-init
+    environment:
+      PGPASSWORD: postgres
+    volumes:
+      - ./postgres/create-service-databases.sh:/create-service-databases.sh:ro
+    command: ["sh", "/create-service-databases.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   redis:
     image: redis:7-alpine
     container_name: multi-tenant-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

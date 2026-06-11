@@ -144,7 +144,7 @@
               <tr>
                 <td><code>P1</code></td>
                 <td>Tenant isolation 검증 보강</td>
-                <td>missing tenant, tenant mismatch, cross-tenant user/role 접근, inactive tenant 접근, log/event tenant propagation을 시나리오로 검증합니다.</td>
+                <td>missing tenant, tenant mismatch, cross-tenant user/role 접근, suspended/deleted tenant 접근, log/event tenant propagation을 시나리오로 검증합니다.</td>
                 <td>각 시나리오의 requestId, 응답 JSON, DB/outbox/audit 증거가 남습니다.</td>
                 <td>Auth/IAM 개발 문서, testing 규칙, tenant-service 개발 문서</td>
               </tr>
@@ -566,7 +566,7 @@
               </tr>
               <tr>
                 <td><code>tenant-service</code></td>
-                <td>tenant bootstrap, active tenant 확인, system_admin/tenant_admin 분리, inactive tenant 접근 차단 기준을 맞춥니다.</td>
+                <td>tenant bootstrap, active tenant 확인, system_admin/tenant_admin 분리, provisioning/suspended/deleted tenant 접근 차단 기준을 맞춥니다.</td>
                 <td>tenant 개발 문서, multi-tenant 규칙, auth/permission 규칙</td>
               </tr>
               <tr>
@@ -643,6 +643,7 @@
             <li>Auth/IAM 서비스에 최신 Prisma <code>7.8.0</code>과 PostgreSQL adapter를 적용했습니다.</li>
             <li><code>apps/auth-iam-service/prisma/schema.prisma</code>에 사용자, refresh token, role, permission, user-role 모델을 추가했습니다.</li>
             <li>Prisma 7 기준에 맞춰 DB URL은 <code>prisma.config.ts</code>에서 <code>DATABASE_URL</code>로 읽습니다.</li>
+            <li>서비스별 database 분리 원칙에 따라 로컬 Docker 기준 Auth/IAM은 <code>auth_iam</code> database를 사용합니다.</li>
             <li><code>PrismaService</code>를 추가하고 <code>/ready</code>에서 <code>SELECT 1</code> 기반 DB 연결 확인을 수행합니다.</li>
             <li><code>prisma validate</code>, <code>prisma generate</code>, <code>prisma db push</code>, Prisma Client insert/read/delete query, Nest readiness DB check를 확인했습니다.</li>
             <li>현재 로컬 host에는 별도 PostgreSQL이 <code>localhost:5432</code>를 사용 중이므로 검증은 Docker Postgres에 실제로 연결되는 주소로 수행했습니다.</li>
@@ -677,7 +678,8 @@
             <li>Auth/IAM은 ALB target으로 직접 노출하지 않고 Cloud Map 내부 DNS와 auth base path를 포함한 <code>auth-iam-service.{envName}.multi-tenant.local:3000/api/auth</code>로 gateway-service가 호출합니다.</li>
             <li><code>DATABASE_URL</code>, JWT secret/key, 내부 호출 인증 secret은 Secrets Manager ARN context로 받아 ECS task secret에 주입합니다.</li>
             <li>security group은 gateway-service에서 Auth/IAM <code>3000</code> 포트 접근만 허용하고, Auth/IAM에서 Redis <code>6379</code> 포트 접근만 허용합니다.</li>
-            <li>현재 <code>deploy-gateway-service.yml</code>은 Auth/IAM 리소스와 task definition context만 갱신하고 <code>authDesiredCount=0</code>을 유지합니다. Auth/IAM image build/push와 실행 배포는 별도 workflow가 필요합니다.</li>
+            <li><code>deploy-gateway-service.yml</code>도 Auth/IAM task definition context를 함께 갱신하므로 <code>AUTH_DESIRED_COUNT</code>와 <code>AUTH_IMAGE_TAG</code>를 명시해야 합니다. Auth/IAM image build/push와 실행 배포는 수동 실행 전용 <code>deploy-auth-iam-service.yml</code>에서 처리합니다.</li>
+            <li><code>deploy-auth-iam-service.yml</code>은 gateway/tenant desired count와 image tag가 비어 있으면 실패해, 같은 스택의 다른 서비스를 암묵적으로 0대로 낮추지 않습니다.</li>
             <li><code>pnpm --filter @multi-tenant/infra-cdk typecheck</code>와 <code>pnpm --filter @multi-tenant/infra-cdk exec cdk synth -c gatewayDesiredCount=0 -c authDesiredCount=0 -c gatewayUseNatGateway=false</code>가 통과했습니다.</li>
           </ul>
         </article>
@@ -800,6 +802,14 @@
             <li>tenant context 누락은 <code>400 TENANT_REQUIRED</code>, user context 누락은 <code>401 AUTH_INVALID_TOKEN</code>, 비활성 사용자는 <code>403 AUTH_ACCOUNT_LOCKED</code>, tenant 내 사용자가 없으면 <code>404 AUTH_USER_NOT_FOUND</code>로 처리합니다.</li>
             <li>Auth/IAM API 상세 문서의 endpoint 목록에서 <code>GET /api/auth/me</code>를 <code>Planned</code>에서 <code>Implemented</code>로 전환하고 Me 섹션에 request context, response data, error code 예시를 추가했습니다.</li>
             <li>로컬 DB/Redis 연결 상태에서 사용자, permission, role, mapping, assignment를 생성한 뒤 <code>/me</code> 성공 응답과 user context 누락 실패 응답을 확인했고 검증 데이터는 정리했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 로컬 API 테스트 Seed 추가</h3>
+          <ul>
+            <li><code>apps/auth-iam-service/prisma/seed.ts</code>를 추가해 로그인 가능한 <code>admin@demo.local</code> 사용자, <code>tenant_admin</code> role, auth/tenant/wms permission catalog와 role mapping을 생성합니다.</li>
+            <li><code>pnpm --filter auth-iam-service prisma:seed</code>와 루트 <code>pnpm seed:local</code>로 재실행할 수 있습니다.</li>
+            <li>로컬 Docker compose에서는 <code>auth-iam-seed</code> job이 schema push 이후 seed를 실행합니다.</li>
           </ul>
         </article>
       </section>

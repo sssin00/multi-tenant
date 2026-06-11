@@ -144,15 +144,18 @@
           <div class="details-body">
             <table>
               <tbody>
-                <tr><th><code>GATEWAY_TENANT_STATUS_CHECK_ENABLED</code></th><td>tenant status check 활성화 여부입니다. tenant-service 준비 전까지 기본값은 <code>false</code>입니다.</td></tr>
+                <tr><th><code>GATEWAY_TENANT_STATUS_CHECK_ENABLED</code></th><td>tenant status check 활성화 여부입니다. 코드 기본값은 <code>false</code>이고, 로컬 compose 환경은 실제 tenant-service 연동 검증을 위해 <code>true</code>로 설정합니다.</td></tr>
                 <tr><th><code>TENANT_SERVICE_URL</code></th><td>tenant 상태를 조회할 내부 서비스 URL입니다.</td></tr>
+                <tr><th><code>TENANT_INTERNAL_AUTH_SECRET</code></th><td>tenant-service 내부 API 호출에 사용하는 HMAC secret입니다. tenant-service의 값과 같아야 합니다.</td></tr>
                 <tr><th>조회 Endpoint</th><td><code>GET /internal/tenants/{tenantId}/status</code></td></tr>
                 <tr><th>조회 Header</th><td><code>Accept: application/json</code></td></tr>
+                <tr><th>내부 인증 Header</th><td><code>X-Internal-Service-Id</code>, <code>X-Internal-Timestamp</code>, <code>X-Internal-Signature</code>를 함께 전송합니다.</td></tr>
                 <tr><th>Cache key</th><td><code>tenant-status:{env}:{tenantId}</code></td></tr>
                 <tr><th>Cache TTL</th><td><code>GATEWAY_TENANT_STATUS_CACHE_TTL_SECONDS</code>. 기본값은 <code>30</code>초입니다.</td></tr>
                 <tr><th>Timeout</th><td><code>GATEWAY_TENANT_STATUS_TIMEOUT_MS</code>. 기본값은 <code>1000</code>ms입니다.</td></tr>
                 <tr><th>통과 상태</th><td><code>active</code></td></tr>
-                <tr><th>차단 상태</th><td><code>inactive</code>, <code>suspended</code>, <code>deleted</code>는 <code>403 TENANT_NOT_READY</code>로 차단합니다.</td></tr>
+                <tr><th>차단 상태</th><td><code>provisioning</code>, <code>suspended</code>, <code>deleted</code>는 <code>403 TENANT_NOT_READY</code>로 차단합니다.</td></tr>
+                <tr><th>예외</th><td><code>POST /api/auth/login</code>, <code>POST /api/auth/token/refresh</code>는 tenant status check 대상에서 제외합니다.</td></tr>
                 <tr><th>Tenant 누락</th><td>private 업무 API에서 tenant context가 없으면 <code>403 TENANT_REQUIRED</code>로 차단합니다.</td></tr>
                 <tr><th>조회 실패</th><td>tenant status 조회 실패는 <code>503 TENANT_STATUS_UNAVAILABLE</code>로 응답합니다.</td></tr>
               </tbody>

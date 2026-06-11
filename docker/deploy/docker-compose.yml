@@ -14,6 +14,21 @@ services:
       retries: 3
       start_period: 15s
 
+  tenant-service:
+    image: multi-tenant/tenant-service:${COMPOSE_ENV:-local}
+    container_name: multi-tenant-${COMPOSE_ENV:-local}-tenant-service
+    restart: unless-stopped
+    env_file:
+      - ../env/tenant-service/.env.${COMPOSE_ENV:-local}
+    ports:
+      - "3002:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${TENANT_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
   gateway-service:
     image: multi-tenant/gateway-service:${COMPOSE_ENV:-local}
     container_name: multi-tenant-${COMPOSE_ENV:-local}-gateway-service
@@ -24,6 +39,8 @@ services:
       - "3000:3000"
     depends_on:
       auth-iam-service:
+        condition: service_healthy
+      tenant-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${GATEWAY_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]

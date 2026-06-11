@@ -39,6 +39,10 @@ export class TenantStatusGuard implements CanActivate {
       return true;
     }
 
+    if (this.isPublicAuthEndpoint(req)) {
+      return true;
+    }
+
     const tenantId = req.context.tenantId;
     if (!tenantId) {
       throw new ForbiddenException({
@@ -104,5 +108,14 @@ export class TenantStatusGuard implements CanActivate {
         errorCode
       })
     );
+  }
+
+  private isPublicAuthEndpoint(req: GatewayRequest): boolean {
+    if (req.method.toUpperCase() !== "POST") {
+      return false;
+    }
+
+    const path = req.path.endsWith("/") ? req.path.slice(0, -1) : req.path;
+    return path === "/api/auth/login" || path === "/api/auth/token/refresh";
   }
 }

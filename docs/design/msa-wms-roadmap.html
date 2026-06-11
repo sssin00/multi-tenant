@@ -515,10 +515,10 @@
             </div>
             <div class="phase-body">
               <h3>관리자 및 사용자 BFF</h3>
-              <p>BFF는 화면에 필요한 데이터를 조합하고, 업무 규칙은 WMS와 각 도메인 서비스에 둡니다.</p>
+              <p>Admin BFF는 WMS 전에 운영 기반을 만들고, User BFF는 WMS 1차 조회 API 이후 화면 데이터를 조합합니다. 업무 규칙은 WMS와 각 도메인 서비스에 둡니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>Admin BFF</strong><span>테넌트 관리, 사용자/권한 관리, 모듈 설정, 감사 로그 조회</span></div>
-                <div class="task"><strong>User BFF</strong><span>WMS 대시보드, 입고, 재고, 출고, 작업 화면 API</span></div>
+                <div class="task"><strong>Admin BFF 먼저</strong><span>테넌트 관리, 사용자/권한 관리, 모듈 설정, 감사 로그 조회</span></div>
+                <div class="task"><strong>User BFF 이후</strong><span>WMS 대시보드, 창고/재고 요약, 입고, 출고, 작업 화면 API</span></div>
                 <div class="task"><strong>모바일 API</strong><span>PDA, 바코드 스캐너, 현장 작업 화면을 고려한 API 분리</span></div>
                 <div class="task"><strong>API 계약</strong><span>OpenAPI 또는 Proto 기준으로 요청/응답 계약 관리</span></div>
               </div>
@@ -617,12 +617,14 @@
         <ol class="ordered">
           <li>Monorepo 또는 Multi-repo 결정 및 로컬 인프라 세팅</li>
           <li>Gateway 기본 구조 구현</li>
-          <li>Tenant Service 구현</li>
           <li>Auth/IAM Service 구현</li>
-          <li>Admin BFF와 User BFF 뼈대 구현</li>
+          <li>Tenant Service 구현</li>
+          <li>Admin BFF 1차 구현</li>
           <li>WMS Service 뼈대 구현</li>
-          <li>WMS 기준정보 구현</li>
-          <li>WMS 재고 구현</li>
+          <li>WMS 기준정보 조회 API 구현</li>
+          <li>WMS 재고 조회 API 구현</li>
+          <li>User BFF 1차 구현</li>
+          <li>web-wms 화면 연결</li>
           <li>WMS 입고 구현</li>
           <li>WMS 출고 구현</li>
           <li>Outbox와 Kafka 이벤트 발행 구현</li>
@@ -641,7 +643,8 @@
           <span class="arrow">→</span>
           <span class="pill">API Gateway</span>
           <span class="arrow">→</span>
-          <span class="pill">Admin/User BFF</span>
+          <span class="pill">Admin BFF</span>
+          <span class="pill">User BFF</span>
           <span class="arrow">→</span>
           <span class="pill">Tenant</span>
           <span class="pill">Auth/IAM</span>

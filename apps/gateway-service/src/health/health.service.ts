@@ -89,6 +89,10 @@ export class HealthService {
       return { status: "failed", message: "TENANT_SERVICE_URL is required" };
     }
 
+    if (!config.tenantStatus.internalAuthSecret) {
+      return { status: "failed", message: "TENANT_INTERNAL_AUTH_SECRET is required" };
+    }
+
     if (!this.isValidHttpUrlValue(config.tenantStatus.serviceUrl)) {
       return { status: "failed", message: "TENANT_SERVICE_URL must be a valid http or https URL" };
     }

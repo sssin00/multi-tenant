@@ -551,14 +551,14 @@
       </section>
 
       <section>
-        <h2>코드 작성 시작 순서</h2>
+        <h2>코드 작성 진행 순서</h2>
         <ol class="ordered">
-          <li><span class="item-text"><code>pnpm install</code>로 workspace 의존성과 lockfile을 생성합니다.</span></li>
-          <li><span class="item-text"><code>gateway-service</code>에 NestJS 기본 앱, health check, request id, tenant header 추출을 구현합니다.</span></li>
-          <li><span class="item-text"><code>packages/config</code>, <code>packages/logger</code>, <code>packages/tenant-context</code>를 먼저 구현합니다.</span></li>
-          <li><span class="item-text"><code>tenant-service</code>에서 테넌트 생성/조회, 상태, enabled modules, db_strategy를 구현합니다.</span></li>
-          <li><span class="item-text"><code>auth-iam-service</code>에서 로그인, JWT, 사용자, 역할, 권한의 기본 구조를 구현합니다.</span></li>
-          <li><span class="item-text"><code>wms-service</code>에서 warehouse, location, item, inventory 순서로 WMS MVP를 시작합니다.</span></li>
+          <li><span class="item-text"><code>gateway-service</code>는 health/readiness, request context, JWT guard, proxy routing, Redis rate limit, tenant status check까지 1차 구현을 완료했습니다.</span></li>
+          <li><span class="item-text"><code>auth-iam-service</code>는 로그인, token refresh, 사용자, 역할, 권한, internal permission summary/check API를 1차 구현했습니다.</span></li>
+          <li><span class="item-text"><code>tenant-service</code>는 health/readiness, tenant status/modules 조회, tenant 생성과 code 자동 생성, outbox 저장, gateway status check 연결을 1차 구현했습니다.</span></li>
+          <li><span class="item-text">다음 단계는 <code>admin-bff-service</code>의 외부 <code>/api/admin/tenants</code> surface를 구현해 tenant, 사용자, role, module 운영 기반을 먼저 준비하는 것입니다.</span></li>
+          <li><span class="item-text"><code>wms-service</code>는 admin 운영 기반이 잡힌 뒤 warehouse, location, item, inventory 조회 API부터 WMS MVP를 시작합니다.</span></li>
+          <li><span class="item-text"><code>user-bff-service</code>는 WMS 1차 도메인 조회 API가 준비된 뒤 <code>web-wms</code> 화면 연결 직전에 app shell과 WMS 화면 데이터를 조합합니다.</span></li>
           <li><span class="item-text">WMS 재고 변경 이벤트가 필요해질 때 Outbox와 <code>outbox-relay-service</code>를 붙입니다.</span></li>
         </ol>
       </section>
@@ -566,18 +566,18 @@
       <section>
         <h2>BFF 제작 단계</h2>
         <p>
-          BFF는 Gateway, Tenant, Auth/IAM이 최소로 동작한 뒤 WMS 화면을 만들기 직전에 제작합니다.
-          너무 일찍 만들면 임시 로직이 쌓이고, 너무 늦게 만들면 프론트가 도메인 서비스를 직접 호출하게 됩니다.
+          BFF는 한 번에 모두 만들지 않습니다. 현재 순서는 Admin BFF를 먼저 만들어 운영 기반을 확보하고,
+          User BFF는 WMS 1차 API가 안정된 뒤 화면 데이터 조합 계층으로 붙입니다.
         </p>
         <table class="table">
           <tbody>
             <tr>
-              <th>먼저 제작</th>
-              <td><code>user-bff-service</code>. 사용자 정보, 현재 테넌트, 사용 가능 메뉴, WMS 화면 초기 데이터를 조합합니다.</td>
+              <th>Admin BFF</th>
+              <td><code>admin-bff-service</code>. tenant-service 1차 완료 후 WMS 개발 전에 착수합니다. 외부 <code>/api/admin/tenants</code> surface를 소유하고 tenant-service의 <code>/internal/admin/**</code> API로 tenant 생성/상태/module/domain 관리를 위임합니다.</td>
             </tr>
             <tr>
-              <th>나중 제작</th>
-              <td><code>admin-bff-service</code>. 테넌트 관리, 사용자/권한 관리, 운영자 설정, 감사 로그 조회가 필요해질 때 확장합니다.</td>
+              <th>User BFF</th>
+              <td><code>user-bff-service</code>. WMS 1차 도메인 조회 API 이후 착수합니다. 사용자 정보, 현재 테넌트, 사용 가능 메뉴, WMS dashboard/warehouse/inventory-summary 데이터를 조합합니다.</td>
             </tr>
             <tr>
               <th>BFF 역할</th>
@@ -599,17 +599,17 @@
         </p>
         <div class="grid two">
           <div class="card">
-            <h3>초기 구현 기능</h3>
+            <h3>구현된 공통 기능</h3>
             <p>
               health check, request id 발급/전파, tenant id 추출, access log, JWT guard 기본 구조,
-              public/private route 구분, BFF 라우팅을 먼저 구현합니다.
+              public/private route 구분, proxy routing, Redis rate limit, tenant status check, CORS 정책,
+              보안 헤더, 요청 크기 제한, 공통 에러 포맷을 구현했습니다.
             </p>
           </div>
           <div class="card">
-            <h3>이후 확장 기능</h3>
+            <h3>후속 확장 기능</h3>
             <p>
-              Redis 기반 rate limit, tenant status check, CORS 정책, 보안 헤더, 요청 크기 제한,
-              공통 에러 포맷, observability 연동을 추가합니다.
+              관측성 연동, 운영 trace 전파, route별 세부 정책, subdomain/custom domain 기반 tenant 식별을 추가합니다.
             </p>
           </div>
         </div>
@@ -621,7 +621,7 @@
             </tr>
             <tr>
               <th>Tenant 식별</th>
-              <td>초기에는 <code>x-tenant-id</code> header와 JWT tenant claim을 사용하고, 이후 subdomain/custom domain을 추가합니다.</td>
+              <td>현재는 <code>X-Tenant-Id</code> header와 JWT <code>tenantId</code> claim을 사용하고, 이후 subdomain/custom domain을 추가합니다.</td>
             </tr>
             <tr>
               <th>Request Context</th>
@@ -678,11 +678,11 @@ pnpm infra:deploy</code></pre>
           <tbody>
             <tr>
               <th>PostgreSQL</th>
-              <td><code>localhost:5432</code>, DB: <code>multi_tenant</code></td>
+              <td><code>localhost:5432</code>, service DB: <code>auth_iam</code>, <code>tenant</code></td>
             </tr>
             <tr>
               <th>Redis</th>
-              <td><code>localhost:6379</code></td>
+              <td><code>localhost:6380</code></td>
             </tr>
             <tr>
               <th>LocalStack</th>

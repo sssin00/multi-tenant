@@ -160,6 +160,8 @@ Outbox event:
 
 PostgreSQL + Prisma를 사용합니다. Prisma는 최신 7.x 기준으로 설정하며, DB URL은 `prisma.config.ts`의 `DATABASE_URL`에서 읽습니다. 런타임 Prisma Client는 `@prisma/adapter-pg`를 사용합니다.
 
+서비스 저장소는 서비스별 database로 분리합니다. 로컬 Docker 기준 auth-iam-service는 `auth_iam` database를 사용하며, 다른 서비스의 내부 테이블을 직접 조회하거나 공유하지 않습니다.
+
 로컬에서 host의 다른 PostgreSQL이 `localhost:5432`를 사용 중이면 Docker Postgres 대신 host PostgreSQL로 붙을 수 있습니다. 이 경우 Docker 컨테이너 네트워크나 실제 Docker 바인딩 주소로 `DATABASE_URL`을 지정해 확인합니다.
 
 ## 운영 배포

@@ -1,0 +1,1794 @@
+{
+  "info": {
+    "_postman_id": "9b92ffb9-8e4f-48f2-88fd-48f7f2e0585c",
+    "name": "multi-tenant local API test",
+    "description": "Local API calls for the seeded demo tenant and admin user. Run `pnpm seed:local` before using this collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gatewayBaseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "authBaseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "tenantBaseUrl",
+      "value": "http://localhost:3002",
+      "type": "string"
+    },
+    {
+      "key": "tenantId",
+      "value": "11111111-1111-4111-8111-111111111111",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "admin@demo.local",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "Test1234!",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tenantInternalAuthSecret",
+      "value": "replace-with-local-tenant-internal-secret-32chars",
+      "type": "string"
+    },
+    {
+      "key": "requestId",
+      "value": "postman-local-test",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "22222222-2222-4222-8222-222222222222",
+      "type": "string"
+    },
+    {
+      "key": "roleId",
+      "value": "33333333-3333-4333-8333-333333333333",
+      "type": "string"
+    },
+    {
+      "key": "permissionId",
+      "value": "replace-with-permission-id",
+      "type": "string"
+    },
+    {
+      "key": "permissionCode",
+      "value": "tenant.tenants.read",
+      "type": "string"
+    },
+    {
+      "key": "userRoleId",
+      "value": "replace-with-user-role-id",
+      "type": "string"
+    },
+    {
+      "key": "authInternalAuthSecret",
+      "value": "replace-with-local-auth-internal-secret-32chars",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Gateway",
+      "item": [
+        {
+          "name": "GET gateway health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-gateway-health"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/health",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET gateway ready",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-gateway-ready"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/ready",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST gateway auth login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.accessToken).to.be.a('string');",
+                  "  pm.expect(body.data.refreshToken).to.be.a('string');",
+                  "  pm.collectionVariables.set('accessToken', body.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', body.data.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-gateway-login"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/auth/login",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET gateway auth me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-gateway-me"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/auth/me",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST gateway auth refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('refresh succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.collectionVariables.set('accessToken', body.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', body.data.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-gateway-refresh"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/auth/token/refresh",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "token",
+                "refresh"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST gateway auth logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-gateway-logout"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/auth/logout",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth/IAM direct",
+      "item": [
+        {
+          "name": "GET auth health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-health"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/health",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST auth login direct",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('direct auth login succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.collectionVariables.set('accessToken', body.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', body.data.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-login-direct"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/login",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET auth me direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-me-direct"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/me",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET auth ready",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-ready"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/ready",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST auth refresh direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-refresh-direct"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/token/refresh",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "token",
+                "refresh"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST auth logout direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-logout-direct"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/logout",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST auth user create direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-user-create"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/users",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const email = `postman-user-${Date.now()}@demo.local`;",
+                  "pm.request.body.update(JSON.stringify({",
+                  "  email,",
+                  "  displayName: 'Postman User',",
+                  "  password: 'Test1234!',",
+                  "  status: 'active'",
+                  "}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET auth users list direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-users-list"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/users?page=1&size=20",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET auth user detail direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-user-detail"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/users/{{userId}}",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH auth user update direct",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-user-update"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Demo Tenant Admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/users/{{userId}}",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH auth user status direct",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-user-status"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/users/{{userId}}/status",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE auth user direct",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-user-delete"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/users/{{userId}}",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST auth permission create direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-permission-create"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/permissions",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "permissions"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = `tenant.postman.${Date.now()}`;",
+                  "pm.request.body.update(JSON.stringify({",
+                  "  code,",
+                  "  description: 'Postman-created permission'",
+                  "}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET auth permissions list direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-permissions-list"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/permissions?page=1&size=20",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "permissions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET auth permission detail direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-permission-detail"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/permissions/{{permissionId}}",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "permissions",
+                "{{permissionId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET auth permissions summary internal direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/permissions/summary?userId={{userId}}",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "permissions",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'GET';",
+                  "const requestId = 'postman-auth-permissions-summary';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = `/api/auth/permissions/summary?userId=${pm.collectionVariables.get('userId')}`;",
+                  "const rawBody = '';",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('authInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST auth permissions check internal direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "wms-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/permissions/check",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "permissions",
+                "check"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'POST';",
+                  "const requestId = 'postman-auth-permissions-check';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/auth/permissions/check';",
+                  "const rawBody = JSON.stringify({ userId: pm.collectionVariables.get('userId'), permission: pm.collectionVariables.get('permissionCode'), scope: {} });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('authInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'wms-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST auth role create direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-role-create"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/roles",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "roles"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now();",
+                  "pm.request.body.update(JSON.stringify({",
+                  "  code: `postman_role_${suffix}`,",
+                  "  name: 'Postman Role',",
+                  "  description: 'Role created from Postman'",
+                  "}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET auth roles list direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-roles-list"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/roles?page=1&size=20",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "roles"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET auth role detail direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-role-detail"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/roles/{{roleId}}",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "roles",
+                "{{roleId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH auth role update direct",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-role-update"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tenant Admin\",\n  \"description\": \"Local API test tenant administrator\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/roles/{{roleId}}",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "roles",
+                "{{roleId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT auth role permissions replace direct",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-role-permissions-replace"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permissionCodes\": [\n    \"auth.users.read\",\n    \"auth.users.create\",\n    \"auth.users.update\",\n    \"auth.roles.read\",\n    \"auth.roles.update\",\n    \"tenant.tenants.read\",\n    \"wms.inventory.read\",\n    \"wms.inventory.adjust\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/roles/{{roleId}}/permissions",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "roles",
+                "{{roleId}}",
+                "permissions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST auth user role assign direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-user-role-assign"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": \"{{roleId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/users/{{userId}}/roles",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}",
+                "roles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET auth user roles list direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-user-roles-list"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/users/{{userId}}/roles",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}",
+                "roles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE auth user role direct",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-auth-user-role-delete"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/auth/user-roles/{{userRoleId}}",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "user-roles",
+                "{{userRoleId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tenant direct",
+      "item": [
+        {
+          "name": "GET tenant health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-tenant-health"
+              }
+            ],
+            "url": {
+              "raw": "{{tenantBaseUrl}}/health",
+              "host": [
+                "{{tenantBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET tenant status internal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'GET';",
+                  "const requestId = 'postman-tenant-status';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = `/internal/tenants/${pm.collectionVariables.get('tenantId')}/status`;",
+                  "const bodyHash = CryptoJS.SHA256('').toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('tenantInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'gateway-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "gateway-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": {
+              "raw": "{{tenantBaseUrl}}/internal/tenants/{{tenantId}}/status",
+              "host": [
+                "{{tenantBaseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "tenants",
+                "{{tenantId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET tenant modules internal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'GET';",
+                  "const requestId = 'postman-tenant-modules';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = `/internal/tenants/${pm.collectionVariables.get('tenantId')}/modules`;",
+                  "const bodyHash = CryptoJS.SHA256('').toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('tenantInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'gateway-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "gateway-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": {
+              "raw": "{{tenantBaseUrl}}/internal/tenants/{{tenantId}}/modules",
+              "host": [
+                "{{tenantBaseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "tenants",
+                "{{tenantId}}",
+                "modules"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST tenant admin create internal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'POST';",
+                  "const requestId = 'postman-tenant-create';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/internal/admin/tenants';",
+                  "const body = {",
+                  "  name: 'Postman 한국 공장',",
+                  "  domain: `factory.postman-${Date.now()}.localhost`",
+                  "};",
+                  "const rawBody = JSON.stringify(body);",
+                  "pm.request.body.update(rawBody);",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('tenantInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'Content-Type', value: 'application/json' });",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('tenant created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.tenantId).to.be.a('string');",
+                  "  pm.expect(body.data.code).to.match(/^[A-Z0-9]{8}$/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{tenantBaseUrl}}/internal/admin/tenants",
+              "host": [
+                "{{tenantBaseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "admin",
+                "tenants"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET tenant ready",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-tenant-ready"
+              }
+            ],
+            "url": {
+              "raw": "{{tenantBaseUrl}}/ready",
+              "host": [
+                "{{tenantBaseUrl}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

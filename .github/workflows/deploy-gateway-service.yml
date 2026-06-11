@@ -27,9 +27,13 @@ jobs:
       GATEWAY_ACM_CERTIFICATE_ARN_INPUT: ${{ vars.GATEWAY_ACM_CERTIFICATE_ARN }}
       GATEWAY_DOMAIN_NAME_INPUT: ${{ vars.GATEWAY_DOMAIN_NAME }}
       GATEWAY_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.GATEWAY_CORS_ALLOWED_ORIGINS }}
+      AUTH_DESIRED_COUNT_INPUT: ${{ vars.AUTH_DESIRED_COUNT }}
       AUTH_IMAGE_TAG_INPUT: ${{ vars.AUTH_IMAGE_TAG }}
       AUTH_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.AUTH_CORS_ALLOWED_ORIGINS }}
       AUTH_JWT_ALGORITHM_INPUT: ${{ vars.AUTH_JWT_ALGORITHM }}
+      TENANT_DESIRED_COUNT_INPUT: ${{ vars.TENANT_DESIRED_COUNT }}
+      TENANT_IMAGE_TAG_INPUT: ${{ vars.TENANT_IMAGE_TAG }}
+      TENANT_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.TENANT_CORS_ALLOWED_ORIGINS }}
       AUTH_IAM_SERVICE_URL_INPUT: ${{ vars.AUTH_IAM_SERVICE_URL }}
       ADMIN_BFF_SERVICE_URL_INPUT: ${{ vars.ADMIN_BFF_SERVICE_URL }}
       USER_BFF_SERVICE_URL_INPUT: ${{ vars.USER_BFF_SERVICE_URL }}
@@ -40,6 +44,8 @@ jobs:
       AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT: ${{ secrets.AUTH_JWT_PRIVATE_KEY_SECRET_ARN }}
       AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT: ${{ secrets.AUTH_JWT_PUBLIC_KEY_SECRET_ARN }}
       AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.AUTH_INTERNAL_AUTH_SECRET_ARN }}
+      TENANT_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.TENANT_DATABASE_URL_SECRET_ARN }}
+      TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.TENANT_INTERNAL_AUTH_SECRET_ARN }}
 
     steps:
       - name: Checkout
@@ -72,7 +78,10 @@ jobs:
           use_nat_gateway="${GATEWAY_USE_NAT_GATEWAY_INPUT:-true}"
           redis_node_type="${GATEWAY_REDIS_NODE_TYPE_INPUT:-cache.t4g.micro}"
           image_tag="${deploy_env}-${GITHUB_SHA::12}"
-          auth_image_tag="${AUTH_IMAGE_TAG_INPUT:-latest}"
+          auth_desired_count="${AUTH_DESIRED_COUNT_INPUT:-}"
+          auth_image_tag="${AUTH_IMAGE_TAG_INPUT:-}"
+          tenant_desired_count="${TENANT_DESIRED_COUNT_INPUT:-}"
+          tenant_image_tag="${TENANT_IMAGE_TAG_INPUT:-}"
           stack_name="multi-tenant-${deploy_env}-gateway-service-stack"
 
           {
@@ -82,9 +91,82 @@ jobs:
             echo "use-nat-gateway=${use_nat_gateway}"
             echo "redis-node-type=${redis_node_type}"
             echo "image-tag=${image_tag}"
+            echo "auth-desired-count=${auth_desired_count}"
             echo "auth-image-tag=${auth_image_tag}"
+            echo "tenant-desired-count=${tenant_desired_count}"
+            echo "tenant-image-tag=${tenant_image_tag}"
             echo "stack-name=${stack_name}"
           } >> "${GITHUB_OUTPUT}"
+
+      - name: Validate deployment inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          validate_required() {
+            local name="$1"
+            local value="$2"
+            if [[ -z "${value}" ]]; then
+              echo "${name} is required so this workflow does not overwrite another service with an implicit default." >&2
+              exit 1
+            fi
+          }
+
+          validate_desired_count() {
+            local name="$1"
+            local value="$2"
+            if [[ ! "${value}" =~ ^[0-9]+$ ]]; then
+              echo "${name} must be a non-negative integer. Received: ${value}" >&2
+              exit 1
+            fi
+          }
+
+          validate_desired_count "GATEWAY_DESIRED_COUNT" "${{ steps.context.outputs.desired-count }}"
+          validate_required "AUTH_DESIRED_COUNT" "${{ steps.context.outputs.auth-desired-count }}"
+          validate_desired_count "AUTH_DESIRED_COUNT" "${{ steps.context.outputs.auth-desired-count }}"
+          validate_required "AUTH_IMAGE_TAG" "${{ steps.context.outputs.auth-image-tag }}"
+          validate_required "TENANT_DESIRED_COUNT" "${{ steps.context.outputs.tenant-desired-count }}"
+          validate_desired_count "TENANT_DESIRED_COUNT" "${{ steps.context.outputs.tenant-desired-count }}"
+          validate_required "TENANT_IMAGE_TAG" "${{ steps.context.outputs.tenant-image-tag }}"
+
+          if [[ "${{ steps.context.outputs.desired-count }}" != "0" && -z "${GATEWAY_JWT_SECRET_ARN_INPUT}" ]]; then
+            echo "GATEWAY_JWT_SECRET_ARN is required when gateway desired count is greater than 0." >&2
+            exit 1
+          fi
+
+          if [[ "${{ steps.context.outputs.auth-desired-count }}" != "0" ]]; then
+            if [[ -z "${AUTH_DATABASE_URL_SECRET_ARN_INPUT}" ]]; then
+              echo "AUTH_DATABASE_URL_SECRET_ARN is required when auth desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ -z "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "AUTH_INTERNAL_AUTH_SECRET_ARN is required when auth desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ "${AUTH_JWT_ALGORITHM_INPUT:-HS256}" == "RS256" ]]; then
+              if [[ -z "${AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT}" || -z "${AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT}" ]]; then
+                echo "AUTH_JWT_PRIVATE_KEY_SECRET_ARN and AUTH_JWT_PUBLIC_KEY_SECRET_ARN are required when auth desired count is greater than 0 and RS256 is used." >&2
+                exit 1
+              fi
+            elif [[ -z "${AUTH_JWT_SECRET_ARN_INPUT}" ]]; then
+              echo "AUTH_JWT_SECRET_ARN is required when auth desired count is greater than 0 and HS256 is used." >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "${{ steps.context.outputs.tenant-desired-count }}" != "0" ]]; then
+            if [[ -z "${TENANT_DATABASE_URL_SECRET_ARN_INPUT}" ]]; then
+              echo "TENANT_DATABASE_URL_SECRET_ARN is required when tenant desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ -z "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "TENANT_INTERNAL_AUTH_SECRET_ARN is required when tenant desired count is greater than 0." >&2
+              exit 1
+            fi
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -126,8 +208,10 @@ jobs:
             -c "gatewayUseNatGateway=${{ steps.context.outputs.use-nat-gateway }}"
             -c "gatewayRedisNodeType=${{ steps.context.outputs.redis-node-type }}"
             -c "gatewayImageTag=${{ steps.context.outputs.image-tag }}"
-            -c "authDesiredCount=0"
+            -c "authDesiredCount=${{ steps.context.outputs.auth-desired-count }}"
             -c "authImageTag=${{ steps.context.outputs.auth-image-tag }}"
+            -c "tenantDesiredCount=${{ steps.context.outputs.tenant-desired-count }}"
+            -c "tenantImageTag=${{ steps.context.outputs.tenant-image-tag }}"
           )
 
           append_context() {
@@ -149,6 +233,9 @@ jobs:
           append_context "authJwtPrivateKeySecretArn" "${AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT}"
           append_context "authJwtPublicKeySecretArn" "${AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT}"
           append_context "authInternalAuthSecretArn" "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "tenantCorsAllowedOrigins" "${TENANT_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "tenantDatabaseUrlSecretArn" "${TENANT_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "tenantInternalAuthSecretArn" "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
           append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
@@ -202,8 +289,10 @@ jobs:
             -c "gatewayUseNatGateway=${{ steps.context.outputs.use-nat-gateway }}"
             -c "gatewayRedisNodeType=${{ steps.context.outputs.redis-node-type }}"
             -c "gatewayImageTag=${{ steps.context.outputs.image-tag }}"
-            -c "authDesiredCount=0"
+            -c "authDesiredCount=${{ steps.context.outputs.auth-desired-count }}"
             -c "authImageTag=${{ steps.context.outputs.auth-image-tag }}"
+            -c "tenantDesiredCount=${{ steps.context.outputs.tenant-desired-count }}"
+            -c "tenantImageTag=${{ steps.context.outputs.tenant-image-tag }}"
           )
 
           append_context() {
@@ -225,6 +314,9 @@ jobs:
           append_context "authJwtPrivateKeySecretArn" "${AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT}"
           append_context "authJwtPublicKeySecretArn" "${AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT}"
           append_context "authInternalAuthSecretArn" "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "tenantCorsAllowedOrigins" "${TENANT_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "tenantDatabaseUrlSecretArn" "${TENANT_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "tenantInternalAuthSecretArn" "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
           append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
@@ -243,5 +335,6 @@ jobs:
             echo "- Environment: \`${{ steps.context.outputs.deploy-env }}\`"
             echo "- Stack: \`${{ steps.context.outputs.stack-name }}\`"
             echo "- Image: \`${{ steps.ecr.outputs.repository-uri }}:${{ steps.context.outputs.image-tag }}\`"
-            echo "- Auth/IAM: resources and task definition context only, desired count kept at \`0\`"
+            echo "- Auth/IAM desired count preserved from variable: \`${{ steps.context.outputs.auth-desired-count }}\`"
+            echo "- Tenant desired count preserved from variable: \`${{ steps.context.outputs.tenant-desired-count }}\`"
           } >> "${GITHUB_STEP_SUMMARY}"

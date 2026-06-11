@@ -56,6 +56,7 @@ export interface TenantStatusConfig {
   serviceUrl?: string;
   cacheTtlSeconds: number;
   timeoutMs: number;
+  internalAuthSecret?: string;
 }
 
 export interface ProxyRouteConfig {
@@ -131,7 +132,8 @@ export function getAppConfig(): AppConfig {
       enabled: readBoolean("GATEWAY_TENANT_STATUS_CHECK_ENABLED", false),
       serviceUrl: readOptionalString("TENANT_SERVICE_URL"),
       cacheTtlSeconds: readNumber("GATEWAY_TENANT_STATUS_CACHE_TTL_SECONDS", 30),
-      timeoutMs: readNumber("GATEWAY_TENANT_STATUS_TIMEOUT_MS", 1000)
+      timeoutMs: readNumber("GATEWAY_TENANT_STATUS_TIMEOUT_MS", 1000),
+      internalAuthSecret: readOptionalString("TENANT_INTERNAL_AUTH_SECRET")
     },
     routes: {
       auth: {

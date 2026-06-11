@@ -99,6 +99,25 @@ multi-tenant-dev-files-ap-northeast-2
 /multi-tenant/dev/wms-service</code></pre>
             </section>
 
+      <section>
+              <h2>배포 Workflow 규칙</h2>
+              <p>
+                gateway-service, auth-iam-service, tenant-service 배포 workflow는 모두 같은 CDK 스택을 갱신합니다.
+                한 서비스 배포가 다른 서비스를 암묵적으로 중지하지 않도록 비대상 서비스 값은 명시적으로 관리합니다.
+              </p>
+              <table>
+                <tbody>
+                  <tr><th>자동 배포</th><td>GitHub Actions push 자동 배포는 당분간 비활성화하고 <code>workflow_dispatch</code> 수동 실행만 허용합니다.</td></tr>
+                  <tr><th>환경 매핑</th><td>자동 배포를 다시 켜면 <code>dev</code>는 dev, <code>staging</code>은 staging, <code>main</code>은 prod로 배포합니다.</td></tr>
+                  <tr><th>인증</th><td>GitHub Actions는 OIDC로 AWS role을 assume하며, 환경별 secret <code>AWS_ROLE_ARN</code>을 사용합니다.</td></tr>
+                  <tr><th>비대상 서비스</th><td>서비스별 workflow는 비대상 서비스 desired count와 image tag를 필수 입력으로 요구합니다. 값이 비어 있으면 실패해야 하며, 다른 서비스를 <code>0</code> 또는 <code>latest</code>로 조용히 덮어쓰지 않습니다.</td></tr>
+                  <tr><th>Desired Count</th><td><code>gatewayDesiredCount</code>, <code>authDesiredCount</code>, <code>tenantDesiredCount</code>는 0 이상의 정수만 허용합니다.</td></tr>
+                  <tr><th>Secret</th><td>desired count가 0보다 큰 서비스는 필요한 Secrets Manager 또는 SSM Parameter Store ARN이 함께 제공되어야 합니다.</td></tr>
+                  <tr><th>Image Tag</th><td>gateway-service image tag는 <code>{env}-{gitSha12}</code> 형식을 사용하며, 다른 서비스도 동일한 형식을 우선합니다.</td></tr>
+                </tbody>
+              </table>
+            </section>
+
       <p class="footer"><a href="../project-rules.html">프로젝트 공통 규칙으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
     </main>
   </body>

@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TenantStatus {
+  provisioning
+  active
+  suspended
+  deleted
+}
+
+enum TenantDomainStatus {
+  pending
+  active
+  disabled
+}
+
+enum OutboxStatus {
+  pending
+  published
+  failed
+}
+
+model Tenant {
+  id         String       @id @default(uuid()) @db.Uuid
+  code       String       @unique
+  name       String
+  status     TenantStatus @default(provisioning)
+  dbStrategy String       @default("shared") @map("db_strategy")
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  domains  TenantDomain[]
+  modules  TenantModule[]
+  settings TenantSetting[]
+
+  @@index([status])
+  @@map("tenants")
+}
+
+model TenantDomain {
+  id        String             @id @default(uuid()) @db.Uuid
+  tenantId  String             @map("tenant_id") @db.Uuid
+  domain    String
+  status    TenantDomainStatus @default(pending)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([domain])
+  @@index([tenantId, status])
+  @@map("tenant_domains")
+}
+
+model TenantModule {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  moduleCode String   @map("module_code")
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, moduleCode])
+  @@index([tenantId, enabled])
+  @@map("tenant_modules")
+}
+
+model TenantSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  key       String
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@map("tenant_settings")
+}
+
+model OutboxEvent {
+  id            String       @id @default(uuid()) @map("outbox_id") @db.Uuid
+  eventId       String       @unique @map("event_id") @db.Uuid
+  eventType     String       @map("event_type")
+  schemaVersion Int          @map("schema_version")
+  tenantId      String       @map("tenant_id") @db.Uuid
+  requestId     String       @map("request_id")
+  source        String
+  aggregateType String       @map("aggregate_type")
+  aggregateId   String       @map("aggregate_id") @db.Uuid
+  payload       Json
+  status        OutboxStatus @default(pending)
+  retryCount    Int          @default(0) @map("retry_count")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  publishedAt   DateTime?    @map("published_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+  @@index([tenantId, eventType])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}

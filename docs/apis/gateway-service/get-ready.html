@@ -126,7 +126,7 @@
                 <tr><th><code>checks.jwt</code></th><td><code>JWT_SECRET</code>/<code>JWT_PUBLIC_KEY</code>, <code>JWT_ISSUER</code>, <code>JWT_AUDIENCE</code> 설정을 확인합니다.</td></tr>
                 <tr><th><code>checks.proxyRoutes</code></th><td>Auth/IAM, Admin BFF, User BFF upstream URL이 <code>http</code> 또는 <code>https</code> URL인지, timeout/retry 설정이 유효한지 확인합니다.</td></tr>
                 <tr><th><code>checks.rateLimit</code></th><td>rate limit 활성화 시 <code>REDIS_URL</code>, window seconds, route group별 limit이 유효한지 확인합니다.</td></tr>
-                <tr><th><code>checks.tenantStatus</code></th><td>tenant status check 활성화 시 <code>TENANT_SERVICE_URL</code>, cache TTL, timeout 설정이 유효한지 확인합니다.</td></tr>
+                <tr><th><code>checks.tenantStatus</code></th><td>tenant status check 활성화 시 <code>TENANT_SERVICE_URL</code>, <code>TENANT_INTERNAL_AUTH_SECRET</code>, cache TTL, timeout 설정이 유효한지 확인합니다.</td></tr>
                 <tr><th><code>checks.security</code></th><td><code>prod</code> 환경 CORS origin 필수 여부와 wildcard 금지 기준을 확인합니다.</td></tr>
                 <tr><th>실패 응답 포맷</th><td><code>/ready</code> 실패 응답은 공통 error envelope로 감싸지 않고 readiness body를 그대로 반환합니다.</td></tr>
               </tbody>
@@ -194,7 +194,7 @@
                 <tr><th>ALB health check</th><td>현재 ALB target group health check는 <code>/health</code>를 사용합니다.</td></tr>
                 <tr><th>Readiness 용도</th><td><code>/ready</code>는 배포 후 트래픽 수신 가능 여부를 더 엄격하게 판단하는 endpoint입니다.</td></tr>
                 <tr><th>Rate limit</th><td><code>GATEWAY_RATE_LIMIT_ENABLED=true</code>이면 <code>REDIS_URL</code>이 필요합니다.</td></tr>
-                <tr><th>Tenant status</th><td><code>GATEWAY_TENANT_STATUS_CHECK_ENABLED=true</code>이면 <code>TENANT_SERVICE_URL</code>이 필요합니다.</td></tr>
+                <tr><th>Tenant status</th><td><code>GATEWAY_TENANT_STATUS_CHECK_ENABLED=true</code>이면 <code>TENANT_SERVICE_URL</code>과 <code>TENANT_INTERNAL_AUTH_SECRET</code>이 필요합니다.</td></tr>
                 <tr><th>Production CORS</th><td><code>APP_ENV=prod</code>에서는 <code>GATEWAY_CORS_ALLOWED_ORIGINS</code>가 비어 있으면 실패합니다.</td></tr>
                 <tr><th>Wildcard CORS</th><td><code>*</code> origin은 모든 환경에서 readiness 실패로 처리합니다.</td></tr>
               </tbody>

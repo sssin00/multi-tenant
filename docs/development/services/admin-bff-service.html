@@ -18,23 +18,55 @@
         <table>
           <tr><th>위치</th><td><code>apps/admin-bff-service</code></td></tr>
           <tr><th>책임</th><td>테넌트 관리, 사용자/권한 관리, 운영 설정, 감사 로그 조회 화면 API 조합</td></tr>
-          <tr><th>제작 시점</th><td>초기 운영자 화면이 필요할 때 최소 기능부터 제작</td></tr>
-          <tr><th>주의</th><td>권한의 최종 판단은 Auth/IAM에 두고, 업무 정책은 각 도메인 서비스에 둡니다.</td></tr>
+          <tr><th>제작 시점</th><td><code>tenant-service</code> 1차 완료 후, WMS 본격 개발 전에 운영자용 tenant/user/role 관리 surface부터 제작</td></tr>
+          <tr><th>Tenant 관리 경계</th><td>외부 <code>/api/admin/tenants</code> surface를 소유하고, 실제 tenant 생성/상태/module/domain 변경은 tenant-service 내부 API로 위임합니다.</td></tr>
+          <tr><th>주의</th><td>권한의 최종 판단은 Auth/IAM에 두고, tenant business rule은 tenant-service에, WMS 업무 정책은 WMS에 둡니다. BFF는 직접 DB에 접근하지 않습니다.</td></tr>
         </table>
       </section>
       <section>
         <h2>첫 구현 범위</h2>
         <div class="grid">
-          <div class="card"><strong>Tenants</strong><p>테넌트 목록, 생성, 상태 변경 화면 API</p></div>
-          <div class="card"><strong>Users</strong><p>사용자 목록, 초대, 역할 부여 화면 API</p></div>
-          <div class="card"><strong>Audit</strong><p>운영자용 감사 로그 조회 API</p></div>
+          <div class="card"><strong>GET /api/admin/tenants</strong><p>tenant 목록, 상태, 활성 module 조회</p></div>
+          <div class="card"><strong>POST /api/admin/tenants</strong><p>tenant 생성 요청을 tenant-service 내부 API로 위임</p></div>
+          <div class="card"><strong>PATCH /api/admin/tenants/{tenantId}/status</strong><p>tenant 활성/정지 상태 변경</p></div>
+          <div class="card"><strong>GET /api/admin/users</strong><p>운영자 사용자 목록과 tenant scope 조회</p></div>
+          <div class="card"><strong>POST /api/admin/users</strong><p>사용자 초대 또는 생성 요청 조합</p></div>
+          <div class="card"><strong>GET /api/admin/roles</strong><p>role 목록과 permission summary 조회</p></div>
+          <div class="card"><strong>PUT /api/admin/roles/{roleId}/permissions</strong><p>role permission 변경 요청 조합</p></div>
+          <div class="card"><strong>GET /api/admin/audit-logs</strong><p>운영자용 감사 로그 조회</p></div>
+        </div>
+      </section>
+      <section>
+        <h2>TODO</h2>
+        <div class="checklist">
+          <p><label><input type="checkbox" disabled /> <code>apps/admin-bff-service</code> NestJS 기본 구조 생성</label></p>
+          <p><label><input type="checkbox" disabled /> Auth/IAM internal client와 관리자 권한 check 적용</label></p>
+          <p><label><input type="checkbox" disabled /> tenant-service internal admin client 구현</label></p>
+          <p><label><input type="checkbox" disabled /> tenant 목록/생성/상태 변경 API 구현</label></p>
+          <p><label><input type="checkbox" disabled /> 사용자/role/permission 화면 조합 API 구현</label></p>
+          <p><label><input type="checkbox" disabled /> 감사 로그 조회 API는 audit 저장소가 준비되면 연결</label></p>
+          <p><label><input type="checkbox" checked disabled /> <code>docs/apis/admin-bff-service/index.html</code>에 API 계약 작성</label></p>
         </div>
       </section>
       <section>
         <h2>개발 기록</h2>
-        <p>아직 구현 전입니다.</p>
+        <article>
+          <h3>2026-06-11 BFF 경계 최신화</h3>
+          <ul>
+            <li>admin-bff-service는 외부 관리자 API surface를 담당하고, tenant 생성은 tenant-service의 <code>POST /internal/admin/tenants</code> 내부 API로 위임하는 기준을 명확히 했습니다.</li>
+            <li>Gateway가 tenant-service에 직접 연결하는 범위는 업무 API 진입 전 status check로 제한하고, tenant 관리 API는 Admin BFF를 앞에 둡니다.</li>
+            <li>제작 순서는 User BFF보다 앞입니다. WMS 업무 화면보다 tenant, 사용자, role, module 운영 기반을 먼저 준비합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 API 계약 초안 작성</h3>
+          <ul>
+            <li><code>docs/apis/admin-bff-service/index.html</code>에 Admin BFF 외부 API 계약, downstream 위임 기준, 에러 코드, 검증 시나리오를 정리했습니다.</li>
+            <li><code>POST /api/admin/tenants</code>를 첫 구현 후보로 두고, tenant-service의 추가 내부 API가 필요한 tenant 목록/상세/상태/module/domain API는 blocked 상태로 표시했습니다.</li>
+          </ul>
+        </article>
       </section>
-      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+      <p class="footer"><a href="../../apis/admin-bff-service/index.html">admin-bff-service API 문서로 이동</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
     </main>
   </body>
 </html>

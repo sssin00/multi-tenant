@@ -6,7 +6,7 @@
 
 Docker Compose 프로젝트 이름은 `multi-tenant-local`로 고정합니다. Docker Desktop이나 `docker compose ls`에서 로컬 개발 스택이 이 이름으로 표시됩니다.
 
-현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `gateway-service`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. `auth-iam-db-push`는 PostgreSQL 준비 후 Prisma schema를 로컬 DB에 반영하고 종료되는 초기화 작업입니다.
+현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `tenant-service`, `gateway-service`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. PostgreSQL 인스턴스는 공유하되 서비스별 database를 분리하며, 로컬에서는 `service-databases-init`이 `auth_iam`, `tenant` database를 idempotent하게 생성합니다. `auth-iam-db-push`와 `tenant-service-db-push`는 PostgreSQL 준비 후 각 서비스 Prisma schema를 자기 database에 반영하고 종료되는 초기화 작업입니다. 이후 `auth-iam-seed`와 `tenant-service-seed`가 직접 API 호출 테스트용 데이터를 넣습니다.
 
 환경 변수 파일 이름은 모든 프로젝트에서 `.env.local`, `.env.dev`, `.env.staging`, `.env.prod`만 사용합니다. `.env.example` 등 다른 env 파일 이름은 만들지 않습니다.
 
@@ -27,14 +27,48 @@ Health check:
 ```bash
 curl http://localhost:3000/health
 curl http://localhost:3001/health
+curl http://localhost:3002/health
 curl http://localhost:3000/ready
 curl http://localhost:3001/ready
+curl http://localhost:3002/ready
+```
+
+직접 호출 테스트 데이터:
+
+```text
+tenantId: 11111111-1111-4111-8111-111111111111
+tenantCode: demo
+email: admin@demo.local
+password: Test1234!
+role: tenant_admin
+modules: auth, tenant, wms
+```
+
+seed만 다시 실행:
+
+```bash
+pnpm seed:local
+```
+
+서비스 DB를 모두 초기화하고 schema와 seed를 다시 넣기:
+
+```bash
+pnpm db:reset:local
+```
+
+gateway를 통한 로그인 확인:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -H 'X-Tenant-Id: 11111111-1111-4111-8111-111111111111' \
+  -d '{"tenantId":"11111111-1111-4111-8111-111111111111","email":"admin@demo.local","password":"Test1234!"}'
 ```
 
 로그 확인:
 
 ```bash
-docker compose -f docker/local/docker-compose.yml logs -f gateway-service auth-iam-service
+docker compose -f docker/local/docker-compose.yml logs -f gateway-service auth-iam-service tenant-service
 ```
 
 중지:
@@ -57,9 +91,39 @@ docker compose -f docker/local/docker-compose.yml config
 
 NestJS 서비스 이미지는 `docker/services/Dockerfile.nest`를 공통으로 사용하고, `APP_NAME` build arg로 실행할 앱을 지정합니다. 런타임 이미지는 `pnpm deploy --prod` 결과만 복사하고 `node` 사용자로 실행합니다.
 
+로컬 PostgreSQL database:
+
+```text
+auth-iam-service -> auth_iam
+tenant-service -> tenant
+```
+
+TablePlus 등 host DB client에서 Docker PostgreSQL에 접속할 때는 Mac 로컬 PostgreSQL과 포트가 겹치지 않도록 host port `55432`를 사용합니다.
+
+```text
+Host: 127.0.0.1
+Port: 55432
+User: postgres
+Password: postgres
+Database: auth_iam 또는 tenant
+```
+
+테넌트별 저장 전략의 Shared DB + `tenantId` 원칙은 각 서비스 database 안에서 tenant-owned data를 구분하는 기준입니다. 서비스 간 database를 공유한다는 의미가 아닙니다.
+
+TablePlus 등 host Redis client에서 Docker Redis에 접속할 때는 Mac 로컬 Redis와 포트가 겹치지 않도록 host port `6380`을 사용합니다. 컨테이너 내부 서비스들은 Docker network 안에서 계속 `redis://redis:6379`를 사용합니다.
+
+```text
+Host: 127.0.0.1
+Port: 6380
+User: 비움 또는 default
+Password: 비움
+Database: 0
+SSL: off
+```
+
 ## 배포용 실행
 
-배포용 compose는 이미 빌드/푸시된 `auth-iam-service`, `gateway-service` 이미지를 실행합니다. 환경별 값은 서비스별 `docker/env/{service}/.env.local`, `.env.dev`, `.env.staging`, `.env.prod` 중 하나를 사용합니다. 운영 secret은 저장소에 커밋하지 않습니다.
+배포용 compose는 이미 빌드/푸시된 `auth-iam-service`, `tenant-service`, `gateway-service` 이미지를 실행합니다. 환경별 값은 서비스별 `docker/env/{service}/.env.local`, `.env.dev`, `.env.staging`, `.env.prod` 중 하나를 사용합니다. 운영 secret은 저장소에 커밋하지 않습니다.
 
 배포 compose의 환경 선택은 `COMPOSE_ENV`로 합니다. 예: `COMPOSE_ENV=dev`, `COMPOSE_ENV=staging`, `COMPOSE_ENV=prod`. 값을 주지 않으면 `local`을 사용합니다.
 
@@ -79,12 +143,13 @@ Health check:
 
 ```bash
 curl http://localhost:3000/health
+curl http://localhost:3002/health
 ```
 
 로그 확인:
 
 ```bash
-COMPOSE_ENV=dev docker compose -f docker/deploy/docker-compose.yml logs -f gateway-service auth-iam-service
+COMPOSE_ENV=dev docker compose -f docker/deploy/docker-compose.yml logs -f gateway-service auth-iam-service tenant-service
 ```
 
 중지:
