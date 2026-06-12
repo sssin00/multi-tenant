@@ -556,8 +556,9 @@
           <li><span class="item-text"><code>gateway-service</code>는 health/readiness, request context, JWT guard, proxy routing, Redis rate limit, tenant status check까지 1차 구현을 완료했습니다.</span></li>
           <li><span class="item-text"><code>auth-iam-service</code>는 로그인, token refresh, 사용자, 역할, 권한, internal permission summary/check API를 1차 구현했습니다.</span></li>
           <li><span class="item-text"><code>tenant-service</code>는 health/readiness, tenant status/modules 조회, tenant 생성과 code 자동 생성, outbox 저장, gateway status check 연결을 1차 구현했습니다.</span></li>
-          <li><span class="item-text">다음 단계는 <code>admin-bff-service</code>의 외부 <code>/api/admin/tenants</code> surface를 구현해 tenant, 사용자, role, module 운영 기반을 먼저 준비하는 것입니다.</span></li>
-          <li><span class="item-text"><code>wms-service</code>는 admin 운영 기반이 잡힌 뒤 warehouse, location, item, inventory 조회 API부터 WMS MVP를 시작합니다.</span></li>
+          <li><span class="item-text"><code>admin-bff-service</code>는 tenant, 사용자, role, permission, module 운영 API와 CDK 배포 준비까지 1차 구현했습니다.</span></li>
+          <li><span class="item-text">다음 단계는 <code>audit-log-service</code>를 구현해 Auth/IAM 감사 저장과 Admin BFF 감사 조회를 실제 서비스로 연결하는 것입니다.</span></li>
+          <li><span class="item-text"><code>wms-service</code>는 admin 운영 기반과 감사 로그 기준이 잡힌 뒤 warehouse, location, item, inventory 조회 API부터 WMS MVP를 시작합니다.</span></li>
           <li><span class="item-text"><code>user-bff-service</code>는 WMS 1차 도메인 조회 API가 준비된 뒤 <code>web-wms</code> 화면 연결 직전에 app shell과 WMS 화면 데이터를 조합합니다.</span></li>
           <li><span class="item-text">WMS 재고 변경 이벤트가 필요해질 때 Outbox와 <code>outbox-relay-service</code>를 붙입니다.</span></li>
         </ol>
@@ -573,7 +574,7 @@
           <tbody>
             <tr>
               <th>Admin BFF</th>
-              <td><code>admin-bff-service</code>. tenant-service 1차 완료 후 WMS 개발 전에 착수합니다. 외부 <code>/api/admin/tenants</code> surface를 소유하고 tenant-service의 <code>/internal/admin/**</code> API로 tenant 생성/상태/module/domain 관리를 위임합니다.</td>
+              <td><code>admin-bff-service</code>. 2026-06-12 기준 1차 구현과 CDK 배포 준비가 완료되었습니다. 외부 <code>/api/admin/**</code> surface를 소유하고 tenant-service와 auth-iam-service 내부 API로 tenant, 사용자, role, permission, module 관리를 위임합니다.</td>
             </tr>
             <tr>
               <th>User BFF</th>

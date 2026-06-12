@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>추후 작업 통합 목록</title>
+    <link rel="stylesheet" href="../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Development Backlog</p>
+        <h1>추후 작업 통합 목록</h1>
+        <p class="lead">
+          서비스별 개발 문서의 TODO, 후속 작업, blocked 항목을 카테고리별로 분리한 목록입니다.
+          각 작업이 진행되면 관련 서비스 개발 문서, API 문서, 설계 규칙을 함께 갱신합니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>점검 결과</h2>
+        <table>
+          <tbody>
+            <tr><th>점검일</th><td>2026-06-12</td></tr>
+            <tr><th>분류 기준</th><td>플랫폼 기반, 인증/권한, 감사/이벤트, WMS 도메인, BFF/프론트엔드, 운영 보안/인프라, 검증/문서로 나눕니다.</td></tr>
+            <tr><th>우선 흐름</th><td>audit-log/outbox 기반 → WMS 1차 API → user-bff/web-wms 연결 순서가 자연스럽습니다. tenant 상세/module/domain API와 Admin BFF blocked API 연결은 완료되었습니다.</td></tr>
+            <tr><th>상태 기준</th><td><code>P0</code>는 다음 구현 후보, <code>P1</code>은 통합 확장, <code>P2</code>는 운영 보강입니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>카테고리 요약</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>카테고리</th><th>목표</th><th>대표 작업</th><th>우선순위</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Tenant 운영 기반</td><td>tenant context와 운영 정책을 보강합니다.</td><td>tenant context API, tenant error code, proxy access 정책</td><td><code>P1</code>-<code>P2</code></td></tr>
+              <tr><td>인증과 권한</td><td>tenant bootstrap, 운영 JWT, permission 성능과 정확성을 보강합니다.</td><td>최초 admin, RS256, permission cache, idempotency</td><td><code>P0</code>-<code>P2</code></td></tr>
+              <tr><td>감사와 이벤트</td><td>변경 이력과 outbox event 발행을 실제 운영 가능한 형태로 만듭니다.</td><td>audit-log-service, outbox-relay-service, DLQ</td><td><code>P0</code></td></tr>
+              <tr><td>WMS 도메인</td><td>첫 메인 도메인인 WMS의 조회와 업무 API를 시작합니다.</td><td>warehouse, location, item, inventory, inbound/outbound</td><td><code>P0</code>-<code>P1</code></td></tr>
+              <tr><td>BFF와 프론트엔드</td><td>관리자 화면과 WMS 사용자 화면을 BFF 계약에 연결합니다.</td><td>admin tenant 확장, user-bff, web-admin, web-wms</td><td><code>P0</code>-<code>P1</code></td></tr>
+              <tr><td>운영 보안과 인프라</td><td>운영 배포와 secret, 내부 인증, AWS 리소스 기준을 강화합니다.</td><td>Secrets Manager, internal auth allowlist, 배포 입력 검증</td><td><code>P1</code>-<code>P2</code></td></tr>
+              <tr><td>검증과 문서</td><td>시나리오 기반 증거와 문서 상태를 구현 상태와 맞춥니다.</td><td>tenant isolation, API envelope, outbox/audit evidence</td><td><code>P1</code>-<code>P2</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Tenant 운영 기반</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>우선순위</th><th>서비스</th><th>작업</th><th>완료 기준</th><th>함께 갱신할 문서</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>tenant-service</code></td>
+                <td><code>GET /internal/tenants/{tenantId}/context</code> 구현</td>
+                <td>BFF 화면 조합에 필요한 tenant status, module, settings summary가 한 번에 조회됩니다.</td>
+                <td><a href="./services/tenant-service.html">tenant-service</a>, <a href="./services/user-bff-service.html">user-bff-service</a></td>
+              </tr>
+              <tr>
+                <td><code>P2</code></td>
+                <td><code>tenant-service</code></td>
+                <td>tenant error code 정리</td>
+                <td>domain, module, status, bootstrap 오류가 <code>TENANT_</code> prefix와 HTTP status mapping을 따릅니다.</td>
+                <td>tenant API, error 규칙, project-rules</td>
+              </tr>
+              <tr>
+                <td><code>P2</code></td>
+                <td><code>tenant-service</code></td>
+                <td>tenant proxy access 정책 초안</td>
+                <td>승인, 감사 로그, 권한 제한 규칙이 정의되기 전까지 비활성 상태로 유지됩니다.</td>
+                <td>multi-tenant 규칙, logging/audit 규칙</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>인증과 권한</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>우선순위</th><th>서비스</th><th>작업</th><th>완료 기준</th><th>함께 갱신할 문서</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td><code>auth-iam-service</code>, <code>tenant-service</code></td>
+                <td>tenant bootstrap과 최초 tenant admin 생성</td>
+                <td>tenant 생성 후 최초 관리자 계정과 tenant-scoped role이 준비되고 system_admin과 tenant_admin scope가 섞이지 않습니다.</td>
+                <td><a href="./services/auth-iam-service.html">auth-iam-service</a>, <a href="./services/tenant-service.html">tenant-service</a>, auth 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>auth-iam-service</code>, <code>gateway-service</code></td>
+                <td>운영 JWT <code>RS256</code>와 key rotation</td>
+                <td>rotation 중 기존 token 검증이 유지되고 gateway의 issuer, audience, algorithm 계약과 일치합니다.</td>
+                <td><a href="./services/auth-iam-service.html">auth-iam-service</a>, <a href="./services/gateway-service.html">gateway-service</a>, security/AWS 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>auth-iam-service</code></td>
+                <td>permission cache와 invalidation</td>
+                <td>role, permission, user-role 변경 직후 오래된 권한이 허용되지 않고 cache key에 tenant/user/scope가 포함됩니다.</td>
+                <td><a href="./services/auth-iam-service.html">auth-iam-service</a>, Redis 운영 기준, testing 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>auth-iam-service</code>, domain services</td>
+                <td>warehouse-scoped permission check 적용 범위 확정</td>
+                <td>WMS 중요 action에서 warehouse scope를 포함해 permission check를 수행하고 scope mismatch는 거부됩니다.</td>
+                <td><a href="./services/wms-service.html">wms-service</a>, auth/permission 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P2</code></td>
+                <td><code>auth-iam-service</code></td>
+                <td>login throttling과 account lock 정책</td>
+                <td>반복 로그인 실패가 Redis 기반 rate/lock 정책으로 제어되고 정상 사용자 복구 경로가 문서화됩니다.</td>
+                <td><a href="./services/auth-iam-service.html">auth-iam-service</a>, security/AWS 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P2</code></td>
+                <td><code>auth-iam-service</code>, <code>admin-bff-service</code></td>
+                <td>idempotency 저장 전략 확정</td>
+                <td>사용자, role, assignment 생성 같은 중복 위험 API에서 같은 key 재시도가 같은 결과를 반환하거나 중복을 차단합니다.</td>
+                <td>API/error 규칙, <a href="./services/auth-iam-service.html">auth-iam-service</a>, <a href="./services/admin-bff-service.html">admin-bff-service</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>감사와 이벤트</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>우선순위</th><th>서비스</th><th>작업</th><th>완료 기준</th><th>함께 갱신할 문서</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td><code>audit-log-service</code></td>
+                <td>감사 로그 저장소와 <code>POST /api/internal/audit/logs</code> 구현</td>
+                <td>actor, action, resource, result, tenantId, requestId가 append-only record로 저장됩니다.</td>
+                <td>audit-log-service 개발 문서, logging/audit 규칙, <a href="./services/auth-iam-service.html">auth-iam-service</a></td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td><code>audit-log-service</code></td>
+                <td><code>GET /api/internal/audit/logs</code> 조회 API 구현</td>
+                <td>Admin BFF가 page, size, tenantId, actorId, action, resourceType, from, to query로 조회할 수 있습니다.</td>
+                <td><a href="./services/admin-bff-service.html">admin-bff-service</a>, admin-bff API</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td><code>outbox-relay-service</code></td>
+                <td>Outbox polling과 publish 구현</td>
+                <td>pending event를 안전하게 lock하고 EventBridge 또는 SQS로 발행합니다.</td>
+                <td><a href="./services/outbox-relay-service.html">outbox-relay-service</a>, event/outbox 규칙, AWS ECS 기술 문서</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td><code>outbox-relay-service</code></td>
+                <td>retry, failed 상태, DLQ, replay 기준 구현</td>
+                <td>발행 실패가 retryCount와 failed reason으로 추적되고 수동 replay 기준이 문서화됩니다.</td>
+                <td><a href="./services/outbox-relay-service.html">outbox-relay-service</a>, 운영 Runbook</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>auth-iam-service</code>, <code>tenant-service</code></td>
+                <td>event schema 정리와 outbox relay 연동 증거 보강</td>
+                <td>auth/tenant 변경 이벤트의 payload, schemaVersion, aggregateId, idempotency 기준이 문서화됩니다.</td>
+                <td>Auth/IAM API, tenant API, event/outbox 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P2</code></td>
+                <td><code>audit-log-service</code></td>
+                <td>audit 장애 처리 정책 확정</td>
+                <td>audit 저장 실패 시 원 API를 실패시킬지, 보완 큐로 넘길지 서비스별 기준이 명확합니다.</td>
+                <td>logging/audit 규칙, 각 서비스 개발 문서</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>WMS 도메인</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>우선순위</th><th>서비스</th><th>작업</th><th>완료 기준</th><th>함께 갱신할 문서</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td><code>wms-service</code></td>
+                <td>WMS NestJS 기본 구조와 tenant context 적용</td>
+                <td>health, ready, request context, error envelope, internal auth, permission check 기준이 기존 서비스와 일치합니다.</td>
+                <td><a href="./services/wms-service.html">wms-service</a>, WMS API 문서</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td><code>wms-service</code></td>
+                <td>warehouse, location, item 기준정보 조회 API</td>
+                <td>tenantId로 제한된 목록/상세 조회가 동작하고 user-bff가 창고 선택 데이터를 조합할 수 있습니다.</td>
+                <td><a href="./services/wms-service.html">wms-service</a>, WMS API 문서</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td><code>wms-service</code></td>
+                <td>inventory 조회와 summary API</td>
+                <td>재고 목록, 품목/로케이션 필터, dashboard summary가 tenantId와 warehouse scope를 준수합니다.</td>
+                <td><a href="./services/wms-service.html">wms-service</a>, <a href="./services/user-bff-service.html">user-bff-service</a></td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>wms-service</code></td>
+                <td>inventory adjustment API와 <code>wms.inventory.adjusted</code> event</td>
+                <td>재고 조정과 outbox event 저장이 같은 DB transaction에서 처리되고 audit 대상 기준을 만족합니다.</td>
+                <td>WMS API, event/outbox 규칙, logging/audit 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>wms-service</code></td>
+                <td>inbound/outbound 1차 흐름</td>
+                <td>입고 확정, 출고 할당/출고 확정 API가 permission, tenant isolation, outbox event 기준을 따릅니다.</td>
+                <td><a href="./services/wms-service.html">wms-service</a>, WMS API 문서</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>BFF와 프론트엔드</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>우선순위</th><th>서비스/앱</th><th>작업</th><th>완료 기준</th><th>함께 갱신할 문서</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td><code>admin-bff-service</code></td>
+                <td><code>GET /api/admin/me</code> 구현</td>
+                <td>관리자 shell에 필요한 user, tenant, role, permission, enabledModules, navigation이 조합됩니다.</td>
+                <td><a href="./services/admin-bff-service.html">admin-bff-service</a>, admin-bff API</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>user-bff-service</code></td>
+                <td>NestJS 기본 구조와 downstream clients 구현</td>
+                <td>Auth/IAM summary, tenant context/module, WMS 조회 client가 준비되고 BFF는 직접 DB에 접근하지 않습니다.</td>
+                <td><a href="./services/user-bff-service.html">user-bff-service</a>, user-bff API</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>user-bff-service</code></td>
+                <td><code>/api/app/me</code>, <code>/api/app/navigation</code>, WMS dashboard 조합 API</td>
+                <td>web-wms가 app shell, 메뉴, dashboard, inventory summary 화면을 BFF API로 구성할 수 있습니다.</td>
+                <td><a href="./services/user-bff-service.html">user-bff-service</a>, <a href="./services/web-wms.html">web-wms</a></td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>web-admin</code></td>
+                <td>tenant 관리, 사용자/role/permission, audit log 화면 구현</td>
+                <td>Admin BFF API를 통해 목록, 생성, 상태 변경, 권한 관리, 감사 로그 조회 화면이 연결됩니다.</td>
+                <td><a href="./services/web-admin.html">web-admin</a>, <a href="./services/admin-bff-service.html">admin-bff-service</a></td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td><code>web-wms</code></td>
+                <td>첫 화면 데이터 형태와 App shell 구현</td>
+                <td>user-bff 착수 조건의 web-wms 화면 데이터 형태가 정리되고 로그인 후 메뉴/tenant/user context가 표시됩니다.</td>
+                <td><a href="./services/web-wms.html">web-wms</a>, <a href="./services/user-bff-service.html">user-bff-service</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>운영 보안과 인프라</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>우선순위</th><th>영역</th><th>작업</th><th>완료 기준</th><th>함께 갱신할 문서</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P1</code></td>
+                <td>Internal Auth</td>
+                <td>service-to-service 인증 적용 범위 확대</td>
+                <td>caller allowlist, HMAC secret, timestamp skew, replay 차단 기준이 민감 내부 API 전반에 적용됩니다.</td>
+                <td>security/AWS 규칙, environment 규칙, 각 서비스 개발 문서</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>Secrets</td>
+                <td>운영 secret 관리 기준 정리</td>
+                <td>JWT private key, refresh token secret, DB password, internal auth secret이 Secrets Manager 또는 SSM Parameter Store로 주입됩니다.</td>
+                <td>AWS ECS 기술 문서, environment 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>Deploy</td>
+                <td>서비스별 배포 workflow 입력 검증 보강</td>
+                <td>desired count와 image tag가 명시 입력으로 검증되고 다른 서비스가 조용히 <code>0</code> 또는 <code>latest</code>로 바뀌지 않습니다.</td>
+                <td>AWS ECS 기술 문서, deployment 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P2</code></td>
+                <td>Infra</td>
+                <td>Route53 hosted zone 도입 여부 결정</td>
+                <td>ALB DNS 직접 연결에서 Route53 record 관리로 전환할지 결정하고 ACM/HTTPS 문서를 갱신합니다.</td>
+                <td>AWS ECS 기술 문서, security/AWS 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P2</code></td>
+                <td>Config</td>
+                <td>공통 환경 변수 schema validation 도입 검토</td>
+                <td>서비스별 config module의 중복 검증을 줄이고 zod 같은 schema 기반 검증 기준을 정합니다.</td>
+                <td>environment 규칙, 각 서비스 README</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>검증과 문서</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>우선순위</th><th>영역</th><th>작업</th><th>완료 기준</th><th>함께 갱신할 문서</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P1</code></td>
+                <td>Tenant isolation</td>
+                <td>missing tenant, mismatch, cross-tenant, inactive tenant 검증 증거 보강</td>
+                <td>각 시나리오의 response JSON, requestId, log, DB/outbox/audit evidence가 남습니다.</td>
+                <td>testing 규칙, auth-iam-service, tenant-service, WMS 문서</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>API envelope</td>
+                <td>서비스별 list/success/error envelope 정합성 점검</td>
+                <td><code>success</code>, <code>requestId</code>, <code>timestamp</code>, <code>data.items/page/size/total</code>, error code 규칙이 일치합니다.</td>
+                <td>API/error 규칙, 서비스별 API 문서</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>Audit/Outbox</td>
+                <td>중요 변경 API의 audit record와 outbox row 증거 수집</td>
+                <td>사용자/권한/tenant/WMS 변경마다 audit 또는 outbox 대상 여부와 증거 기준이 명확합니다.</td>
+                <td>logging/audit 규칙, event/outbox 규칙, service docs</td>
+              </tr>
+              <tr>
+                <td><code>P2</code></td>
+                <td>Docs</td>
+                <td>API 문서 허브의 TODO 서비스 문서 생성</td>
+                <td>user-bff, WMS, audit-log, outbox relay 등 아직 TODO인 API 문서가 endpoint 초안 이상으로 생성됩니다.</td>
+                <td><a href="../apis/index.html">API 문서 허브</a>, <a href="../index.html">문서 대시보드</a></td>
+              </tr>
+              <tr>
+                <td><code>P2</code></td>
+                <td>Architecture</td>
+                <td>서비스 추가에 따른 draw.io와 설계 문서 갱신</td>
+                <td>audit-log-service, outbox-relay-service, user-bff, WMS 연결 구조가 설계도와 AWS ECS 문서에 반영됩니다.</td>
+                <td>smart-factory-aws-ecs.drawio, AWS ECS 기술 문서</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>서비스별 남은 체크리스트</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>서비스</th><th>현재 남은 항목</th><th>비고</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>gateway-service</code></td><td>1차 TODO 없음</td><td>운영 JWT key rotation, 내부 인증 확장, 배포 입력 검증 시 재점검합니다.</td></tr>
+              <tr><td><code>admin-bff-service</code></td><td>audit-log-service 통합 검증, <code>/api/admin/me</code></td><td>audit-log-service와 tenant context API가 준비되면 완성도가 올라갑니다.</td></tr>
+              <tr><td><code>tenant-service</code></td><td>tenant context, tenant error code, proxy access 정책</td><td>관리자 tenant 상세/module/domain API는 구현 완료되었습니다.</td></tr>
+              <tr><td><code>auth-iam-service</code></td><td>outbox relay, bootstrap, audit 계약, JWT 운영 key, cache, 검증 증거, throttling, idempotency</td><td>기능 구현은 1차 완료, 운영/통합 보강 중심입니다.</td></tr>
+              <tr><td><code>user-bff-service</code></td><td>WMS 조회 API와 web-wms 데이터 형태 확정 후 전체 구현</td><td>Auth/IAM, tenant-service, gateway 착수 조건은 충족되었습니다.</td></tr>
+              <tr><td><code>wms-service</code></td><td>기본 구조, 기준정보, 재고, 입출고 1차 구현</td><td>user-bff-service와 web-wms의 선행 작업입니다.</td></tr>
+              <tr><td><code>outbox-relay-service</code></td><td>polling, publish, retry, DLQ 구현</td><td>Auth/IAM과 tenant-service outbox event 발행 후 우선순위가 높습니다.</td></tr>
+              <tr><td><code>audit-log-service</code></td><td>저장소, 내부 저장 API, 내부 조회 API, 장애 정책</td><td>Auth/IAM audit 전송과 Admin BFF audit 조회의 선행 작업입니다.</td></tr>
+              <tr><td><code>web-admin</code></td><td>관리자 화면 전체 구현</td><td>Admin BFF API 안정화 후 연결합니다.</td></tr>
+              <tr><td><code>web-wms</code></td><td>WMS 화면 데이터 형태와 초기 화면 구현</td><td>WMS 1차 API와 user-bff-service 이후 진행합니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <p class="footer"><a href="../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

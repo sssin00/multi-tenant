@@ -6,7 +6,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker/local/docker-compose.yml"
 
 SERVICE_DATABASES=("auth_iam" "tenant")
-APP_SERVICES=("gateway-service" "auth-iam-service" "tenant-service")
+APP_SERVICES=("gateway-service" "auth-iam-service" "tenant-service" "admin-bff-service")
 INIT_SERVICES=("service-databases-init" "auth-iam-db-push" "tenant-service-db-push" "tenant-service-seed" "auth-iam-seed")
 
 log() {

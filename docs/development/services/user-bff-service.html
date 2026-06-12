@@ -14,9 +14,10 @@
         <p class="lead">WMS 사용자 화면과 PDA Web에 필요한 데이터를 조합하는 사용자용 BFF입니다.</p>
       </header>
       <section>
-        <h2>서비스 역할</h2>
+        <h2>서비스/앱 역할</h2>
         <table>
           <tr><th>위치</th><td><code>apps/user-bff-service</code></td></tr>
+          <tr><th>카테고리</th><td>Backend Service · BFF</td></tr>
           <tr><th>책임</th><td>사용자 정보, 현재 테넌트, 사용 가능 메뉴, WMS 화면 초기 데이터, 대시보드 응답 조합</td></tr>
           <tr><th>제작 시점</th><td><code>wms-service</code> 1차 도메인 조회 API가 잡힌 뒤, <code>web-wms</code> 화면 연결 직전에 시작</td></tr>
           <tr><th>Tenant 연동</th><td>화면 구성에는 tenant-service의 <code>GET /internal/tenants/{tenantId}/modules</code>와 이후 context API를 사용합니다.</td></tr>
@@ -24,13 +25,22 @@
         </table>
       </section>
       <section>
+        <h2>구현 상태</h2>
+        <table>
+          <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>
+          <tr><th>준비 완료</th><td>Auth/IAM permission summary/check, tenant status/module 조회, gateway <code>/api/app/**</code> proxy 기준</td></tr>
+          <tr><th>선행 조건</th><td><code>wms-service</code> 조회 API와 첫 <code>web-wms</code> 화면 데이터 형태 확정</td></tr>
+          <tr><th>API 문서</th><td>착수 시 <code>docs/apis/user-bff-service/index.html</code>을 생성합니다.</td></tr>
+        </table>
+      </section>
+      <section>
         <h2>착수 조건</h2>
         <div class="checklist">
           <p><label><input type="checkbox" disabled /> <code>wms-service</code>에 warehouse, location, item, inventory 조회 API가 준비되어 있습니다.</label></p>
-          <p><label><input type="checkbox" disabled /> <code>auth-iam-service</code>의 permission summary/check API로 메뉴와 버튼 표시 판단을 할 수 있습니다.</label></p>
-          <p><label><input type="checkbox" disabled /> <code>tenant-service</code>의 tenant status/module 조회 API로 사용 가능 모듈을 확인할 수 있습니다.</label></p>
+          <p><label><input type="checkbox" checked disabled /> <code>auth-iam-service</code>의 permission summary/check API로 메뉴와 버튼 표시 판단을 할 수 있습니다.</label></p>
+          <p><label><input type="checkbox" checked disabled /> <code>tenant-service</code>의 tenant status/module 조회 API로 사용 가능 모듈을 확인할 수 있습니다.</label></p>
           <p><label><input type="checkbox" disabled /> 첫 <code>web-wms</code> 화면의 데이터 형태가 정리되어 있습니다.</label></p>
-          <p><label><input type="checkbox" disabled /> <code>gateway-service</code>의 <code>/api/app/**</code> proxy route가 <code>user-bff-service</code>로 연결됩니다.</label></p>
+          <p><label><input type="checkbox" checked disabled /> <code>gateway-service</code>의 <code>/api/app/**</code> proxy route가 <code>user-bff-service</code>로 연결됩니다.</label></p>
         </div>
       </section>
       <section>
@@ -45,24 +55,99 @@
       </section>
       <section>
         <h2>TODO</h2>
-        <div class="checklist">
-          <p><label><input type="checkbox" disabled /> <code>apps/user-bff-service</code> NestJS 기본 구조 생성</label></p>
-          <p><label><input type="checkbox" disabled /> Auth/IAM permission summary client 구현</label></p>
-          <p><label><input type="checkbox" disabled /> Tenant context/module client 구현</label></p>
-          <p><label><input type="checkbox" disabled /> WMS 조회 API client 구현</label></p>
-          <p><label><input type="checkbox" disabled /> <code>/api/app/me</code>, <code>/api/app/navigation</code> 구현</label></p>
-          <p><label><input type="checkbox" disabled /> WMS dashboard와 inventory summary 조합 API 구현</label></p>
-          <p><label><input type="checkbox" disabled /> <code>docs/apis/user-bff-service/index.html</code>에 API 계약 작성</label></p>
+        <p>user-bff-service TODO는 완료 항목과 남은 작업을 분리해 갱신합니다.</p>
+        <div class="grid two">
+          <div class="card">
+            <h3>완료</h3>
+            <p>아직 완료된 구현 TODO는 없습니다.</p>
+          </div>
+          <div class="card">
+            <h3>남은 작업</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" disabled /> <code>apps/user-bff-service</code> NestJS 기본 구조 생성</label></p>
+              <p><label><input type="checkbox" disabled /> Auth/IAM permission summary client 구현</label></p>
+              <p><label><input type="checkbox" disabled /> Tenant context/module client 구현</label></p>
+              <p><label><input type="checkbox" disabled /> WMS 조회 API client 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>/api/app/me</code>, <code>/api/app/navigation</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> WMS dashboard와 inventory summary 조합 API 구현</label></p>
+              <p><label><input type="checkbox" disabled /> <code>docs/apis/user-bff-service/index.html</code>에 API 계약 작성</label></p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h2>기능별 작업 내역</h2>
+        <table>
+          <tr><th>App Context</th><td><code>/api/app/me</code>와 navigation API는 Auth/IAM permission summary와 tenant module 정보를 조합합니다.</td></tr>
+          <tr><th>WMS Dashboard</th><td>WMS 요약 지표, 입출고 대기, 작업 현황은 wms-service 조회 API를 통해 가져옵니다.</td></tr>
+          <tr><th>Tenant Boundary</th><td>BFF는 JWT/header tenant context를 전파하고, WMS 업무 규칙과 tenant business rule은 소유하지 않습니다.</td></tr>
+          <tr><th>API Client</th><td>Auth/IAM, tenant-service, wms-service 내부 client는 requestId, tenantId, userId를 downstream으로 전파합니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>테스트 시나리오</h2>
+        <table>
+          <tr><th>USER-BFF-001</th><td>활성 tenant 사용자는 <code>/api/app/me</code>에서 사용자, tenant, permission summary를 받을 수 있다.</td></tr>
+          <tr><th>USER-BFF-002</th><td>비활성 module 또는 권한이 없는 메뉴는 navigation 응답에서 제외된다.</td></tr>
+          <tr><th>USER-BFF-003</th><td>WMS dashboard API는 downstream 장애 시 표준 error envelope와 requestId를 반환한다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>후속 작업</h2>
+        <p>현재 User BFF 착수 전 이어서 확정할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>우선순위</th>
+                <th>작업</th>
+                <th>범위</th>
+                <th>완료 기준</th>
+                <th>함께 갱신할 문서</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td>WMS Contract 확정</td>
+                <td>wms-service 1차 API 계약이 확정되면 dashboard와 inventory summary 조합 규칙을 구체화합니다.</td>
+                <td>User BFF가 mock 응답 없이 실제 WMS 조회 API를 조합하고 tenant/user context를 downstream으로 전파합니다.</td>
+                <td>wms-service 개발 문서, user-bff-service API 문서, web-wms 개발 문서</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td>Screen Shape 정리</td>
+                <td><code>web-wms</code> 첫 화면의 filter, table, summary card 데이터 구조를 API 응답에 맞춥니다.</td>
+                <td>첫 WMS 화면이 한 번의 screen-data 호출로 필요한 초기 데이터를 렌더링할 수 있습니다.</td>
+                <td>web-wms 개발 문서, user-bff-service API 문서, testing 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>권한 summary와 메뉴 표시 기준</td>
+                <td>Auth/IAM permission summary를 사용해 화면별 메뉴, 버튼, action availability를 조합합니다.</td>
+                <td>JWT에 roles/permissions를 넣지 않고 BFF 응답으로 화면 권한 표시를 제어합니다.</td>
+                <td>Auth/IAM 개발 문서, user-bff-service 개발 문서, auth 규칙</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
       <section>
         <h2>개발 기록</h2>
+
         <article>
           <h3>2026-06-11 BFF 경계 최신화</h3>
           <ul>
             <li>user-bff-service는 사용자 화면 조합 API만 담당하고, tenant module 활성화 상태는 tenant-service 내부 API로 조회하는 기준을 정리했습니다.</li>
             <li>권한 summary는 auth-iam-service, WMS 업무 데이터는 wms-service에서 가져오며 BFF에는 도메인 업무 규칙을 두지 않습니다.</li>
             <li>제작 시점은 WMS 1차 도메인 조회 API 이후로 정리했습니다. WMS 업무 API가 없는 상태에서 User BFF를 먼저 만들면 mock 응답이 많아져 계약이 흔들릴 수 있습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 착수 조건 점검</h3>
+          <ul>
+            <li>Auth/IAM permission summary/check, tenant status/module 조회, gateway <code>/api/app/**</code> proxy 조건은 준비된 상태로 체크했습니다.</li>
+            <li>남은 착수 조건은 WMS 조회 API와 첫 <code>web-wms</code> 화면 데이터 형태 정리입니다.</li>
           </ul>
         </article>
       </section>

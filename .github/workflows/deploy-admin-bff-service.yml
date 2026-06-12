@@ -1,0 +1,399 @@
+name: Deploy admin-bff-service
+
+on:
+  # Automatic push deploys are temporarily disabled.
+  # Run this workflow manually from GitHub Actions when Admin BFF deployment is needed.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: admin-bff-service-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy admin-bff-service
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
+
+    env:
+      AWS_REGION_INPUT: ${{ vars.AWS_REGION }}
+      GATEWAY_DESIRED_COUNT_INPUT: ${{ vars.GATEWAY_DESIRED_COUNT }}
+      GATEWAY_IMAGE_TAG_INPUT: ${{ vars.GATEWAY_IMAGE_TAG }}
+      GATEWAY_USE_NAT_GATEWAY_INPUT: ${{ vars.GATEWAY_USE_NAT_GATEWAY }}
+      GATEWAY_REDIS_NODE_TYPE_INPUT: ${{ vars.GATEWAY_REDIS_NODE_TYPE }}
+      GATEWAY_ACM_CERTIFICATE_ARN_INPUT: ${{ vars.GATEWAY_ACM_CERTIFICATE_ARN }}
+      GATEWAY_DOMAIN_NAME_INPUT: ${{ vars.GATEWAY_DOMAIN_NAME }}
+      GATEWAY_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.GATEWAY_CORS_ALLOWED_ORIGINS }}
+      GATEWAY_TENANT_STATUS_CHECK_ENABLED_INPUT: ${{ vars.GATEWAY_TENANT_STATUS_CHECK_ENABLED }}
+      AUTH_DESIRED_COUNT_INPUT: ${{ vars.AUTH_DESIRED_COUNT }}
+      AUTH_IMAGE_TAG_INPUT: ${{ vars.AUTH_IMAGE_TAG }}
+      AUTH_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.AUTH_CORS_ALLOWED_ORIGINS }}
+      AUTH_JWT_ALGORITHM_INPUT: ${{ vars.AUTH_JWT_ALGORITHM }}
+      TENANT_DESIRED_COUNT_INPUT: ${{ vars.TENANT_DESIRED_COUNT }}
+      TENANT_IMAGE_TAG_INPUT: ${{ vars.TENANT_IMAGE_TAG }}
+      TENANT_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.TENANT_CORS_ALLOWED_ORIGINS }}
+      ADMIN_BFF_DESIRED_COUNT_INPUT: ${{ vars.ADMIN_BFF_DESIRED_COUNT }}
+      ADMIN_BFF_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.ADMIN_BFF_CORS_ALLOWED_ORIGINS }}
+      AUDIT_LOG_SERVICE_URL_INPUT: ${{ vars.AUDIT_LOG_SERVICE_URL }}
+      AUTH_IAM_SERVICE_URL_INPUT: ${{ vars.AUTH_IAM_SERVICE_URL }}
+      ADMIN_BFF_SERVICE_URL_INPUT: ${{ vars.ADMIN_BFF_SERVICE_URL }}
+      USER_BFF_SERVICE_URL_INPUT: ${{ vars.USER_BFF_SERVICE_URL }}
+      TENANT_SERVICE_URL_INPUT: ${{ vars.TENANT_SERVICE_URL }}
+      GATEWAY_JWT_SECRET_ARN_INPUT: ${{ secrets.GATEWAY_JWT_SECRET_ARN }}
+      AUTH_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.AUTH_DATABASE_URL_SECRET_ARN }}
+      AUTH_JWT_SECRET_ARN_INPUT: ${{ secrets.AUTH_JWT_SECRET_ARN }}
+      AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT: ${{ secrets.AUTH_JWT_PRIVATE_KEY_SECRET_ARN }}
+      AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT: ${{ secrets.AUTH_JWT_PUBLIC_KEY_SECRET_ARN }}
+      AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.AUTH_INTERNAL_AUTH_SECRET_ARN }}
+      TENANT_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.TENANT_DATABASE_URL_SECRET_ARN }}
+      TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.TENANT_INTERNAL_AUTH_SECRET_ARN }}
+      ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN }}
+      ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN }}
+      ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve deployment context
+        id: context
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "${GITHUB_REF_NAME}" in
+            main)
+              deploy_env="prod"
+              ;;
+            dev)
+              deploy_env="dev"
+              ;;
+            staging)
+              deploy_env="staging"
+              ;;
+            *)
+              echo "Unsupported deployment branch: ${GITHUB_REF_NAME}" >&2
+              exit 1
+              ;;
+          esac
+
+          aws_region="${AWS_REGION_INPUT:-ap-northeast-2}"
+          gateway_desired_count="${GATEWAY_DESIRED_COUNT_INPUT:-}"
+          gateway_image_tag="${GATEWAY_IMAGE_TAG_INPUT:-}"
+          use_nat_gateway="${GATEWAY_USE_NAT_GATEWAY_INPUT:-true}"
+          redis_node_type="${GATEWAY_REDIS_NODE_TYPE_INPUT:-cache.t4g.micro}"
+          gateway_tenant_status_check_enabled="${GATEWAY_TENANT_STATUS_CHECK_ENABLED_INPUT:-false}"
+          auth_desired_count="${AUTH_DESIRED_COUNT_INPUT:-}"
+          auth_image_tag="${AUTH_IMAGE_TAG_INPUT:-}"
+          auth_jwt_algorithm="${AUTH_JWT_ALGORITHM_INPUT:-HS256}"
+          tenant_desired_count="${TENANT_DESIRED_COUNT_INPUT:-}"
+          tenant_image_tag="${TENANT_IMAGE_TAG_INPUT:-}"
+          admin_bff_desired_count="${ADMIN_BFF_DESIRED_COUNT_INPUT:-1}"
+          admin_bff_image_tag="${deploy_env}-${GITHUB_SHA::12}"
+          stack_name="multi-tenant-${deploy_env}-gateway-service-stack"
+
+          {
+            echo "deploy-env=${deploy_env}"
+            echo "aws-region=${aws_region}"
+            echo "gateway-desired-count=${gateway_desired_count}"
+            echo "gateway-image-tag=${gateway_image_tag}"
+            echo "use-nat-gateway=${use_nat_gateway}"
+            echo "redis-node-type=${redis_node_type}"
+            echo "gateway-tenant-status-check-enabled=${gateway_tenant_status_check_enabled}"
+            echo "auth-desired-count=${auth_desired_count}"
+            echo "auth-image-tag=${auth_image_tag}"
+            echo "auth-jwt-algorithm=${auth_jwt_algorithm}"
+            echo "tenant-desired-count=${tenant_desired_count}"
+            echo "tenant-image-tag=${tenant_image_tag}"
+            echo "admin-bff-desired-count=${admin_bff_desired_count}"
+            echo "admin-bff-image-tag=${admin_bff_image_tag}"
+            echo "stack-name=${stack_name}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Validate deployment inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          validate_required() {
+            local name="$1"
+            local value="$2"
+            if [[ -z "${value}" ]]; then
+              echo "${name} is required so this workflow does not overwrite another service with an implicit default." >&2
+              exit 1
+            fi
+          }
+
+          validate_desired_count() {
+            local name="$1"
+            local value="$2"
+            if [[ ! "${value}" =~ ^[0-9]+$ ]]; then
+              echo "${name} must be a non-negative integer. Received: ${value}" >&2
+              exit 1
+            fi
+          }
+
+          validate_required "GATEWAY_DESIRED_COUNT" "${{ steps.context.outputs.gateway-desired-count }}"
+          validate_desired_count "GATEWAY_DESIRED_COUNT" "${{ steps.context.outputs.gateway-desired-count }}"
+          validate_required "GATEWAY_IMAGE_TAG" "${{ steps.context.outputs.gateway-image-tag }}"
+          validate_required "AUTH_DESIRED_COUNT" "${{ steps.context.outputs.auth-desired-count }}"
+          validate_desired_count "AUTH_DESIRED_COUNT" "${{ steps.context.outputs.auth-desired-count }}"
+          validate_required "AUTH_IMAGE_TAG" "${{ steps.context.outputs.auth-image-tag }}"
+          validate_required "TENANT_DESIRED_COUNT" "${{ steps.context.outputs.tenant-desired-count }}"
+          validate_desired_count "TENANT_DESIRED_COUNT" "${{ steps.context.outputs.tenant-desired-count }}"
+          validate_required "TENANT_IMAGE_TAG" "${{ steps.context.outputs.tenant-image-tag }}"
+          validate_desired_count "ADMIN_BFF_DESIRED_COUNT" "${{ steps.context.outputs.admin-bff-desired-count }}"
+
+          if [[ "${{ steps.context.outputs.admin-bff-desired-count }}" != "0" ]]; then
+            if [[ -z "${ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN is required when Admin BFF desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ -z "${ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN is required when Admin BFF desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ -n "${AUDIT_LOG_SERVICE_URL_INPUT}" && -z "${ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN is required when AUDIT_LOG_SERVICE_URL is configured." >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "${{ steps.context.outputs.gateway-desired-count }}" != "0" && -z "${GATEWAY_JWT_SECRET_ARN_INPUT}" ]]; then
+            echo "GATEWAY_JWT_SECRET_ARN is required when gateway desired count is greater than 0." >&2
+            exit 1
+          fi
+
+          if [[ "${{ steps.context.outputs.gateway-tenant-status-check-enabled }}" == "true" && -z "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+            echo "TENANT_INTERNAL_AUTH_SECRET_ARN is required when gateway tenant status check is enabled." >&2
+            exit 1
+          fi
+
+          if [[ "${{ steps.context.outputs.auth-desired-count }}" != "0" ]]; then
+            if [[ -z "${AUTH_DATABASE_URL_SECRET_ARN_INPUT}" ]]; then
+              echo "AUTH_DATABASE_URL_SECRET_ARN is required when auth desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ -z "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "AUTH_INTERNAL_AUTH_SECRET_ARN is required when auth desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ "${{ steps.context.outputs.auth-jwt-algorithm }}" == "RS256" ]]; then
+              if [[ -z "${AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT}" || -z "${AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT}" ]]; then
+                echo "AUTH_JWT_PRIVATE_KEY_SECRET_ARN and AUTH_JWT_PUBLIC_KEY_SECRET_ARN are required for RS256 auth deployment." >&2
+                exit 1
+              fi
+            elif [[ -z "${AUTH_JWT_SECRET_ARN_INPUT}" ]]; then
+              echo "AUTH_JWT_SECRET_ARN is required for HS256 auth deployment." >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "${{ steps.context.outputs.tenant-desired-count }}" != "0" ]]; then
+            if [[ -z "${TENANT_DATABASE_URL_SECRET_ARN_INPUT}" ]]; then
+              echo "TENANT_DATABASE_URL_SECRET_ARN is required when tenant desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ -z "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "TENANT_INTERNAL_AUTH_SECRET_ARN is required when tenant desired count is greater than 0." >&2
+              exit 1
+            fi
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck admin-bff-service
+        run: pnpm --filter admin-bff-service typecheck
+
+      - name: Build admin-bff-service
+        run: pnpm --filter admin-bff-service build
+
+      - name: Typecheck CDK
+        run: pnpm --filter @multi-tenant/infra-cdk typecheck
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ steps.context.outputs.aws-region }}
+
+      - name: Create or update base infrastructure
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cdk_context=(
+            -c "envName=${{ steps.context.outputs.deploy-env }}"
+            -c "gatewayDesiredCount=${{ steps.context.outputs.gateway-desired-count }}"
+            -c "gatewayUseNatGateway=${{ steps.context.outputs.use-nat-gateway }}"
+            -c "gatewayRedisNodeType=${{ steps.context.outputs.redis-node-type }}"
+            -c "gatewayImageTag=${{ steps.context.outputs.gateway-image-tag }}"
+            -c "gatewayTenantStatusCheckEnabled=${{ steps.context.outputs.gateway-tenant-status-check-enabled }}"
+            -c "authDesiredCount=${{ steps.context.outputs.auth-desired-count }}"
+            -c "authImageTag=${{ steps.context.outputs.auth-image-tag }}"
+            -c "authJwtAlgorithm=${{ steps.context.outputs.auth-jwt-algorithm }}"
+            -c "tenantDesiredCount=${{ steps.context.outputs.tenant-desired-count }}"
+            -c "tenantImageTag=${{ steps.context.outputs.tenant-image-tag }}"
+            -c "adminBffDesiredCount=0"
+            -c "adminBffImageTag=${{ steps.context.outputs.admin-bff-image-tag }}"
+          )
+
+          append_context() {
+            local key="$1"
+            local value="$2"
+            if [[ -n "${value}" ]]; then
+              cdk_context+=(-c "${key}=${value}")
+            fi
+          }
+
+          append_context "gatewayAcmCertificateArn" "${GATEWAY_ACM_CERTIFICATE_ARN_INPUT}"
+          append_context "gatewayDomainName" "${GATEWAY_DOMAIN_NAME_INPUT}"
+          append_context "gatewayCorsAllowedOrigins" "${GATEWAY_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "gatewayJwtSecretArn" "${GATEWAY_JWT_SECRET_ARN_INPUT}"
+          append_context "authCorsAllowedOrigins" "${AUTH_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "authDatabaseUrlSecretArn" "${AUTH_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "authJwtSecretArn" "${AUTH_JWT_SECRET_ARN_INPUT}"
+          append_context "authJwtPrivateKeySecretArn" "${AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT}"
+          append_context "authJwtPublicKeySecretArn" "${AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT}"
+          append_context "authInternalAuthSecretArn" "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "tenantCorsAllowedOrigins" "${TENANT_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "tenantDatabaseUrlSecretArn" "${TENANT_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "tenantInternalAuthSecretArn" "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffCorsAllowedOrigins" "${ADMIN_BFF_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "adminBffAuthInternalAuthSecretArn" "${ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffTenantInternalAuthSecretArn" "${ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffAuditInternalAuthSecretArn" "${ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "auditLogServiceUrl" "${AUDIT_LOG_SERVICE_URL_INPUT}"
+          append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
+          append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
+          append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
+          append_context "tenantServiceUrl" "${TENANT_SERVICE_URL_INPUT}"
+
+          pnpm --filter @multi-tenant/infra-cdk exec cdk deploy \
+            --require-approval never \
+            "${cdk_context[@]}"
+
+      - name: Read ECR repository URI
+        id: ecr
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repository_uri="$(aws cloudformation describe-stacks \
+            --stack-name "${{ steps.context.outputs.stack-name }}" \
+            --query "Stacks[0].Outputs[?OutputKey=='AdminBffServiceRepositoryUri'].OutputValue" \
+            --output text)"
+
+          if [[ -z "${repository_uri}" || "${repository_uri}" == "None" ]]; then
+            echo "AdminBffServiceRepositoryUri output was not found." >&2
+            exit 1
+          fi
+
+          echo "repository-uri=${repository_uri}" >> "${GITHUB_OUTPUT}"
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/admin-bff-service/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.ecr.outputs.repository-uri }}:${{ steps.context.outputs.admin-bff-image-tag }}
+
+      - name: Deploy admin-bff-service task
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cdk_context=(
+            -c "envName=${{ steps.context.outputs.deploy-env }}"
+            -c "gatewayDesiredCount=${{ steps.context.outputs.gateway-desired-count }}"
+            -c "gatewayUseNatGateway=${{ steps.context.outputs.use-nat-gateway }}"
+            -c "gatewayRedisNodeType=${{ steps.context.outputs.redis-node-type }}"
+            -c "gatewayImageTag=${{ steps.context.outputs.gateway-image-tag }}"
+            -c "gatewayTenantStatusCheckEnabled=${{ steps.context.outputs.gateway-tenant-status-check-enabled }}"
+            -c "authDesiredCount=${{ steps.context.outputs.auth-desired-count }}"
+            -c "authImageTag=${{ steps.context.outputs.auth-image-tag }}"
+            -c "authJwtAlgorithm=${{ steps.context.outputs.auth-jwt-algorithm }}"
+            -c "tenantDesiredCount=${{ steps.context.outputs.tenant-desired-count }}"
+            -c "tenantImageTag=${{ steps.context.outputs.tenant-image-tag }}"
+            -c "adminBffDesiredCount=${{ steps.context.outputs.admin-bff-desired-count }}"
+            -c "adminBffImageTag=${{ steps.context.outputs.admin-bff-image-tag }}"
+          )
+
+          append_context() {
+            local key="$1"
+            local value="$2"
+            if [[ -n "${value}" ]]; then
+              cdk_context+=(-c "${key}=${value}")
+            fi
+          }
+
+          append_context "gatewayAcmCertificateArn" "${GATEWAY_ACM_CERTIFICATE_ARN_INPUT}"
+          append_context "gatewayDomainName" "${GATEWAY_DOMAIN_NAME_INPUT}"
+          append_context "gatewayCorsAllowedOrigins" "${GATEWAY_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "gatewayJwtSecretArn" "${GATEWAY_JWT_SECRET_ARN_INPUT}"
+          append_context "authCorsAllowedOrigins" "${AUTH_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "authDatabaseUrlSecretArn" "${AUTH_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "authJwtSecretArn" "${AUTH_JWT_SECRET_ARN_INPUT}"
+          append_context "authJwtPrivateKeySecretArn" "${AUTH_JWT_PRIVATE_KEY_SECRET_ARN_INPUT}"
+          append_context "authJwtPublicKeySecretArn" "${AUTH_JWT_PUBLIC_KEY_SECRET_ARN_INPUT}"
+          append_context "authInternalAuthSecretArn" "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "tenantCorsAllowedOrigins" "${TENANT_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "tenantDatabaseUrlSecretArn" "${TENANT_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "tenantInternalAuthSecretArn" "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffCorsAllowedOrigins" "${ADMIN_BFF_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "adminBffAuthInternalAuthSecretArn" "${ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffTenantInternalAuthSecretArn" "${ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffAuditInternalAuthSecretArn" "${ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "auditLogServiceUrl" "${AUDIT_LOG_SERVICE_URL_INPUT}"
+          append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
+          append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
+          append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
+          append_context "tenantServiceUrl" "${TENANT_SERVICE_URL_INPUT}"
+
+          pnpm --filter @multi-tenant/infra-cdk exec cdk deploy \
+            --require-approval never \
+            "${cdk_context[@]}"
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "### admin-bff-service deployment"
+            echo ""
+            echo "- Branch: \`${GITHUB_REF_NAME}\`"
+            echo "- Environment: \`${{ steps.context.outputs.deploy-env }}\`"
+            echo "- Stack: \`${{ steps.context.outputs.stack-name }}\`"
+            echo "- Image: \`${{ steps.ecr.outputs.repository-uri }}:${{ steps.context.outputs.admin-bff-image-tag }}\`"
+            echo "- Admin BFF desired count: \`${{ steps.context.outputs.admin-bff-desired-count }}\`"
+            echo "- Gateway desired count applied from variable/default: \`${{ steps.context.outputs.gateway-desired-count }}\`"
+            echo "- Auth/IAM desired count applied from variable/default: \`${{ steps.context.outputs.auth-desired-count }}\`"
+            echo "- Tenant desired count applied from variable/default: \`${{ steps.context.outputs.tenant-desired-count }}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

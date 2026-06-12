@@ -36,6 +36,13 @@ export interface GatewayServiceStackProps extends cdk.StackProps {
   tenantCorsAllowedOrigins?: string;
   tenantDatabaseUrlSecretArn?: string;
   tenantInternalAuthSecretArn?: string;
+  adminBffImageTag: string;
+  adminBffDesiredCount: number;
+  adminBffCorsAllowedOrigins?: string;
+  adminBffAuthInternalAuthSecretArn?: string;
+  adminBffTenantInternalAuthSecretArn?: string;
+  adminBffAuditInternalAuthSecretArn?: string;
+  auditLogServiceUrl?: string;
   authIamServiceUrl?: string;
   adminBffServiceUrl?: string;
   userBffServiceUrl?: string;
@@ -50,6 +57,7 @@ export class GatewayServiceStack extends cdk.Stack {
     const serviceName = "gateway-service";
     const authServiceName = "auth-iam-service";
     const tenantServiceName = "tenant-service";
+    const adminBffServiceName = "admin-bff-service";
     const cloudMapNamespaceName = `${props.envName}.${props.project}.local`;
     const isHttpsEnabled = props.gatewayAcmCertificateArn !== undefined && props.gatewayAcmCertificateArn.length > 0;
     const isJwtSecretConfigured = props.gatewayJwtSecretArn !== undefined && props.gatewayJwtSecretArn.length > 0;
@@ -62,6 +70,9 @@ export class GatewayServiceStack extends cdk.Stack {
     const tenantCorsAllowedOrigins =
       props.tenantCorsAllowedOrigins ??
       (props.envName === "prod" ? "https://app.example.com,https://admin.example.com" : "https://dev.example.com");
+    const adminBffCorsAllowedOrigins =
+      props.adminBffCorsAllowedOrigins ??
+      (props.envName === "prod" ? "https://admin.example.com" : "https://dev.example.com");
     const jwtSecret = isJwtSecretConfigured
       ? secretsmanager.Secret.fromSecretCompleteArn(this, "GatewayJwtSecret", props.gatewayJwtSecretArn as string)
       : undefined;
@@ -85,6 +96,27 @@ export class GatewayServiceStack extends cdk.Stack {
       : undefined;
     const tenantInternalAuthSecret = props.tenantInternalAuthSecretArn
       ? secretsmanager.Secret.fromSecretCompleteArn(this, "TenantInternalAuthSecret", props.tenantInternalAuthSecretArn)
+      : undefined;
+    const adminBffAuthInternalAuthSecret = props.adminBffAuthInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "AdminBffAuthInternalAuthSecret",
+          props.adminBffAuthInternalAuthSecretArn
+        )
+      : undefined;
+    const adminBffTenantInternalAuthSecret = props.adminBffTenantInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "AdminBffTenantInternalAuthSecret",
+          props.adminBffTenantInternalAuthSecretArn
+        )
+      : undefined;
+    const adminBffAuditInternalAuthSecret = props.adminBffAuditInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "AdminBffAuditInternalAuthSecret",
+          props.adminBffAuditInternalAuthSecretArn
+        )
       : undefined;
 
     const repository = new ecr.Repository(this, "GatewayServiceRepository", {
@@ -120,6 +152,19 @@ export class GatewayServiceStack extends cdk.Stack {
         {
           maxImageCount: 20,
           description: "Keep the latest 20 tenant-service images"
+        }
+      ],
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+      emptyOnDelete: props.envName !== "prod"
+    });
+
+    const adminBffRepository = new ecr.Repository(this, "AdminBffServiceRepository", {
+      repositoryName: `${namePrefix}-${adminBffServiceName}`,
+      imageScanOnPush: true,
+      lifecycleRules: [
+        {
+          maxImageCount: 20,
+          description: "Keep the latest 20 admin-bff-service images"
         }
       ],
       removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
@@ -200,6 +245,18 @@ export class GatewayServiceStack extends cdk.Stack {
       "Allow gateway-service to tenant-service"
     );
 
+    const adminBffServiceSecurityGroup = new ec2.SecurityGroup(this, "AdminBffServiceSecurityGroup", {
+      vpc,
+      securityGroupName: `${namePrefix}-${adminBffServiceName}-sg`,
+      description: "Allow gateway-service traffic to admin-bff-service",
+      allowAllOutbound: true
+    });
+    adminBffServiceSecurityGroup.addIngressRule(
+      serviceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow gateway-service to admin-bff-service"
+    );
+
     const redisSecurityGroup = new ec2.SecurityGroup(this, "GatewayRedisSecurityGroup", {
       vpc,
       securityGroupName: `${namePrefix}-${serviceName}-redis-sg`,
@@ -253,6 +310,7 @@ export class GatewayServiceStack extends cdk.Stack {
     ]);
     const authIamInternalUrl = `http://${authServiceName}.${cloudMapNamespaceName}:3000/api/auth`;
     const tenantInternalUrl = `http://${tenantServiceName}.${cloudMapNamespaceName}:3000`;
+    const adminBffInternalUrl = `http://${adminBffServiceName}.${cloudMapNamespaceName}:3000/api/admin`;
 
     const loadBalancer = new elbv2.ApplicationLoadBalancer(this, "ApplicationLoadBalancer", {
       vpc,
@@ -314,6 +372,12 @@ export class GatewayServiceStack extends cdk.Stack {
       removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
     });
 
+    const adminBffLogGroup = new logs.LogGroup(this, "AdminBffServiceLogGroup", {
+      logGroupName: `/${props.project}/${props.envName}/${adminBffServiceName}`,
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
+    });
+
     const taskDefinition = new ecs.FargateTaskDefinition(this, "GatewayTaskDefinition", {
       family: `${namePrefix}-${serviceName}`,
       cpu: 256,
@@ -369,7 +433,7 @@ export class GatewayServiceStack extends cdk.Stack {
         GATEWAY_RATE_LIMIT_ADMIN_PER_WINDOW: "300",
         GATEWAY_RATE_LIMIT_APP_PER_WINDOW: "600",
         AUTH_IAM_SERVICE_URL: props.authIamServiceUrl ?? authIamInternalUrl,
-        ADMIN_BFF_SERVICE_URL: props.adminBffServiceUrl ?? "http://admin-bff-service:3000",
+        ADMIN_BFF_SERVICE_URL: props.adminBffServiceUrl ?? adminBffInternalUrl,
         USER_BFF_SERVICE_URL: props.userBffServiceUrl ?? "http://user-bff-service:3000"
       },
       secrets: Object.keys(gatewayContainerSecrets).length > 0 ? gatewayContainerSecrets : undefined,
@@ -609,6 +673,101 @@ export class GatewayServiceStack extends cdk.Stack {
       enableExecuteCommand: props.envName !== "prod"
     });
 
+    const adminBffTaskDefinition = new ecs.FargateTaskDefinition(this, "AdminBffTaskDefinition", {
+      family: `${namePrefix}-${adminBffServiceName}`,
+      cpu: 256,
+      memoryLimitMiB: 512,
+      runtimePlatform: {
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        cpuArchitecture: ecs.CpuArchitecture.X86_64
+      }
+    });
+
+    const adminBffContainerSecrets: Record<string, ecs.Secret> = {};
+    if (adminBffAuthInternalAuthSecret) {
+      adminBffContainerSecrets.AUTH_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(adminBffAuthInternalAuthSecret);
+    }
+    if (adminBffTenantInternalAuthSecret) {
+      adminBffContainerSecrets.TENANT_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(
+        adminBffTenantInternalAuthSecret
+      );
+    }
+    if (adminBffAuditInternalAuthSecret) {
+      adminBffContainerSecrets.AUDIT_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(
+        adminBffAuditInternalAuthSecret
+      );
+    }
+
+    const adminBffContainer = adminBffTaskDefinition.addContainer("AdminBffContainer", {
+      containerName: adminBffServiceName,
+      image: ecs.ContainerImage.fromEcrRepository(adminBffRepository, props.adminBffImageTag),
+      essential: true,
+      environment: {
+        NODE_ENV: "production",
+        APP_ENV: props.envName,
+        SERVICE_NAME: adminBffServiceName,
+        ADMIN_BFF_PORT: "3000",
+        LOG_LEVEL: "info",
+        AWS_REGION: cdk.Stack.of(this).region,
+        REQUEST_ID_HEADER: "x-request-id",
+        TENANT_HEADER: "x-tenant-id",
+        AUTH_IAM_SERVICE_URL: props.authIamServiceUrl ?? authIamInternalUrl,
+        TENANT_SERVICE_URL: props.tenantServiceUrl ?? tenantInternalUrl,
+        AUDIT_LOG_SERVICE_URL: props.auditLogServiceUrl ?? "",
+        ADMIN_BFF_SECURITY_HEADERS_ENABLED: "true",
+        ADMIN_BFF_CORS_ALLOWED_ORIGINS: adminBffCorsAllowedOrigins,
+        ADMIN_BFF_CORS_ALLOWED_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        ADMIN_BFF_CORS_ALLOWED_HEADERS:
+          "Authorization,Content-Type,Accept,X-Request-Id,X-Tenant-Id,X-User-Id,Idempotency-Key",
+        ADMIN_BFF_CORS_EXPOSED_HEADERS: "X-Request-Id,X-Tenant-Id",
+        ADMIN_BFF_CORS_CREDENTIALS: "true",
+        ADMIN_BFF_CORS_MAX_AGE_SECONDS: "600",
+        ADMIN_BFF_DOWNSTREAM_TIMEOUT_MS: "5000",
+        ADMIN_BFF_SAFE_METHOD_RETRIES: "1",
+        ADMIN_BFF_INTERNAL_AUTH_ENABLED: "true",
+        ADMIN_BFF_INTERNAL_SERVICE_ID: adminBffServiceName,
+        ADMIN_BFF_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS: "300"
+      },
+      secrets: Object.keys(adminBffContainerSecrets).length > 0 ? adminBffContainerSecrets : undefined,
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: adminBffLogGroup,
+        streamPrefix: adminBffServiceName
+      }),
+      healthCheck: {
+        command: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"],
+        interval: Duration.seconds(30),
+        timeout: Duration.seconds(5),
+        retries: 3,
+        startPeriod: Duration.seconds(15)
+      }
+    });
+    adminBffContainer.addPortMappings({
+      containerPort: 3000,
+      protocol: ecs.Protocol.TCP
+    });
+
+    new ecs.FargateService(this, "AdminBffFargateService", {
+      serviceName: `${namePrefix}-${adminBffServiceName}`,
+      cluster,
+      taskDefinition: adminBffTaskDefinition,
+      desiredCount: props.adminBffDesiredCount,
+      circuitBreaker: {
+        rollback: true
+      },
+      minHealthyPercent: 100,
+      maxHealthyPercent: 200,
+      assignPublicIp: !props.gatewayUseNatGateway,
+      securityGroups: [adminBffServiceSecurityGroup],
+      vpcSubnets: {
+        subnetType: props.gatewayUseNatGateway ? ec2.SubnetType.PRIVATE_WITH_EGRESS : ec2.SubnetType.PUBLIC
+      },
+      cloudMapOptions: {
+        cloudMapNamespace,
+        name: adminBffServiceName
+      },
+      enableExecuteCommand: props.envName !== "prod"
+    });
+
     cdk.Tags.of(this).add("Project", props.project);
     cdk.Tags.of(this).add("Environment", props.envName);
     cdk.Tags.of(this).add("ManagedBy", "cdk");
@@ -628,6 +787,11 @@ export class GatewayServiceStack extends cdk.Stack {
       description: "ECR repository URI for tenant-service"
     });
 
+    new cdk.CfnOutput(this, "AdminBffServiceRepositoryUri", {
+      value: adminBffRepository.repositoryUri,
+      description: "ECR repository URI for admin-bff-service"
+    });
+
     new cdk.CfnOutput(this, "AuthIamServiceImageTag", {
       value: props.authImageTag,
       description: "Image tag used by the auth-iam-service ECS task definition"
@@ -636,6 +800,11 @@ export class GatewayServiceStack extends cdk.Stack {
     new cdk.CfnOutput(this, "TenantServiceImageTag", {
       value: props.tenantImageTag,
       description: "Image tag used by the tenant-service ECS task definition"
+    });
+
+    new cdk.CfnOutput(this, "AdminBffServiceImageTag", {
+      value: props.adminBffImageTag,
+      description: "Image tag used by the admin-bff-service ECS task definition"
     });
 
     new cdk.CfnOutput(this, "AuthIamServiceDesiredCount", {
@@ -648,6 +817,11 @@ export class GatewayServiceStack extends cdk.Stack {
       description: "Current desired count for tenant-service"
     });
 
+    new cdk.CfnOutput(this, "AdminBffServiceDesiredCount", {
+      value: String(props.adminBffDesiredCount),
+      description: "Current desired count for admin-bff-service"
+    });
+
     new cdk.CfnOutput(this, "AuthIamServiceInternalUrl", {
       value: authIamInternalUrl,
       description: "Cloud Map internal URL used by gateway-service to reach auth-iam-service"
@@ -656,6 +830,11 @@ export class GatewayServiceStack extends cdk.Stack {
     new cdk.CfnOutput(this, "TenantServiceInternalUrl", {
       value: tenantInternalUrl,
       description: "Cloud Map internal URL used by gateway-service to reach tenant-service"
+    });
+
+    new cdk.CfnOutput(this, "AdminBffServiceInternalUrl", {
+      value: adminBffInternalUrl,
+      description: "Cloud Map internal URL used by gateway-service to reach admin-bff-service"
     });
 
     new cdk.CfnOutput(this, "GatewayServiceImageTag", {

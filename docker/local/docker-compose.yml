@@ -115,6 +115,30 @@ services:
       retries: 3
       start_period: 15s
 
+  admin-bff-service:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      args:
+        APP_NAME: admin-bff-service
+        APP_PORT: 3000
+    container_name: multi-tenant-admin-bff-service
+    env_file:
+      - ../env/admin-bff-service/.env.local
+    ports:
+      - "3003:3000"
+    depends_on:
+      auth-iam-service:
+        condition: service_healthy
+      tenant-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
   gateway-service:
     build:
       context: ../..
@@ -131,6 +155,8 @@ services:
       auth-iam-service:
         condition: service_healthy
       tenant-service:
+        condition: service_healthy
+      admin-bff-service:
         condition: service_healthy
       postgres:
         condition: service_healthy

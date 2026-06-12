@@ -220,6 +220,13 @@
         min-width: 0;
       }
 
+      .phase-title {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
       .phase-body > p {
         margin-top: 8px;
       }
@@ -313,6 +320,28 @@
         font-weight: 700;
       }
 
+      .status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 3px 9px;
+        border-radius: 6px;
+        background: #ecfdf5;
+        color: var(--ok);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .status.progress {
+        background: #fff7ed;
+        color: var(--accent);
+      }
+
+      .status.todo {
+        background: #eef4f8;
+        color: var(--primary-dark);
+      }
+
       .flow {
         display: flex;
         flex-wrap: wrap;
@@ -399,7 +428,7 @@
           <p class="lead">
             전체 MES, WMS, FMS, QMS, EMS를 한 번에 구현하지 않고,
             멀티테넌트 플랫폼 기반과 WMS 핵심 도메인을 먼저 완성한 뒤
-            이벤트 기반으로 서비스를 확장하는 단계별 실행 문서입니다.
+            감사 로그와 이벤트 기반으로 서비스를 확장하는 단계별 실행 문서입니다.
           </p>
         </div>
         <aside class="hero-side" aria-label="핵심 원칙">
@@ -408,7 +437,7 @@
             <li><span class="dot"></span>WMS를 첫 메인 서비스로 완성</li>
             <li><span class="dot"></span>초기 WMS는 모듈형 모놀리스로 시작</li>
             <li><span class="dot"></span>서비스별 DB와 Outbox 패턴 유지</li>
-            <li><span class="dot"></span>Tenant Context를 모든 계층에 전파</li>
+            <li><span class="dot"></span>Admin BFF 이후 WMS, User BFF 순서로 진행</li>
           </ul>
         </aside>
       </div>
@@ -418,19 +447,41 @@
         <div class="summary-grid">
           <div class="summary-item">
             <strong>1. 플랫폼 뼈대</strong>
-            <p>Gateway, BFF, Tenant, Auth/IAM, 공통 규약을 먼저 잡습니다.</p>
+            <p>Gateway, Auth/IAM, Tenant, Admin BFF와 공통 규약은 1차 구현 또는 배포 준비 상태입니다.</p>
           </div>
           <div class="summary-item">
-            <strong>2. WMS 핵심</strong>
-            <p>기준정보, 재고, 입고, 출고, 작업 지시를 우선 구현합니다.</p>
+            <strong>2. 감사/이벤트 기반</strong>
+            <p>WMS 전에 audit-log-service와 outbox-relay-service의 저장/발행 기준을 먼저 잡습니다.</p>
           </div>
           <div class="summary-item">
-            <strong>3. 이벤트 확장</strong>
-            <p>Outbox, Kafka, Audit, Notification, ERP 연동을 붙입니다.</p>
+            <strong>3. WMS 핵심</strong>
+            <p>기준정보 조회, 재고 조회, 재고 조정, 입고/출고 1차 흐름을 구현합니다.</p>
           </div>
           <div class="summary-item">
-            <strong>4. 제조 서비스 추가</strong>
-            <p>WMS 안정화 후 MES, QMS, FMS, EMS 순서로 확장합니다.</p>
+            <strong>4. 화면과 확장</strong>
+            <p>User BFF, web-wms, 운영 화면을 붙인 뒤 ERP, 알림, MES/QMS/FMS/EMS로 확장합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>현재 기준 상태</h2>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <strong>완료/1차 구현</strong>
+            <p>gateway-service, auth-iam-service, tenant-service, admin-bff-service는 1차 구현과 로컬 검증 기준이 잡혀 있습니다.</p>
+          </div>
+          <div class="summary-item">
+            <strong>배포 준비</strong>
+            <p>CDK 스택과 수동 GitHub Actions는 gateway, auth, tenant, admin-bff까지 반영되어 있습니다.</p>
+          </div>
+          <div class="summary-item">
+            <strong>다음 후보</strong>
+            <p>audit-log-service와 outbox-relay-service의 최소 저장/발행 구조를 먼저 잡습니다.</p>
+          </div>
+          <div class="summary-item">
+            <strong>그 다음</strong>
+            <p>wms-service 1차 API를 구현한 뒤 user-bff-service와 web-wms를 연결합니다.</p>
           </div>
         </div>
       </section>
@@ -444,13 +495,16 @@
               <span class="phase-kind">Direction</span>
             </div>
             <div class="phase-body">
-              <h3>기준 결정</h3>
+              <div class="phase-title">
+                <h3>기준 결정</h3>
+                <span class="status">완료</span>
+              </div>
               <p>프로젝트 전체의 기술, 저장소, 테넌트 전략, 서비스 경계를 먼저 결정합니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>기술 스택</strong><span>NestJS 또는 Spring Boot, PostgreSQL, Redis, Kafka, Docker 기준 확정</span></div>
-                <div class="task"><strong>테넌트 전략</strong><span>초기 <code>Shared DB + tenant_id</code>, VIP는 <code>Database per tenant</code> 확장 가능하게 설계</span></div>
-                <div class="task"><strong>저장소 전략</strong><span>Monorepo 또는 Multi-repo 선택, 공통 패키지 관리 방식 결정</span></div>
-                <div class="task"><strong>초기 서비스 경계</strong><span>Gateway, Admin BFF, User BFF, Auth/IAM, Tenant, WMS 정의</span></div>
+                <div class="task"><strong>기술 스택</strong><span>NestJS, TypeScript, PostgreSQL, Redis, Docker, AWS ECS Fargate 기준으로 진행합니다.</span></div>
+                <div class="task"><strong>테넌트 전략</strong><span>초기 <code>Shared DB + tenantId</code>를 사용하고 schema/database 분리는 후속 결정으로 둡니다.</span></div>
+                <div class="task"><strong>저장소 전략</strong><span><code>pnpm workspace</code> 기반 monorepo와 <code>apps/*</code>, <code>packages/*</code>, <code>infra/cdk</code> 구조를 사용합니다.</span></div>
+                <div class="task"><strong>초기 서비스 경계</strong><span>Gateway, Auth/IAM, Tenant, Admin BFF, Audit Log, Outbox Relay, WMS, User BFF 순서로 경계를 잡습니다.</span></div>
               </div>
             </div>
           </article>
@@ -461,13 +515,16 @@
               <span class="phase-kind">Foundation</span>
             </div>
             <div class="phase-body">
-              <h3>개발 및 운영 기반</h3>
+              <div class="phase-title">
+                <h3>개발 및 운영 기반</h3>
+                <span class="status progress">진행 중</span>
+              </div>
               <p>서비스를 계속 추가해도 같은 방식으로 만들고 배포할 수 있는 기본 골격을 만듭니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>로컬 인프라</strong><span>Docker Compose로 PostgreSQL, Redis, Kafka, Kafka UI 구성</span></div>
+                <div class="task"><strong>로컬 인프라</strong><span>Docker Compose로 PostgreSQL, Redis, LocalStack을 구성했습니다. Redis host 접속 포트는 <code>6380</code>입니다.</span></div>
                 <div class="task"><strong>공통 규약</strong><span>API 응답, 에러 코드, 로깅, request id, 환경 변수 표준화</span></div>
-                <div class="task"><strong>CI/CD</strong><span>빌드, 테스트, 린트, 이미지 생성 파이프라인 준비</span></div>
-                <div class="task"><strong>관측성</strong><span>로그, 메트릭, 트레이싱에 <code>tenant_id</code>, <code>user_id</code>, <code>request_id</code> 포함</span></div>
+                <div class="task"><strong>CI/CD</strong><span>서비스별 수동 GitHub Actions와 CDK 배포 흐름을 준비했습니다. 자동 push 배포는 비활성입니다.</span></div>
+                <div class="task"><strong>관측성</strong><span>JSON access log와 readiness check는 적용했습니다. metrics/tracing/alarm은 운영 보강 단계에서 확장합니다.</span></div>
               </div>
             </div>
           </article>
@@ -478,13 +535,16 @@
               <span class="phase-kind">Platform</span>
             </div>
             <div class="phase-body">
-              <h3>멀티테넌트 플랫폼</h3>
+              <div class="phase-title">
+                <h3>멀티테넌트 플랫폼</h3>
+                <span class="status">1차 구현</span>
+              </div>
               <p>WMS보다 먼저 테넌트와 권한의 기준을 세웁니다. 이 단계가 이후 모든 서비스의 기반입니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>Tenant Service</strong><span>테넌트 생성, 상태, 사용 모듈, 도메인, DB 라우팅 정책 관리</span></div>
-                <div class="task"><strong>Auth/IAM Service</strong><span>로그인, 사용자, 역할, 권한, 조직, 창고 단위 접근 제어</span></div>
-                <div class="task"><strong>Gateway</strong><span>인증 검증, tenant 식별, rate limit, 내부 라우팅</span></div>
-                <div class="task"><strong>Tenant Context</strong><span>HTTP/gRPC header, Kafka header, DB query, 로그에 tenant context 강제</span></div>
+                <div class="task"><strong>Gateway</strong><span>JWT 검증, tenant mismatch/status check, proxy route, rate limit, security/CORS를 1차 구현했습니다.</span></div>
+                <div class="task"><strong>Auth/IAM Service</strong><span>login/refresh/logout, user/role/permission, permission summary/check, outbox 저장을 1차 구현했습니다.</span></div>
+                <div class="task"><strong>Tenant Service</strong><span>tenant status/modules, admin tenant 목록/생성/상세/수정/상태/module/domain 내부 API를 구현했습니다.</span></div>
+                <div class="task"><strong>Admin BFF</strong><span>tenant, user, role, permission, audit 조회 surface를 1차 구현했고 Admin 화면 연결을 기다립니다.</span></div>
               </div>
             </div>
           </article>
@@ -492,18 +552,19 @@
           <article class="phase">
             <div class="phase-label">
               <span class="phase-number">3</span>
-              <span class="phase-kind">WMS MVP</span>
+              <span class="phase-kind">Audit/Event</span>
             </div>
             <div class="phase-body">
-              <h3>WMS 핵심 도메인</h3>
-              <p>초기 WMS는 서비스 하나 안에서 모듈형 구조로 시작하고, 경계가 명확해진 뒤 분리합니다.</p>
+              <div class="phase-title">
+                <h3>감사 로그와 이벤트 기반</h3>
+                <span class="status progress">다음 구현 후보</span>
+              </div>
+              <p>WMS 업무 API를 만들기 전에 변경 이력과 outbox 발행 기반을 먼저 안정화합니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>기준정보</strong><span>창고, 로케이션, 품목, 거래처, 단위, 바코드</span></div>
-                <div class="task"><strong>재고</strong><span>재고 생성, 조회, 이동, 조정, 로트/시리얼 정책</span></div>
-                <div class="task"><strong>입고</strong><span>입고 예정, 검수, 적치, 입고 완료</span></div>
-                <div class="task"><strong>출고</strong><span>출고 요청, 재고 할당, 피킹, 패킹, 출고 완료</span></div>
-                <div class="task"><strong>작업 지시</strong><span>입고 작업, 이동 작업, 피킹 작업, 작업 상태 관리</span></div>
-                <div class="task"><strong>WMS DB</strong><span>모든 업무 테이블에 <code>tenant_id</code>와 감사 필드 적용</span></div>
+                <div class="task"><strong>Audit Log Service</strong><span><code>POST /api/internal/audit/logs</code>와 <code>GET /api/internal/audit/logs</code>를 구현합니다.</span></div>
+                <div class="task"><strong>Audit 저장소</strong><span>append-only 저장, 보존 기간, 장애 처리, Admin BFF 조회 계약을 확정합니다.</span></div>
+                <div class="task"><strong>Outbox Relay</strong><span>Auth/IAM과 tenant-service의 pending outbox event를 EventBridge 또는 SQS로 발행합니다.</span></div>
+                <div class="task"><strong>Retry/DLQ</strong><span>retry count, failed 상태, DLQ, 수동 replay 기준을 정합니다.</span></div>
               </div>
             </div>
           </article>
@@ -511,16 +572,19 @@
           <article class="phase">
             <div class="phase-label">
               <span class="phase-number">4</span>
-              <span class="phase-kind">API Layer</span>
+              <span class="phase-kind">WMS MVP</span>
             </div>
             <div class="phase-body">
-              <h3>관리자 및 사용자 BFF</h3>
-              <p>Admin BFF는 WMS 전에 운영 기반을 만들고, User BFF는 WMS 1차 조회 API 이후 화면 데이터를 조합합니다. 업무 규칙은 WMS와 각 도메인 서비스에 둡니다.</p>
+              <div class="phase-title">
+                <h3>WMS 핵심 도메인</h3>
+                <span class="status todo">착수 전</span>
+              </div>
+              <p>초기 WMS는 서비스 하나 안에서 모듈형 구조로 시작하고, 기준정보 조회와 재고 조회부터 만듭니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>Admin BFF 먼저</strong><span>테넌트 관리, 사용자/권한 관리, 모듈 설정, 감사 로그 조회</span></div>
-                <div class="task"><strong>User BFF 이후</strong><span>WMS 대시보드, 창고/재고 요약, 입고, 출고, 작업 화면 API</span></div>
-                <div class="task"><strong>모바일 API</strong><span>PDA, 바코드 스캐너, 현장 작업 화면을 고려한 API 분리</span></div>
-                <div class="task"><strong>API 계약</strong><span>OpenAPI 또는 Proto 기준으로 요청/응답 계약 관리</span></div>
+                <div class="task"><strong>WMS 기본 구조</strong><span>health, ready, request context, tenant isolation, permission check, error envelope를 기존 서비스와 맞춥니다.</span></div>
+                <div class="task"><strong>기준정보 조회</strong><span>warehouse, location, item 목록/상세 조회 API를 먼저 구현합니다.</span></div>
+                <div class="task"><strong>재고 조회</strong><span>inventory 목록, 필터, summary API를 tenantId와 warehouse scope 기준으로 구현합니다.</span></div>
+                <div class="task"><strong>업무 변경 API</strong><span>inventory adjustment, inbound confirm, outbound allocate/ship을 audit/outbox 기준에 맞춰 확장합니다.</span></div>
               </div>
             </div>
           </article>
@@ -528,16 +592,19 @@
           <article class="phase">
             <div class="phase-label">
               <span class="phase-number">5</span>
-              <span class="phase-kind">Event</span>
+              <span class="phase-kind">User Surface</span>
             </div>
             <div class="phase-body">
-              <h3>이벤트 기반 구조</h3>
-              <p>업무 트랜잭션은 DB에 먼저 확정하고, Outbox Relay가 Kafka로 안정적으로 발행합니다.</p>
+              <div class="phase-title">
+                <h3>User BFF와 WMS 화면</h3>
+                <span class="status todo">WMS 1차 API 이후</span>
+              </div>
+              <p>User BFF는 WMS 1차 조회 API가 준비된 뒤 화면 데이터를 조합하고, web-wms는 BFF를 통해서만 업무 데이터를 조회합니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>Outbox Table</strong><span>WMS DB 내부에 이벤트 저장 테이블 추가</span></div>
-                <div class="task"><strong>Outbox Relay</strong><span>미발행 이벤트를 Kafka로 전송하고 재시도 처리</span></div>
-                <div class="task"><strong>Topic 설계</strong><span><code>wms.inventory.adjusted</code>, <code>wms.inbound.confirmed</code>, <code>wms.outbound.allocated</code>, <code>wms.outbound.shipped</code> 등 업무 이벤트 정의</span></div>
-                <div class="task"><strong>Schema Version</strong><span>이벤트 payload 버전과 하위 호환 정책 정의</span></div>
+                <div class="task"><strong>User BFF</strong><span><code>/api/app/me</code>, <code>/api/app/navigation</code>, WMS dashboard, warehouses, inventory summary를 조합합니다.</span></div>
+                <div class="task"><strong>web-wms</strong><span>로그인 후 tenant/user/menu context와 WMS 첫 화면을 연결합니다.</span></div>
+                <div class="task"><strong>PDA/현장 화면</strong><span>입고, 재고, 출고 작업 화면은 WMS 1차 API 안정화 후 분리합니다.</span></div>
+                <div class="task"><strong>API 계약</strong><span>WMS API와 User BFF 응답이 달라지면 API 문서와 테스트 시나리오를 함께 갱신합니다.</span></div>
               </div>
             </div>
           </article>
@@ -548,10 +615,14 @@
               <span class="phase-kind">Operations</span>
             </div>
             <div class="phase-body">
-              <h3>운영 필수 서비스</h3>
-              <p>운영 추적, 알림, 파일, 배치 작업은 WMS 운영 안정성에 직접 영향을 줍니다.</p>
+              <div class="phase-title">
+                <h3>운영 보강</h3>
+                <span class="status todo">후속</span>
+              </div>
+              <p>운영 JWT, 권한 cache, 알림, 파일, 배치 작업은 WMS 1차 흐름이 잡힌 뒤 보강합니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>Audit Log Service</strong><span>누가, 언제, 어느 테넌트에서, 어떤 데이터를 변경했는지 기록</span></div>
+                <div class="task"><strong>JWT 운영</strong><span>운영 RS256, key rotation, JWKS 또는 public key 배포 기준 확정</span></div>
+                <div class="task"><strong>Permission Cache</strong><span>role/permission 변경 시 Redis cache invalidation 기준 확정</span></div>
                 <div class="task"><strong>Notification Service</strong><span>이메일, SMS, Slack, Kakao 등 이벤트 기반 알림</span></div>
                 <div class="task"><strong>File Service</strong><span>엑셀 업로드, 라벨/PDF, 첨부파일, S3 호환 스토리지</span></div>
                 <div class="task"><strong>Scheduler Service</strong><span>배치, 재시도, 통계 생성, 외부 연동 재처리</span></div>
@@ -565,7 +636,10 @@
               <span class="phase-kind">Integration</span>
             </div>
             <div class="phase-body">
-              <h3>외부 연동</h3>
+              <div class="phase-title">
+                <h3>외부 연동</h3>
+                <span class="status todo">후속</span>
+              </div>
               <p>ERP와 장비 연동은 장애와 재처리가 중요하므로, 동기 API와 비동기 이벤트를 분리합니다.</p>
               <div class="task-grid">
                 <div class="task"><strong>ERP Integration</strong><span>품목, 거래처, 입출고 지시 수신, 출고 결과 전송</span></div>
@@ -582,7 +656,10 @@
               <span class="phase-kind">Insight</span>
             </div>
             <div class="phase-body">
-              <h3>검색 및 통계</h3>
+              <div class="phase-title">
+                <h3>검색 및 통계</h3>
+                <span class="status todo">후속</span>
+              </div>
               <p>초기에는 PostgreSQL read model로 시작하고, 필요가 커질 때 전용 저장소를 도입합니다.</p>
               <div class="task-grid">
                 <div class="task"><strong>Search</strong><span>품목, 재고, 입출고 이력 검색이 커지면 OpenSearch 도입</span></div>
@@ -599,7 +676,10 @@
               <span class="phase-kind">Expansion</span>
             </div>
             <div class="phase-body">
-              <h3>MES, QMS, FMS, EMS 확장</h3>
+              <div class="phase-title">
+                <h3>MES, QMS, FMS, EMS 확장</h3>
+                <span class="status todo">장기 확장</span>
+              </div>
               <p>WMS가 안정화된 뒤 제조 실행, 품질, 설비, 에너지 순서로 서비스를 추가합니다.</p>
               <div class="task-grid">
                 <div class="task"><strong>MES</strong><span>생산 지시, 생산 실적, 자재 투입, WMS 재고 차감 연동</span></div>
@@ -615,24 +695,22 @@
       <section>
         <h2>추천 개발 순서</h2>
         <ol class="ordered">
-          <li>Monorepo 또는 Multi-repo 결정 및 로컬 인프라 세팅</li>
-          <li>Gateway 기본 구조 구현</li>
-          <li>Auth/IAM Service 구현</li>
-          <li>Tenant Service 구현</li>
-          <li>Admin BFF 1차 구현</li>
-          <li>WMS Service 뼈대 구현</li>
-          <li>WMS 기준정보 조회 API 구현</li>
-          <li>WMS 재고 조회 API 구현</li>
-          <li>User BFF 1차 구현</li>
-          <li>web-wms 화면 연결</li>
-          <li>WMS 입고 구현</li>
-          <li>WMS 출고 구현</li>
-          <li>Outbox와 Kafka 이벤트 발행 구현</li>
-          <li>Audit Log Service 연결</li>
-          <li>Notification Service 연결</li>
-          <li>ERP 연동 구현</li>
-          <li>검색 및 통계 확장</li>
-          <li>MES, QMS, FMS, EMS 순차 추가</li>
+          <li>완료: Monorepo, 공통 규칙, 로컬 인프라, Docker Compose 기본 구성</li>
+          <li>완료: gateway-service 1차 구현과 proxy, tenant status check, rate limit</li>
+          <li>완료: auth-iam-service 1차 구현과 user/role/permission, outbox 저장</li>
+          <li>완료: tenant-service 1차 구현과 tenant status/module/domain/admin 내부 API</li>
+          <li>완료: admin-bff-service 1차 구현과 tenant/user/role/permission/audit surface</li>
+          <li>다음: audit-log-service 저장소와 내부 저장/조회 API 구현</li>
+          <li>다음: outbox-relay-service polling, publish, retry, DLQ 기준 구현</li>
+          <li>다음: DB 규칙과 WMS 도메인 모델 확정</li>
+          <li>다음: wms-service 기본 구조와 기준정보 조회 API 구현</li>
+          <li>다음: WMS 재고 조회와 inventory summary API 구현</li>
+          <li>이후: WMS 재고 조정, 입고 확정, 출고 할당/출고 확정 구현</li>
+          <li>이후: user-bff-service 1차 구현</li>
+          <li>이후: web-wms 화면 연결</li>
+          <li>이후: 운영 JWT, permission cache, alarm, rollback 보강</li>
+          <li>이후: Notification, File, Scheduler, ERP 연동 구현</li>
+          <li>장기: 검색/통계 확장과 MES, QMS, FMS, EMS 순차 추가</li>
         </ol>
       </section>
 
@@ -644,17 +722,19 @@
           <span class="pill">API Gateway</span>
           <span class="arrow">→</span>
           <span class="pill">Admin BFF</span>
-          <span class="pill">User BFF</span>
           <span class="arrow">→</span>
           <span class="pill">Tenant</span>
           <span class="pill">Auth/IAM</span>
+          <span class="pill">Audit</span>
+          <span class="pill">Outbox Relay</span>
           <span class="pill">WMS</span>
+          <span class="pill">User BFF</span>
           <span class="arrow">→</span>
           <span class="pill">WMS DB</span>
           <span class="arrow">→</span>
           <span class="pill">Outbox</span>
           <span class="arrow">→</span>
-          <span class="pill">Kafka</span>
+          <span class="pill">EventBridge/SQS</span>
           <span class="arrow">→</span>
           <span class="pill">Audit / Notification / ERP</span>
         </div>
@@ -667,7 +747,7 @@
         </div>
       </section>
 
-      <p class="footer">작성일: 2026-05-29 · 프로젝트: multi-tenant smart factory</p>
+      <p class="footer">최종 업데이트: 2026-06-12 · 프로젝트: multi-tenant smart factory</p>
     </main>
   </body>
 </html>

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>audit-log-service 개발과정</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Development Process</p>
+        <h1>audit-log-service 개발과정</h1>
+        <p class="lead">사용자와 관리자의 중요한 업무 행위를 append-only 감사 로그로 저장하고 조회합니다.</p>
+      </header>
+
+      <section>
+        <h2>서비스/앱 역할</h2>
+        <table>
+          <tr><th>위치</th><td><code>apps/audit-log-service</code></td></tr>
+          <tr><th>카테고리</th><td>Backend Service · Audit</td></tr>
+          <tr><th>책임</th><td>감사 로그 저장, 검색/조회, 보존 정책, evidence 추적, requestId 기반 시스템 로그 연결</td></tr>
+          <tr><th>연동</th><td>auth-iam-service와 WMS 등 도메인 서비스가 내부 API로 audit record 저장을 요청하고, admin-bff-service가 운영자 조회 API로 위임합니다.</td></tr>
+          <tr><th>주의</th><td>감사 로그는 시스템 로그와 분리하고, 수정/삭제가 아닌 append-only 저장 원칙을 따릅니다.</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>구현 상태</h2>
+        <table>
+          <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>
+          <tr><th>선행 조건</th><td>감사 로그 저장 API 계약, 내부 서비스 인증, 저장소 보존 정책, Admin BFF 조회 계약을 확정해야 합니다.</td></tr>
+          <tr><th>API 문서</th><td><code>docs/apis/audit-log-service/index.html</code>에 내부 저장/조회 API 초안을 기록했습니다.</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>첫 구현 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>POST /api/internal/audit/logs</strong><p>내부 서비스가 감사 로그를 저장하는 API</p></div>
+          <div class="card"><strong>GET /api/internal/audit/logs</strong><p>Admin BFF가 조건별 감사 로그를 조회하는 내부 API</p></div>
+          <div class="card"><strong>Audit Store</strong><p>tenantId, actor, action, resource, result, requestId 기반 append-only 저장소</p></div>
+          <div class="card"><strong>Retention</strong><p>보존 기간, 검색 인덱스, 민감 정보 masking 기준</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>TODO</h2>
+        <p>audit-log-service TODO는 완료 항목과 남은 작업을 분리해 갱신합니다.</p>
+        <div class="grid two">
+          <div class="card">
+            <h3>완료</h3>
+            <p>아직 완료된 구현 TODO는 없습니다.</p>
+          </div>
+          <div class="card">
+            <h3>남은 작업</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" disabled /> <code>apps/audit-log-service</code> NestJS 기본 구조 생성</label></p>
+              <p><label><input type="checkbox" disabled /> 감사 로그 Prisma schema와 append-only 저장소 설계</label></p>
+              <p><label><input type="checkbox" disabled /> 내부 저장 API와 내부 조회 API 구현</label></p>
+              <p><label><input type="checkbox" disabled /> auth-iam-service audit 저장 요청 연동 검증</label></p>
+              <p><label><input type="checkbox" disabled /> admin-bff-service audit 조회 연동 검증</label></p>
+              <p><label><input type="checkbox" disabled /> 보존 기간, masking, 검색 조건, paging 기준 문서화</label></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>기능별 작업 내역</h2>
+        <table>
+          <tr><th>Storage</th><td>감사 로그는 append-only로 저장하며 <code>tenantId</code>, <code>requestId</code>, actor, action, resource, result를 필수로 둡니다.</td></tr>
+          <tr><th>Internal API</th><td>저장 API는 내부 서비스 인증을 요구하고, 조회 API는 Admin BFF 전용 내부 호출로 제한합니다.</td></tr>
+          <tr><th>Security</th><td>비밀번호, token, secret, SQL, stack trace, 민감 개인정보 원문은 저장하지 않습니다.</td></tr>
+          <tr><th>Query</th><td>tenant, actor, action, resource, result, 기간, requestId 기준 검색과 page 기반 pagination을 제공합니다.</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>테스트 시나리오</h2>
+        <table>
+          <tr><th>AUDIT-001</th><td>내부 인증이 유효한 서비스는 감사 로그를 저장할 수 있다.</td></tr>
+          <tr><th>AUDIT-002</th><td>필수 필드가 누락된 audit record는 <code>VALIDATION_FAILED</code>로 거절된다.</td></tr>
+          <tr><th>AUDIT-003</th><td>Admin BFF는 tenant, action, 기간 조건으로 감사 로그를 조회할 수 있다.</td></tr>
+          <tr><th>AUDIT-004</th><td>저장된 감사 로그는 수정/삭제 API 없이 append-only 원칙을 유지한다.</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>후속 작업</h2>
+        <p>현재 audit-log-service 착수 전 이어서 확정할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>우선순위</th>
+                <th>작업</th>
+                <th>범위</th>
+                <th>완료 기준</th>
+                <th>함께 갱신할 문서</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td>내부 저장 API 계약 확정</td>
+                <td><code>POST /api/internal/audit/logs</code>의 request body, 내부 인증 header, 실패 시 처리 기준을 확정합니다.</td>
+                <td>auth-iam-service가 사용자/권한 변경 성공 후 audit record를 안정적으로 저장 요청할 수 있습니다.</td>
+                <td>audit-log-service API 문서, auth-iam-service 개발 문서, logging/audit 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td>Admin BFF 조회 계약 확정</td>
+                <td><code>GET /api/internal/audit/logs</code>의 검색 조건, pagination, 권한, tenant scope 기준을 정합니다.</td>
+                <td>Admin BFF의 <code>GET /api/admin/audit-logs</code>가 실제 audit-log-service 조회 API로 연결됩니다.</td>
+                <td>admin-bff-service 개발 문서, admin-bff-service API 문서, audit-log-service API 문서</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>보존 정책과 masking 기준</td>
+                <td>감사 로그 보존 기간, archive, PII masking, 검색 인덱스와 비용 기준을 정합니다.</td>
+                <td>운영 환경에서 감사 로그가 과도한 비용이나 민감 정보 노출 없이 보존됩니다.</td>
+                <td>logging/audit 규칙, security/AWS 규칙, AWS ECS 기술 문서</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>개발 기록</h2>
+        <article>
+          <h3>2026-06-12 서비스 문서 추가</h3>
+          <ul>
+            <li>감사 로그 전담 서비스명을 <code>audit-log-service</code>로 정하고 개발과정 문서를 추가했습니다.</li>
+          </ul>
+        </article>
+      </section>
+
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

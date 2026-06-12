@@ -113,7 +113,7 @@
             <table>
               <tbody>
                 <tr><th><code>/api/auth/**</code></th><td><code>AUTH_IAM_SERVICE_URL</code>로 전달합니다. auth upstream URL은 auth-iam-service 컨트롤러 경로와 맞도록 <code>/api/auth</code> base path까지 포함합니다.</td></tr>
-                <tr><th><code>/api/admin/**</code></th><td><code>ADMIN_BFF_SERVICE_URL</code>로 전달합니다.</td></tr>
+                <tr><th><code>/api/admin/**</code></th><td><code>ADMIN_BFF_SERVICE_URL</code>로 전달합니다. AWS 기본값은 Cloud Map 내부 URL과 admin base path를 포함한 <code>http://admin-bff-service.{env}.multi-tenant.local:3000/api/admin</code>입니다.</td></tr>
                 <tr><th><code>/api/app/**</code></th><td><code>USER_BFF_SERVICE_URL</code>로 전달합니다.</td></tr>
               </tbody>
             </table>

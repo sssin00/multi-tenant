@@ -14,13 +14,23 @@
         <p class="lead">운영자/관리자 화면에 필요한 테넌트, 사용자, 권한, 설정, 감사 로그 API를 조합합니다.</p>
       </header>
       <section>
-        <h2>서비스 역할</h2>
+        <h2>서비스/앱 역할</h2>
         <table>
           <tr><th>위치</th><td><code>apps/admin-bff-service</code></td></tr>
+          <tr><th>카테고리</th><td>Backend Service · BFF</td></tr>
           <tr><th>책임</th><td>테넌트 관리, 사용자/권한 관리, 운영 설정, 감사 로그 조회 화면 API 조합</td></tr>
           <tr><th>제작 시점</th><td><code>tenant-service</code> 1차 완료 후, WMS 본격 개발 전에 운영자용 tenant/user/role 관리 surface부터 제작</td></tr>
           <tr><th>Tenant 관리 경계</th><td>외부 <code>/api/admin/tenants</code> surface를 소유하고, 실제 tenant 생성/상태/module/domain 변경은 tenant-service 내부 API로 위임합니다.</td></tr>
           <tr><th>주의</th><td>권한의 최종 판단은 Auth/IAM에 두고, tenant business rule은 tenant-service에, WMS 업무 정책은 WMS에 둡니다. BFF는 직접 DB에 접근하지 않습니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>구현 상태</h2>
+        <table>
+          <tr><th>상태</th><td><span class="tag done">1차 구현</span></td></tr>
+          <tr><th>완료 범위</th><td>NestJS 기본 구조, Auth/IAM 권한 check, tenant 관리 API, 사용자/role/permission 화면 조합 API, audit log 조회 route/client 사전 준비, CDK 배포 리소스, 수동 배포 workflow</td></tr>
+          <tr><th>남은 범위</th><td>audit-log-service 저장소 구현 후 조회 API 통합 검증, <code>/api/admin/me</code> 구현</td></tr>
+          <tr><th>API 문서</th><td><code>docs/apis/admin-bff-service/index.html</code></td></tr>
         </table>
       </section>
       <section>
@@ -29,6 +39,7 @@
           <div class="card"><strong>GET /api/admin/tenants</strong><p>tenant 목록, 상태, 활성 module 조회</p></div>
           <div class="card"><strong>POST /api/admin/tenants</strong><p>tenant 생성 요청을 tenant-service 내부 API로 위임</p></div>
           <div class="card"><strong>PATCH /api/admin/tenants/{tenantId}/status</strong><p>tenant 활성/정지 상태 변경</p></div>
+          <div class="card"><strong>GET /api/admin/access-control/screen-data</strong><p>사용자/role/permission 화면 초기 데이터 조합</p></div>
           <div class="card"><strong>GET /api/admin/users</strong><p>운영자 사용자 목록과 tenant scope 조회</p></div>
           <div class="card"><strong>POST /api/admin/users</strong><p>사용자 초대 또는 생성 요청 조합</p></div>
           <div class="card"><strong>GET /api/admin/roles</strong><p>role 목록과 permission summary 조회</p></div>
@@ -38,18 +49,94 @@
       </section>
       <section>
         <h2>TODO</h2>
-        <div class="checklist">
-          <p><label><input type="checkbox" disabled /> <code>apps/admin-bff-service</code> NestJS 기본 구조 생성</label></p>
-          <p><label><input type="checkbox" disabled /> Auth/IAM internal client와 관리자 권한 check 적용</label></p>
-          <p><label><input type="checkbox" disabled /> tenant-service internal admin client 구현</label></p>
-          <p><label><input type="checkbox" disabled /> tenant 목록/생성/상태 변경 API 구현</label></p>
-          <p><label><input type="checkbox" disabled /> 사용자/role/permission 화면 조합 API 구현</label></p>
-          <p><label><input type="checkbox" disabled /> 감사 로그 조회 API는 audit 저장소가 준비되면 연결</label></p>
-          <p><label><input type="checkbox" checked disabled /> <code>docs/apis/admin-bff-service/index.html</code>에 API 계약 작성</label></p>
+        <p>admin-bff-service TODO는 완료 항목과 남은 작업을 분리해 갱신합니다.</p>
+        <div class="grid two">
+          <div class="card">
+            <h3>완료</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> <code>apps/admin-bff-service</code> NestJS 기본 구조 생성</label></p>
+              <p><label><input type="checkbox" checked disabled /> Auth/IAM internal client와 관리자 권한 check 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant-service internal admin client 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant 목록/생성/상태 변경 API 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant 상세/기본 정보 수정 API 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant module 교체와 domain 관리 API 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> 사용자/role/permission 화면 조합 API 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> 감사 로그 조회 API route/client 사전 준비</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>docs/apis/admin-bff-service/index.html</code>에 API 계약 작성</label></p>
+            </div>
+          </div>
+          <div class="card">
+            <h3>남은 작업</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" disabled /> audit-log-service 저장소 구현 후 조회 API 통합 검증</label></p>
+              <p><label><input type="checkbox" disabled /> <code>/api/admin/me</code> 구현</label></p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h2>기능별 작업 내역</h2>
+        <table>
+          <tbody>
+            <tr><th>Runtime</th><td>NestJS + TypeScript ESM 구조입니다. <code>pnpm --filter admin-bff-service dev</code>, <code>typecheck</code>, <code>build</code>, <code>start</code> script를 제공합니다.</td></tr>
+            <tr><th>Health</th><td><code>GET /health</code>, <code>GET /ready</code>를 제공합니다. readiness는 config, downstream URL, internal auth secret, CORS/security 기준을 확인합니다.</td></tr>
+            <tr><th>Context</th><td><code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>를 request context에 저장하고 응답 header로 request/tenant id를 전파합니다.</td></tr>
+            <tr><th>Logging</th><td>요청 완료 시 JSON access log에 <code>requestId</code>, <code>tenantId</code>, <code>userId</code>, <code>method</code>, <code>path</code>, <code>statusCode</code>, <code>durationMs</code>를 남깁니다.</td></tr>
+            <tr><th>Security</th><td>기존 gateway-service와 같은 보안 header와 명시 origin 기반 CORS 규칙을 사용합니다.</td></tr>
+            <tr><th>Internal auth</th><td>auth-iam-service와 tenant-service 호출에 사용할 HMAC signer를 추가했습니다.</td></tr>
+            <tr><th>Permission check</th><td><code>@AdminPermission(...)</code> decorator와 전역 guard를 추가했습니다. decorator가 붙은 route는 auth-iam-service의 <code>POST /api/auth/permissions/check</code>를 internal auth로 호출해 관리자 권한을 확인합니다.</td></tr>
+            <tr><th>Tenant client</th><td><code>TenantInternalClient</code>를 추가했습니다. tenant 목록/생성/상세/수정/상태/module/domain 내부 API를 호출하고, 변경성 요청에는 <code>Idempotency-Key</code>를 전파합니다.</td></tr>
+            <tr><th>Audit client</th><td><code>AuditLogInternalClient</code>와 <code>GET /api/admin/audit-logs</code> controller를 준비했습니다. 실제 audit 저장소가 준비되고 <code>AUDIT_LOG_SERVICE_URL</code>이 설정되면 <code>GET /api/internal/audit/logs</code>로 위임합니다.</td></tr>
+            <tr><th>Infra</th><td><code>apps/admin-bff-service/Dockerfile</code>을 추가했습니다. ECS 컨테이너 기본 포트는 <code>3000</code>이고 gateway는 Cloud Map 내부 URL과 <code>/api/admin</code> base path를 포함한 <code>ADMIN_BFF_SERVICE_URL</code>로 <code>/api/admin/**</code>를 전달합니다.</td></tr>
+            <tr><th>Deploy</th><td>CDK에 ECR repository, CloudWatch log group, security group, ECS Fargate task/service, Cloud Map service를 추가했습니다. 기본 <code>adminBffDesiredCount</code>는 <code>0</code>이며, 이미지 push 후 <code>deploy-admin-bff-service.yml</code> 수동 workflow로 desired count를 올립니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>테스트 시나리오</h2>
+        <table>
+          <tr><th>ADMIN-BFF-001</th><td>관리자 권한이 있는 사용자는 tenant 목록/상세/생성/수정/상태/module/domain API를 호출할 수 있다.</td></tr>
+          <tr><th>ADMIN-BFF-002</th><td>권한이 없는 사용자는 각 API의 <code>@AdminPermission</code> 기준에 따라 <code>403 FORBIDDEN</code>으로 차단된다.</td></tr>
+          <tr><th>ADMIN-BFF-003</th><td>변경성 요청은 <code>Idempotency-Key</code>가 없으면 차단되고, downstream 내부 호출에도 header가 전파된다.</td></tr>
+          <tr><th>ADMIN-BFF-004</th><td>audit-log-service URL이 없는 환경에서 audit log 조회는 <code>AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>로 실패한다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>후속 작업</h2>
+        <p>현재 Admin BFF의 1차 구현 이후 이어서 진행할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>우선순위</th>
+                <th>작업</th>
+                <th>범위</th>
+                <th>완료 기준</th>
+                <th>함께 갱신할 문서</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td>audit-log-service 통합 검증</td>
+                <td>audit-log-service 저장소와 내부 조회 계약이 준비되면 <code>GET /api/admin/audit-logs</code>를 실제 downstream으로 연결합니다.</td>
+                <td>관리자 audit log 조회가 권한 check, request context, internal auth header를 유지한 채 성공하고 실패 응답이 표준 envelope로 반환됩니다.</td>
+                <td>admin-bff-service API 문서, audit-log-service 개발 문서, logging/audit 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>Admin Me API 구현</td>
+                <td><code>/api/admin/me</code>에서 관리자 프로필, tenant scope, permission summary, 메뉴 표시용 권한 정보를 조합합니다.</td>
+                <td>web-admin 초기화 화면이 별도 중복 호출 없이 현재 사용자와 권한 요약을 받아 렌더링할 수 있습니다.</td>
+                <td>admin-bff-service API 문서, web-admin 개발 문서, Auth/IAM 개발 문서</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
       <section>
         <h2>개발 기록</h2>
+
         <article>
           <h3>2026-06-11 BFF 경계 최신화</h3>
           <ul>
@@ -63,6 +150,91 @@
           <ul>
             <li><code>docs/apis/admin-bff-service/index.html</code>에 Admin BFF 외부 API 계약, downstream 위임 기준, 에러 코드, 검증 시나리오를 정리했습니다.</li>
             <li><code>POST /api/admin/tenants</code>를 첫 구현 후보로 두고, tenant-service의 추가 내부 API가 필요한 tenant 목록/상세/상태/module/domain API는 blocked 상태로 표시했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 NestJS 기본 구조 생성</h3>
+          <ul>
+            <li><code>apps/admin-bff-service</code>를 실행 가능한 NestJS 앱 구조로 전환하고 package script, tsconfig, Dockerfile을 추가했습니다.</li>
+            <li>request context, access log, security headers, global exception filter, health/readiness, internal auth signer를 기존 서비스 패턴에 맞춰 구성했습니다.</li>
+            <li>Admin BFF는 직접 DB에 접근하지 않으므로 readiness는 downstream URL과 internal auth secret 중심으로 확인합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 Auth/IAM 권한 check 레이어 추가</h3>
+          <ul>
+            <li>auth-iam-service의 <code>GET /api/auth/permissions/summary</code>, <code>POST /api/auth/permissions/check</code>를 호출하는 internal client를 추가했습니다.</li>
+            <li><code>@AdminPermission(...)</code> decorator와 <code>AdminPermissionGuard</code>를 전역 guard로 등록해, 관리자 API별 permission check를 붙일 수 있게 했습니다.</li>
+            <li>권한 확인은 propagated <code>X-Tenant-Id</code>, <code>X-User-Id</code>, <code>X-Request-Id</code>를 사용하고, 실패 시 표준 error envelope로 응답합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 Tenant internal admin client 추가</h3>
+          <ul>
+            <li>tenant-service의 내부 API를 호출하는 <code>TenantInternalClient</code>를 추가했습니다.</li>
+            <li>현재 구현된 tenant 생성과 module 조회 API를 호출할 수 있고, tenant 목록/상세/수정/상태/module/domain API는 tenant-service 선행 구현 후 바로 연결할 수 있도록 메서드를 준비했습니다.</li>
+            <li>tenant-service 호출도 <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>와 HMAC internal auth header를 전파합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 Tenant 목록/생성/상태 변경 API 구현</h3>
+          <ul>
+            <li><code>GET /api/admin/tenants</code>, <code>POST /api/admin/tenants</code>, <code>PATCH /api/admin/tenants/{tenantId}/status</code> controller를 추가했습니다.</li>
+            <li>각 API에 <code>@AdminPermission</code>을 적용해 auth-iam-service permission check를 거친 뒤 tenant-service 내부 API로 위임합니다.</li>
+            <li>외부 응답은 Admin BFF envelope로 감싸고, request context와 internal auth header를 downstream으로 전파합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-11 사용자/Role/Permission 화면 API 구현</h3>
+          <ul>
+            <li><code>GET/POST/PATCH/DELETE /api/admin/users/**</code>와 user-role 부여/해제 API를 추가했습니다.</li>
+            <li><code>GET/POST/PATCH /api/admin/roles/**</code>, <code>PUT /api/admin/roles/{roleId}/permissions</code>, <code>GET/POST /api/admin/permissions</code> API를 추가했습니다.</li>
+            <li><code>GET /api/admin/access-control/screen-data</code>는 사용자 목록, role 목록, permission 목록을 병렬 조회해 화면 초기 데이터를 조합합니다.</li>
+            <li>사용자 상세 API는 사용자 상세와 user-role 목록을 함께 조합해 반환합니다.</li>
+            <li>화면 조합 API에는 users, roles, permissions read 권한을 모두 확인하는 다중 permission check를 적용했습니다.</li>
+            <li>모든 API는 <code>@AdminPermission</code>으로 Auth/IAM permission check를 거친 뒤 auth-iam-service로 위임하고, 변경성 요청은 <code>Idempotency-Key</code> header를 필수로 확인합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 Tenant 상세/Module/Domain API 연결</h3>
+          <ul>
+            <li><code>GET/PATCH /api/admin/tenants/{tenantId}</code>를 tenant-service 내부 상세/수정 API로 연결했습니다.</li>
+            <li><code>PUT /api/admin/tenants/{tenantId}/modules</code>와 tenant domain 목록/추가/비활성화 API를 연결했습니다.</li>
+            <li>변경성 요청은 <code>Idempotency-Key</code>를 필수로 확인하고 tenant-service 내부 호출에도 header를 전파합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 TODO 상태 점검</h3>
+          <ul>
+            <li>tenant 목록/생성/상태 변경, 사용자/role/permission 화면 조합, 감사 로그 조회 route/client 사전 준비는 완료 상태로 확인했습니다.</li>
+            <li>이후 tenant 상세/수정, module 교체, domain 관리 API까지 연결되어 Admin BFF tenant 관리 TODO는 audit-log-service 통합 검증과 <code>/api/admin/me</code>를 제외하고 완료되었습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 Audit log 조회 API 사전 준비</h3>
+          <ul>
+            <li><code>GET /api/admin/audit-logs</code> controller를 추가하고 <code>audit.logs.read</code> permission check를 적용했습니다.</li>
+            <li><code>AuditLogInternalClient</code>를 추가해 <code>AUDIT_LOG_SERVICE_URL</code>이 설정되면 <code>GET /api/internal/audit/logs</code>로 query, request context, internal auth header를 전파하도록 준비했습니다.</li>
+            <li>audit 저장소가 아직 준비되지 않은 환경에서는 <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>로 응답하도록 해, API surface는 열어두되 미구현 저장소 호출은 방지합니다.</li>
+            <li><code>AUDIT_INTERNAL_AUTH_SECRET</code> 설정을 추가했습니다. audit-log-service URL이 설정된 환경에서는 readiness가 audit 내부 인증 secret도 확인합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 Admin BFF CDK 배포 구성</h3>
+          <ul>
+            <li><code>infra/cdk/lib/gateway-service-stack.ts</code>에 Admin BFF용 ECR repository, ECS Fargate task definition/service, CloudWatch log group, security group, Cloud Map 등록을 추가했습니다.</li>
+            <li>첫 인프라 배포에서 비어 있는 ECR 때문에 task가 실패하지 않도록 <code>adminBffDesiredCount=0</code>을 기본값으로 사용합니다.</li>
+            <li><code>deploy-admin-bff-service.yml</code>은 수동 실행 전용이며, gateway/auth/tenant desired count와 image tag를 명시 입력으로 받아 같은 CDK 스택의 비대상 서비스를 보존합니다.</li>
+            <li>gateway-service의 기본 Admin BFF upstream은 <code>http://admin-bff-service.{envName}.multi-tenant.local:3000/api/admin</code> Cloud Map URL로 정리했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 로컬 배포 검증</h3>
+          <ul>
+            <li><code>docker/local/docker-compose.yml</code>에 Admin BFF를 포함해 gateway, auth-iam, tenant, admin-bff, PostgreSQL, Redis, LocalStack을 함께 기동하도록 정리했습니다.</li>
+            <li><code>pnpm db:reset:local</code>로 auth_iam/tenant DB를 재생성하고 seed를 넣은 뒤 네 개 API 서비스의 <code>/ready</code>가 모두 <code>ok</code>인 것을 확인했습니다.</li>
+            <li>gateway 경유 <code>POST /api/auth/login</code> 후 <code>GET /api/admin/access-control/screen-data</code>를 호출해 Admin BFF proxy, internal auth, tenant status check, Auth/IAM permission check, downstream 조합 응답을 통합 확인했습니다.</li>
+            <li>검증 중 발견한 gateway upstream base path 누락은 <code>ADMIN_BFF_SERVICE_URL</code>에 <code>/api/admin</code>을 포함하도록 수정했습니다.</li>
           </ul>
         </article>
       </section>

@@ -67,6 +67,24 @@
         margin-bottom: 8px;
       }
 
+      .service-card .card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      .service-card .card-head h3 {
+        margin-bottom: 0;
+      }
+
+      .service-card .progress-note {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
       .section-title {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -122,12 +140,20 @@
             <span>설계 관련 문서, 규칙 페이지, 설계도</span>
           </div>
           <div class="metric">
-            <strong>7</strong>
+            <strong>9</strong>
             <span>API 문서 허브와 서비스별 endpoint 문서</span>
           </div>
           <div class="metric">
-            <strong>9</strong>
+            <strong>10</strong>
             <span>서비스별 개발과정 문서</span>
+          </div>
+          <div class="metric">
+            <strong>4</strong>
+            <span>1차 구현 또는 배포 준비가 진행된 backend service</span>
+          </div>
+          <div class="metric">
+            <strong>6</strong>
+            <span>착수 전 또는 선행 계약 대기 서비스/앱</span>
           </div>
         </div>
       </section>
@@ -184,7 +210,7 @@
           <a class="doc-card" href="./infra/2026-06-10/index.html">
             <div>
               <h2>2026-06-10</h2>
-              <p>CDK 인프라 코드를 파일별·기능별로 정리하고, gateway/auth-iam 공동 스택 전환 등 이전 대비 변경점을 기록합니다.</p>
+              <p>CDK 인프라 코드를 파일별·기능별로 정리하고, gateway/auth-iam/tenant/admin-bff 공동 스택 전환 등 현재 배포 준비 상태를 기록합니다.</p>
             </div>
             <span class="tag">INFRA</span>
           </a>
@@ -282,6 +308,13 @@
             </div>
             <span class="tag done">READY</span>
           </a>
+          <a class="doc-card" href="./apis/audit-log-service/index.html">
+            <div>
+              <h2>audit-log-service API</h2>
+              <p>append-only 감사 로그 저장과 관리자 조회 API 초안을 정리합니다.</p>
+            </div>
+            <span class="tag todo">TODO</span>
+          </a>
         </div>
       </section>
 
@@ -295,40 +328,92 @@
         </div>
         <div class="service-grid">
           <a class="service-card" href="./development/services/gateway-service.html">
-            <h3>gateway-service</h3>
+            <div class="card-head">
+              <h3>gateway-service</h3>
+              <span class="tag done">1차 구현</span>
+            </div>
             <p>요청 컨텍스트, tenant 식별, JWT 검증, 라우팅, rate limit</p>
+            <p class="progress-note">Docker, health/ready, proxy, Redis rate limit, tenant status check, CDK 배포 구성이 정리되었습니다.</p>
           </a>
           <a class="service-card" href="./development/services/admin-bff-service.html">
-            <h3>admin-bff-service</h3>
+            <div class="card-head">
+              <h3>admin-bff-service</h3>
+              <span class="tag done">1차 구현</span>
+            </div>
             <p>WMS 전에 tenant, 사용자, role, module 운영 기반 API 조합</p>
+            <p class="progress-note">Tenant 관리, 사용자/role/permission 화면 API, audit log 조회 route/client, CDK 배포 준비까지 진행되었습니다.</p>
           </a>
           <a class="service-card" href="./development/services/user-bff-service.html">
-            <h3>user-bff-service</h3>
+            <div class="card-head">
+              <h3>user-bff-service</h3>
+              <span class="tag todo">대기</span>
+            </div>
             <p>WMS 1차 API 이후 사용자 화면 데이터와 app shell API 조합</p>
+            <p class="progress-note">WMS 조회 API와 web-wms 첫 화면 데이터 형태가 정리된 뒤 착수합니다.</p>
           </a>
           <a class="service-card" href="./development/services/tenant-service.html">
-            <h3>tenant-service</h3>
+            <div class="card-head">
+              <h3>tenant-service</h3>
+              <span class="tag done">1차 구현</span>
+            </div>
             <p>테넌트, 모듈, 도메인, DB 전략 관리</p>
+            <p class="progress-note">Tenant status, admin tenant 관리, module/domain 내부 API, seed 데이터, CDK 배포 준비가 정리되었습니다.</p>
           </a>
           <a class="service-card" href="./development/services/auth-iam-service.html">
-            <h3>auth-iam-service</h3>
+            <div class="card-head">
+              <h3>auth-iam-service</h3>
+              <span class="tag done">1차 구현</span>
+            </div>
             <p>로그인, JWT, 사용자, 역할, 권한, tenant scope</p>
+            <p class="progress-note">Login/refresh/logout, user/role/permission, permission summary/check, audit/outbox, seed 데이터가 구현되었습니다.</p>
           </a>
           <a class="service-card" href="./development/services/wms-service.html">
-            <h3>wms-service</h3>
+            <div class="card-head">
+              <h3>wms-service</h3>
+              <span class="tag todo">착수 전</span>
+            </div>
             <p>기준정보, 재고, 입고, 출고, 작업 지시</p>
+            <p class="progress-note">입고, 재고 조정, 출고 할당/확정, audit/outbox 저장을 첫 구현 범위로 유지합니다.</p>
           </a>
           <a class="service-card" href="./development/services/outbox-relay-service.html">
-            <h3>outbox-relay-service</h3>
+            <div class="card-head">
+              <h3>outbox-relay-service</h3>
+              <span class="tag todo">착수 전</span>
+            </div>
             <p>Outbox 이벤트 발행, EventBridge/SQS 연동, retry</p>
+            <p class="progress-note">Auth/IAM과 tenant-service의 outbox_events relay 대상, retry, DLQ 정책 확정이 선행 작업입니다.</p>
+          </a>
+          <a class="service-card" href="./development/services/audit-log-service.html">
+            <div class="card-head">
+              <h3>audit-log-service</h3>
+              <span class="tag todo">착수 전</span>
+            </div>
+            <p>감사 로그 저장, 조회, 보존, evidence 관리</p>
+            <p class="progress-note">Auth/IAM과 Admin BFF의 audit 연동 대상이며 append-only 감사 로그 저장소를 담당합니다.</p>
           </a>
           <a class="service-card" href="./development/services/web-wms.html">
-            <h3>web-wms</h3>
+            <div class="card-head">
+              <h3>web-wms</h3>
+              <span class="tag todo">착수 전</span>
+            </div>
             <p>WMS 사용자와 현장 작업자용 React + Vite 앱</p>
+            <p class="progress-note">WMS 1차 API와 User BFF screen-data 계약 이후 화면 구현을 시작합니다.</p>
           </a>
           <a class="service-card" href="./development/services/web-admin.html">
-            <h3>web-admin</h3>
+            <div class="card-head">
+              <h3>web-admin</h3>
+              <span class="tag todo">착수 전</span>
+            </div>
             <p>운영자와 관리자를 위한 React + Vite 앱</p>
+            <p class="progress-note">Admin BFF tenant/user/role/permission API를 기준으로 첫 운영 화면을 연결합니다.</p>
+          </a>
+          <a class="service-card" href="./development/future-tasks.html">
+            <div class="card-head">
+              <h3>추후 작업 통합 목록</h3>
+              <span class="tag">TRACK</span>
+            </div>
+            <p>서비스별 TODO, 후속 작업, blocked 항목을 우선순위별로 모아봅니다.</p>
+            <p class="progress-note">서비스별 후속 작업을 한곳에서 우선순위 기준으로 확인하는 보조 문서입니다.</p>
           </a>
         </div>
       </section>
@@ -357,7 +442,7 @@
         </div>
       </section>
 
-      <p class="footer">작성일: 2026-06-01 · 현행화: 2026-06-11 · 문서 기준: 아키텍처 현황 / 설계 / API 문서 / 개발과정</p>
+      <p class="footer">작성일: 2026-06-01 · 현행화: 2026-06-12 · 문서 기준: 아키텍처 현황 / 설계 / API 문서 / 개발과정</p>
     </main>
   </body>
 </html>

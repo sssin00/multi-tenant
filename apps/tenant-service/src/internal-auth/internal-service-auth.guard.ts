@@ -115,7 +115,20 @@ export class InternalServiceAuthGuard implements CanActivate {
       return "";
     }
 
+    if (this.isEmptyObject(body)) {
+      return "";
+    }
+
     return JSON.stringify(body);
+  }
+
+  private isEmptyObject(value: unknown): value is Record<string, never> {
+    return (
+      typeof value === "object" &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.keys(value).length === 0
+    );
   }
 
   private safeEqual(actual: string, expected: string): boolean {

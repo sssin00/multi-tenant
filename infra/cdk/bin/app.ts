@@ -48,6 +48,13 @@ const tenantDesiredCount = readNonNegativeIntegerContext("tenantDesiredCount", 0
 const tenantCorsAllowedOrigins = readOptionalContextString("tenantCorsAllowedOrigins");
 const tenantDatabaseUrlSecretArn = readOptionalContextString("tenantDatabaseUrlSecretArn");
 const tenantInternalAuthSecretArn = readOptionalContextString("tenantInternalAuthSecretArn");
+const adminBffImageTag = app.node.tryGetContext("adminBffImageTag") ?? "latest";
+const adminBffDesiredCount = readNonNegativeIntegerContext("adminBffDesiredCount", 0);
+const adminBffCorsAllowedOrigins = readOptionalContextString("adminBffCorsAllowedOrigins");
+const adminBffAuthInternalAuthSecretArn = readOptionalContextString("adminBffAuthInternalAuthSecretArn");
+const adminBffTenantInternalAuthSecretArn = readOptionalContextString("adminBffTenantInternalAuthSecretArn");
+const adminBffAuditInternalAuthSecretArn = readOptionalContextString("adminBffAuditInternalAuthSecretArn");
+const auditLogServiceUrl = readOptionalContextString("auditLogServiceUrl");
 const authIamServiceUrl = readOptionalContextString("authIamServiceUrl");
 const adminBffServiceUrl = readOptionalContextString("adminBffServiceUrl");
 const userBffServiceUrl = readOptionalContextString("userBffServiceUrl");
@@ -83,6 +90,13 @@ new GatewayServiceStack(app, `${project}-${envName}-gateway-service-stack`, {
   tenantCorsAllowedOrigins,
   tenantDatabaseUrlSecretArn,
   tenantInternalAuthSecretArn,
+  adminBffImageTag,
+  adminBffDesiredCount,
+  adminBffCorsAllowedOrigins,
+  adminBffAuthInternalAuthSecretArn,
+  adminBffTenantInternalAuthSecretArn,
+  adminBffAuditInternalAuthSecretArn,
+  auditLogServiceUrl,
   authIamServiceUrl,
   adminBffServiceUrl,
   userBffServiceUrl,

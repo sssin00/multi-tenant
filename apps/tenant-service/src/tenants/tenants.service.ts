@@ -3,8 +3,9 @@ import { domainToASCII } from "node:url";
 
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 
+import type { Prisma } from "../generated/prisma/client.js";
 import { PrismaService } from "../database/prisma.service.js";
-import { TenantStatus } from "../generated/prisma/enums.js";
+import { TenantDomainStatus, TenantStatus } from "../generated/prisma/enums.js";
 import { OutboxEventService } from "../outbox/outbox-event.service.js";
 
 const TENANT_CODE_BASE_LENGTH = 4;
@@ -113,6 +114,52 @@ export interface CreateTenantCommand {
   callerUserId?: string;
 }
 
+export interface ListTenantsCommand {
+  query: Record<string, unknown>;
+  requestId?: string;
+  callerTenantId?: string;
+  callerUserId?: string;
+}
+
+export interface UpdateTenantStatusCommand {
+  tenantId: string;
+  body: unknown;
+  requestId?: string;
+  callerTenantId?: string;
+  callerUserId?: string;
+}
+
+export interface UpdateTenantCommand {
+  tenantId: string;
+  body: unknown;
+  requestId?: string;
+  callerTenantId?: string;
+  callerUserId?: string;
+}
+
+export interface ReplaceTenantModulesCommand {
+  tenantId: string;
+  body: unknown;
+  requestId?: string;
+  callerTenantId?: string;
+  callerUserId?: string;
+}
+
+export interface TenantDomainCommand {
+  tenantId: string;
+  requestId?: string;
+  callerTenantId?: string;
+  callerUserId?: string;
+}
+
+export interface AddTenantDomainCommand extends TenantDomainCommand {
+  body: unknown;
+}
+
+export interface DeleteTenantDomainCommand extends TenantDomainCommand {
+  domainId: string;
+}
+
 export interface TenantStatusResponse {
   tenantId: string;
   code: string;
@@ -134,6 +181,42 @@ export interface TenantResponse {
   dbStrategy: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TenantListResponse {
+  items: TenantListItemResponse[];
+  page: number;
+  size: number;
+  total: number;
+}
+
+export interface TenantListItemResponse extends TenantResponse {
+  domains: string[];
+  enabledModules: string[];
+}
+
+export interface TenantDomainResponse {
+  domainId: string;
+  tenantId: string;
+  domain: string;
+  status: TenantDomainStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenantDetailResponse extends TenantResponse {
+  domains: TenantDomainResponse[];
+  enabledModules: string[];
+  settings: Record<string, unknown>;
+}
+
+export interface TenantDomainListResponse {
+  items: TenantDomainResponse[];
+}
+
+export interface ReplaceTenantModulesResponse {
+  tenantId: string;
+  enabledModules: string[];
 }
 
 @Injectable()
@@ -189,6 +272,344 @@ export class TenantsService {
     });
 
     return this.toTenantResponse(tenant);
+  }
+
+  async list(command: ListTenantsCommand): Promise<TenantListResponse> {
+    const query = this.validateListQuery(command.query);
+    const where = this.buildTenantListWhere(query);
+    const [items, total] = await Promise.all([
+      this.prismaService.tenant.findMany({
+        where,
+        orderBy: {
+          createdAt: "desc"
+        },
+        skip: (query.page - 1) * query.size,
+        take: query.size,
+        include: {
+          domains: {
+            orderBy: {
+              createdAt: "asc"
+            },
+            select: {
+              domain: true
+            }
+          },
+          modules: {
+            where: {
+              enabled: true
+            },
+            orderBy: {
+              moduleCode: "asc"
+            },
+            select: {
+              moduleCode: true
+            }
+          }
+        }
+      }),
+      this.prismaService.tenant.count({
+        where
+      })
+    ]);
+
+    return {
+      items: items.map((tenant) => this.toTenantListItemResponse(tenant)),
+      page: query.page,
+      size: query.size,
+      total
+    };
+  }
+
+  async get(command: TenantLookupCommand): Promise<TenantDetailResponse> {
+    const tenantId = this.requireTenantId(command.tenantId);
+    const tenant = await this.prismaService.tenant.findUnique({
+      where: {
+        id: tenantId
+      },
+      include: {
+        domains: {
+          orderBy: {
+            createdAt: "asc"
+          }
+        },
+        modules: {
+          where: {
+            enabled: true
+          },
+          orderBy: {
+            moduleCode: "asc"
+          }
+        },
+        settings: {
+          orderBy: {
+            key: "asc"
+          }
+        }
+      }
+    });
+
+    if (!tenant) {
+      throw this.notFound();
+    }
+
+    return this.toTenantDetailResponse(tenant);
+  }
+
+  async update(command: UpdateTenantCommand): Promise<TenantResponse> {
+    const tenantId = this.requireTenantId(command.tenantId);
+    const input = this.validateUpdateBody(command.body);
+    const existingTenant = await this.prismaService.tenant.findUnique({
+      where: {
+        id: tenantId
+      }
+    });
+
+    if (!existingTenant) {
+      throw this.notFound();
+    }
+
+    if (existingTenant.name === input.name) {
+      return this.toTenantResponse(existingTenant);
+    }
+
+    const updatedTenant = await this.prismaService.tenant.update({
+      where: {
+        id: tenantId
+      },
+      data: {
+        name: input.name
+      }
+    });
+
+    return this.toTenantResponse(updatedTenant);
+  }
+
+  async updateStatus(command: UpdateTenantStatusCommand): Promise<TenantResponse> {
+    const tenantId = this.requireTenantId(command.tenantId);
+    const input = this.validateUpdateStatusBody(command.body);
+    const existingTenant = await this.prismaService.tenant.findUnique({
+      where: {
+        id: tenantId
+      }
+    });
+
+    if (!existingTenant) {
+      throw this.notFound();
+    }
+
+    if (existingTenant.status === input.status) {
+      return this.toTenantResponse(existingTenant);
+    }
+
+    const updatedTenant = await this.prismaService.$transaction(async (tx) => {
+      const tenant = await tx.tenant.update({
+        where: {
+          id: tenantId
+        },
+        data: {
+          status: input.status
+        }
+      });
+
+      await this.outboxEventService.record(tx, {
+        context: {
+          tenantId,
+          userId: command.callerUserId,
+          requestId: command.requestId
+        },
+        eventType: "tenant.status.changed",
+        aggregateType: "tenant",
+        aggregateId: tenantId,
+        data: {
+          tenantId,
+          previousStatus: existingTenant.status,
+          status: tenant.status,
+          reason: input.reason ?? null
+        }
+      });
+
+      return tenant;
+    });
+
+    return this.toTenantResponse(updatedTenant);
+  }
+
+  async replaceModules(command: ReplaceTenantModulesCommand): Promise<ReplaceTenantModulesResponse> {
+    const tenantId = this.requireTenantId(command.tenantId);
+    const input = this.validateReplaceModulesBody(command.body);
+    await this.ensureTenantExists(tenantId);
+
+    const enabledModules = await this.prismaService.$transaction(async (tx) => {
+      const existingModules = await tx.tenantModule.findMany({
+        where: {
+          tenantId
+        },
+        select: {
+          moduleCode: true,
+          enabled: true
+        }
+      });
+      const existingEnabled = new Set(
+        existingModules.filter((module) => module.enabled).map((module) => module.moduleCode)
+      );
+      const requestedEnabled = new Set(input.enabledModules);
+      const modulesToEnable = input.enabledModules.filter((moduleCode) => !existingEnabled.has(moduleCode));
+      const modulesToDisable = [...existingEnabled].filter((moduleCode) => !requestedEnabled.has(moduleCode));
+
+      for (const moduleCode of input.enabledModules) {
+        await tx.tenantModule.upsert({
+          where: {
+            tenantId_moduleCode: {
+              tenantId,
+              moduleCode
+            }
+          },
+          update: {
+            enabled: true
+          },
+          create: {
+            tenantId,
+            moduleCode,
+            enabled: true
+          }
+        });
+      }
+
+      if (modulesToDisable.length > 0) {
+        await tx.tenantModule.updateMany({
+          where: {
+            tenantId,
+            moduleCode: {
+              in: modulesToDisable
+            }
+          },
+          data: {
+            enabled: false
+          }
+        });
+      }
+
+      for (const moduleCode of modulesToEnable) {
+        await this.outboxEventService.record(tx, {
+          context: {
+            tenantId,
+            userId: command.callerUserId,
+            requestId: command.requestId
+          },
+          eventType: "tenant.module.enabled",
+          aggregateType: "tenant",
+          aggregateId: tenantId,
+          data: {
+            tenantId,
+            moduleCode
+          }
+        });
+      }
+
+      for (const moduleCode of modulesToDisable) {
+        await this.outboxEventService.record(tx, {
+          context: {
+            tenantId,
+            userId: command.callerUserId,
+            requestId: command.requestId
+          },
+          eventType: "tenant.module.disabled",
+          aggregateType: "tenant",
+          aggregateId: tenantId,
+          data: {
+            tenantId,
+            moduleCode
+          }
+        });
+      }
+
+      const currentModules = await tx.tenantModule.findMany({
+        where: {
+          tenantId,
+          enabled: true
+        },
+        orderBy: {
+          moduleCode: "asc"
+        },
+        select: {
+          moduleCode: true
+        }
+      });
+
+      return currentModules.map((module) => module.moduleCode);
+    });
+
+    return {
+      tenantId,
+      enabledModules
+    };
+  }
+
+  async listDomains(command: TenantDomainCommand): Promise<TenantDomainListResponse> {
+    const tenantId = this.requireTenantId(command.tenantId);
+    await this.ensureTenantExists(tenantId);
+    const domains = await this.prismaService.tenantDomain.findMany({
+      where: {
+        tenantId
+      },
+      orderBy: {
+        createdAt: "asc"
+      }
+    });
+
+    return {
+      items: domains.map((domain) => this.toTenantDomainResponse(domain))
+    };
+  }
+
+  async addDomain(command: AddTenantDomainCommand): Promise<TenantDomainResponse> {
+    const tenantId = this.requireTenantId(command.tenantId);
+    const input = this.validateAddDomainBody(command.body);
+    await this.ensureTenantExists(tenantId);
+    await this.ensureDomainAvailable(input.domain);
+
+    const domain = await this.prismaService.tenantDomain.create({
+      data: {
+        tenantId,
+        domain: input.domain
+      }
+    });
+
+    return this.toTenantDomainResponse(domain);
+  }
+
+  async deleteDomain(command: DeleteTenantDomainCommand): Promise<TenantDomainResponse> {
+    const tenantId = this.requireTenantId(command.tenantId);
+    const domainId = this.requireDomainId(command.domainId);
+    await this.ensureTenantExists(tenantId);
+    const existingDomain = await this.prismaService.tenantDomain.findFirst({
+      where: {
+        id: domainId,
+        tenantId
+      }
+    });
+
+    if (!existingDomain) {
+      throw new NotFoundException({
+        code: "TENANT_DOMAIN_NOT_FOUND",
+        message: "Tenant domain not found"
+      });
+    }
+
+    if (existingDomain.status === TenantDomainStatus.disabled) {
+      return this.toTenantDomainResponse(existingDomain);
+    }
+
+    const domain = await this.prismaService.tenantDomain.update({
+      where: {
+        id: domainId
+      },
+      data: {
+        status: TenantDomainStatus.disabled
+      }
+    });
+
+    return this.toTenantDomainResponse(domain);
   }
 
   async getStatus(command: TenantLookupCommand): Promise<TenantStatusResponse> {
@@ -251,11 +672,37 @@ export class TenantsService {
     };
   }
 
+  private async ensureTenantExists(tenantId: string): Promise<void> {
+    const tenant = await this.prismaService.tenant.findUnique({
+      where: {
+        id: tenantId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!tenant) {
+      throw this.notFound();
+    }
+  }
+
   private requireTenantId(value: string): string {
     if (!this.isUuid(value)) {
       throw new BadRequestException({
         code: "TENANT_INVALID_ID",
         message: "Tenant id must be a UUID"
+      });
+    }
+
+    return value;
+  }
+
+  private requireDomainId(value: string): string {
+    if (!this.isUuid(value)) {
+      throw new BadRequestException({
+        code: "TENANT_DOMAIN_INVALID_ID",
+        message: "Tenant domain id must be a UUID"
       });
     }
 
@@ -285,6 +732,187 @@ export class TenantsService {
       name,
       domain
     };
+  }
+
+  private validateListQuery(query: Record<string, unknown>): {
+    page: number;
+    size: number;
+    status?: TenantStatus;
+    code?: string;
+    name?: string;
+    domain?: string;
+  } {
+    return {
+      page: this.readPageNumber(query.page),
+      size: this.readPageSize(query.size),
+      status: query.status === undefined ? undefined : this.readTenantStatus(query.status, "status"),
+      code: this.readOptionalSearchString(query.code, "code", 50),
+      name: this.readOptionalSearchString(query.name, "name", 100),
+      domain: this.readOptionalSearchString(query.domain, "domain", 253)
+    };
+  }
+
+  private buildTenantListWhere(query: {
+    status?: TenantStatus;
+    code?: string;
+    name?: string;
+    domain?: string;
+  }): Prisma.TenantWhereInput {
+    const where: Prisma.TenantWhereInput = {};
+    if (query.status) {
+      where.status = query.status;
+    }
+    if (query.code) {
+      where.code = {
+        contains: query.code,
+        mode: "insensitive"
+      };
+    }
+    if (query.name) {
+      where.name = {
+        contains: query.name,
+        mode: "insensitive"
+      };
+    }
+    if (query.domain) {
+      where.domains = {
+        some: {
+          domain: {
+            contains: query.domain,
+            mode: "insensitive"
+          }
+        }
+      };
+    }
+
+    return where;
+  }
+
+  private validateUpdateStatusBody(body: unknown): { status: TenantStatus; reason?: string } {
+    if (!this.isRecord(body)) {
+      throw this.validationFailed("body", "Request body must be an object");
+    }
+
+    return {
+      status: this.readTenantStatus(body.status, "status"),
+      reason: this.readOptionalSearchString(body.reason, "reason", 500)
+    };
+  }
+
+  private validateUpdateBody(body: unknown): { name: string } {
+    if (!this.isRecord(body)) {
+      throw this.validationFailed("body", "Request body must be an object");
+    }
+
+    if (body.name === undefined) {
+      throw this.validationFailed("name", "name is required");
+    }
+
+    return {
+      name: this.readRequiredString(body.name, "name", 100)
+    };
+  }
+
+  private validateReplaceModulesBody(body: unknown): { enabledModules: string[] } {
+    if (!this.isRecord(body)) {
+      throw this.validationFailed("body", "Request body must be an object");
+    }
+
+    if (!Array.isArray(body.enabledModules)) {
+      throw this.validationFailed("enabledModules", "enabledModules must be an array");
+    }
+
+    const enabledModules = body.enabledModules.map((value, index) => this.readModuleCode(value, `enabledModules.${index}`));
+
+    return {
+      enabledModules: [...new Set(enabledModules)].sort()
+    };
+  }
+
+  private validateAddDomainBody(body: unknown): { domain: string } {
+    if (!this.isRecord(body)) {
+      throw this.validationFailed("body", "Request body must be an object");
+    }
+
+    const domain = this.readRequiredDomain(body.domain);
+
+    return {
+      domain
+    };
+  }
+
+  private readTenantStatus(value: unknown, field: string): TenantStatus {
+    if (typeof value !== "string") {
+      throw this.validationFailed(field, `${field} must be a valid tenant status`);
+    }
+
+    if (
+      value !== TenantStatus.provisioning &&
+      value !== TenantStatus.active &&
+      value !== TenantStatus.suspended &&
+      value !== TenantStatus.deleted
+    ) {
+      throw this.validationFailed(field, `${field} must be one of provisioning, active, suspended, deleted`);
+    }
+
+    return value;
+  }
+
+  private readPageNumber(value: unknown): number {
+    const page = this.readPositiveInteger(value, 1);
+    return Math.max(1, page);
+  }
+
+  private readPageSize(value: unknown): number {
+    const size = this.readPositiveInteger(value, 20);
+    return Math.min(Math.max(1, size), 100);
+  }
+
+  private readPositiveInteger(value: unknown, fallback: number): number {
+    if (value === undefined || value === null || value === "") {
+      return fallback;
+    }
+
+    const parsed = typeof value === "number" ? value : Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw this.validationFailed("page", "page and size must be positive integers");
+    }
+
+    return parsed;
+  }
+
+  private readOptionalSearchString(value: unknown, field: string, maxLength: number): string | undefined {
+    if (value === undefined || value === null || value === "") {
+      return undefined;
+    }
+
+    if (typeof value !== "string") {
+      throw this.validationFailed(field, `${field} must be a string`);
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return undefined;
+    }
+
+    if (trimmed.length > maxLength) {
+      throw this.validationFailed(field, `${field} must be ${maxLength} characters or less`);
+    }
+
+    return trimmed;
+  }
+
+  private readModuleCode(value: unknown, field: string): string {
+    if (typeof value !== "string") {
+      throw this.validationFailed(field, `${field} must be a string`);
+    }
+
+    const moduleCode = value.trim().toLowerCase();
+    if (!/^[a-z][a-z0-9-]{1,49}$/.test(moduleCode)) {
+      throw this.validationFailed(field, `${field} must be a lowercase module code`);
+    }
+
+    return moduleCode;
   }
 
   private async generateUniqueTenantCode(input: { name: string; domain?: string }): Promise<string> {
@@ -425,6 +1053,14 @@ export class TenantsService {
     return this.normalizeDomain(value);
   }
 
+  private readRequiredDomain(value: unknown): string {
+    if (typeof value !== "string" || value.trim().length === 0) {
+      throw this.validationFailed("domain", "domain is required");
+    }
+
+    return this.normalizeDomain(value);
+  }
+
   private async ensureDomainAvailable(domain: string): Promise<void> {
     const existingDomain = await this.prismaService.tenantDomain.findUnique({
       where: {
@@ -502,6 +1138,69 @@ export class TenantsService {
       dbStrategy: tenant.dbStrategy,
       createdAt: tenant.createdAt.toISOString(),
       updatedAt: tenant.updatedAt.toISOString()
+    };
+  }
+
+  private toTenantListItemResponse(tenant: {
+    id: string;
+    code: string;
+    name: string;
+    status: TenantStatus;
+    dbStrategy: string;
+    createdAt: Date;
+    updatedAt: Date;
+    domains: Array<{ domain: string }>;
+    modules: Array<{ moduleCode: string }>;
+  }): TenantListItemResponse {
+    return {
+      ...this.toTenantResponse(tenant),
+      domains: tenant.domains.map((domain) => domain.domain),
+      enabledModules: tenant.modules.map((module) => module.moduleCode)
+    };
+  }
+
+  private toTenantDetailResponse(tenant: {
+    id: string;
+    code: string;
+    name: string;
+    status: TenantStatus;
+    dbStrategy: string;
+    createdAt: Date;
+    updatedAt: Date;
+    domains: Array<{
+      id: string;
+      tenantId: string;
+      domain: string;
+      status: TenantDomainStatus;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+    modules: Array<{ moduleCode: string }>;
+    settings: Array<{ key: string; value: Prisma.JsonValue }>;
+  }): TenantDetailResponse {
+    return {
+      ...this.toTenantResponse(tenant),
+      domains: tenant.domains.map((domain) => this.toTenantDomainResponse(domain)),
+      enabledModules: tenant.modules.map((module) => module.moduleCode),
+      settings: Object.fromEntries(tenant.settings.map((setting) => [setting.key, setting.value]))
+    };
+  }
+
+  private toTenantDomainResponse(domain: {
+    id: string;
+    tenantId: string;
+    domain: string;
+    status: TenantDomainStatus;
+    createdAt: Date;
+    updatedAt: Date;
+  }): TenantDomainResponse {
+    return {
+      domainId: domain.id,
+      tenantId: domain.tenantId,
+      domain: domain.domain,
+      status: domain.status,
+      createdAt: domain.createdAt.toISOString(),
+      updatedAt: domain.updatedAt.toISOString()
     };
   }
 }

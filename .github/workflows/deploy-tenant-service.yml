@@ -35,6 +35,10 @@ jobs:
       AUTH_JWT_ALGORITHM_INPUT: ${{ vars.AUTH_JWT_ALGORITHM }}
       TENANT_DESIRED_COUNT_INPUT: ${{ vars.TENANT_DESIRED_COUNT }}
       TENANT_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.TENANT_CORS_ALLOWED_ORIGINS }}
+      ADMIN_BFF_DESIRED_COUNT_INPUT: ${{ vars.ADMIN_BFF_DESIRED_COUNT }}
+      ADMIN_BFF_IMAGE_TAG_INPUT: ${{ vars.ADMIN_BFF_IMAGE_TAG }}
+      ADMIN_BFF_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.ADMIN_BFF_CORS_ALLOWED_ORIGINS }}
+      AUDIT_LOG_SERVICE_URL_INPUT: ${{ vars.AUDIT_LOG_SERVICE_URL }}
       AUTH_IAM_SERVICE_URL_INPUT: ${{ vars.AUTH_IAM_SERVICE_URL }}
       ADMIN_BFF_SERVICE_URL_INPUT: ${{ vars.ADMIN_BFF_SERVICE_URL }}
       USER_BFF_SERVICE_URL_INPUT: ${{ vars.USER_BFF_SERVICE_URL }}
@@ -47,6 +51,9 @@ jobs:
       AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.AUTH_INTERNAL_AUTH_SECRET_ARN }}
       TENANT_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.TENANT_DATABASE_URL_SECRET_ARN }}
       TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.TENANT_INTERNAL_AUTH_SECRET_ARN }}
+      ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN }}
+      ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN }}
+      ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN }}
 
     steps:
       - name: Checkout
@@ -84,6 +91,8 @@ jobs:
           auth_image_tag="${AUTH_IMAGE_TAG_INPUT:-}"
           tenant_desired_count="${TENANT_DESIRED_COUNT_INPUT:-1}"
           tenant_image_tag="${deploy_env}-${GITHUB_SHA::12}"
+          admin_bff_desired_count="${ADMIN_BFF_DESIRED_COUNT_INPUT:-}"
+          admin_bff_image_tag="${ADMIN_BFF_IMAGE_TAG_INPUT:-}"
           stack_name="multi-tenant-${deploy_env}-gateway-service-stack"
 
           {
@@ -98,6 +107,8 @@ jobs:
             echo "auth-image-tag=${auth_image_tag}"
             echo "tenant-desired-count=${tenant_desired_count}"
             echo "tenant-image-tag=${tenant_image_tag}"
+            echo "admin-bff-desired-count=${admin_bff_desired_count}"
+            echo "admin-bff-image-tag=${admin_bff_image_tag}"
             echo "stack-name=${stack_name}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -131,6 +142,9 @@ jobs:
           validate_desired_count "AUTH_DESIRED_COUNT" "${{ steps.context.outputs.auth-desired-count }}"
           validate_required "AUTH_IMAGE_TAG" "${{ steps.context.outputs.auth-image-tag }}"
           validate_desired_count "TENANT_DESIRED_COUNT" "${{ steps.context.outputs.tenant-desired-count }}"
+          validate_required "ADMIN_BFF_DESIRED_COUNT" "${{ steps.context.outputs.admin-bff-desired-count }}"
+          validate_desired_count "ADMIN_BFF_DESIRED_COUNT" "${{ steps.context.outputs.admin-bff-desired-count }}"
+          validate_required "ADMIN_BFF_IMAGE_TAG" "${{ steps.context.outputs.admin-bff-image-tag }}"
 
           if [[ "${{ steps.context.outputs.tenant-desired-count }}" != "0" ]]; then
             if [[ -z "${TENANT_DATABASE_URL_SECRET_ARN_INPUT}" ]]; then
@@ -172,6 +186,23 @@ jobs:
               fi
             elif [[ -z "${AUTH_JWT_SECRET_ARN_INPUT}" ]]; then
               echo "AUTH_JWT_SECRET_ARN is required for HS256 auth deployment." >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "${{ steps.context.outputs.admin-bff-desired-count }}" != "0" ]]; then
+            if [[ -z "${ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN is required when Admin BFF desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ -z "${ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN is required when Admin BFF desired count is greater than 0." >&2
+              exit 1
+            fi
+
+            if [[ -n "${AUDIT_LOG_SERVICE_URL_INPUT}" && -z "${ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}" ]]; then
+              echo "ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN is required when AUDIT_LOG_SERVICE_URL is configured." >&2
               exit 1
             fi
           fi
@@ -221,6 +252,8 @@ jobs:
             -c "authImageTag=${{ steps.context.outputs.auth-image-tag }}"
             -c "tenantDesiredCount=0"
             -c "tenantImageTag=${{ steps.context.outputs.tenant-image-tag }}"
+            -c "adminBffDesiredCount=${{ steps.context.outputs.admin-bff-desired-count }}"
+            -c "adminBffImageTag=${{ steps.context.outputs.admin-bff-image-tag }}"
           )
 
           append_context() {
@@ -245,6 +278,11 @@ jobs:
           append_context "tenantCorsAllowedOrigins" "${TENANT_CORS_ALLOWED_ORIGINS_INPUT}"
           append_context "tenantDatabaseUrlSecretArn" "${TENANT_DATABASE_URL_SECRET_ARN_INPUT}"
           append_context "tenantInternalAuthSecretArn" "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffCorsAllowedOrigins" "${ADMIN_BFF_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "adminBffAuthInternalAuthSecretArn" "${ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffTenantInternalAuthSecretArn" "${ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffAuditInternalAuthSecretArn" "${ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "auditLogServiceUrl" "${AUDIT_LOG_SERVICE_URL_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
           append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
@@ -303,6 +341,8 @@ jobs:
             -c "authImageTag=${{ steps.context.outputs.auth-image-tag }}"
             -c "tenantDesiredCount=${{ steps.context.outputs.tenant-desired-count }}"
             -c "tenantImageTag=${{ steps.context.outputs.tenant-image-tag }}"
+            -c "adminBffDesiredCount=${{ steps.context.outputs.admin-bff-desired-count }}"
+            -c "adminBffImageTag=${{ steps.context.outputs.admin-bff-image-tag }}"
           )
 
           append_context() {
@@ -327,6 +367,11 @@ jobs:
           append_context "tenantCorsAllowedOrigins" "${TENANT_CORS_ALLOWED_ORIGINS_INPUT}"
           append_context "tenantDatabaseUrlSecretArn" "${TENANT_DATABASE_URL_SECRET_ARN_INPUT}"
           append_context "tenantInternalAuthSecretArn" "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffCorsAllowedOrigins" "${ADMIN_BFF_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "adminBffAuthInternalAuthSecretArn" "${ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffTenantInternalAuthSecretArn" "${ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "adminBffAuditInternalAuthSecretArn" "${ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "auditLogServiceUrl" "${AUDIT_LOG_SERVICE_URL_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
           append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"

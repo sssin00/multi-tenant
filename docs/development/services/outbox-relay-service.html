@@ -14,12 +14,21 @@
         <p class="lead">서비스 DB의 Outbox 이벤트를 읽어 EventBridge/SQS로 안정적으로 발행합니다.</p>
       </header>
       <section>
-        <h2>서비스 역할</h2>
+        <h2>서비스/앱 역할</h2>
         <table>
           <tr><th>위치</th><td><code>apps/outbox-relay-service</code></td></tr>
+          <tr><th>카테고리</th><td>Backend Service · Event Relay</td></tr>
           <tr><th>책임</th><td>미발행 outbox event 조회, publish, retry, 실패 기록</td></tr>
           <tr><th>초기 대상</th><td>WMS 재고 변경, 입고 완료, 출고 완료 이벤트</td></tr>
           <tr><th>주의</th><td>도메인 트랜잭션은 각 서비스 DB에서 끝나고, relay는 발행만 담당합니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>구현 상태</h2>
+        <table>
+          <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>
+          <tr><th>선행 조건</th><td>각 도메인 서비스가 <code>outbox_events</code>에 pending event를 저장하고, relay가 읽을 DB 연결/권한 정책이 확정되어야 합니다.</td></tr>
+          <tr><th>API 문서</th><td>내부 운영 API가 생기면 <code>docs/apis/outbox-relay-service/index.html</code>에 기록합니다.</td></tr>
         </table>
       </section>
       <section>
@@ -31,8 +40,92 @@
         </div>
       </section>
       <section>
+        <h2>TODO</h2>
+        <p>outbox-relay-service TODO는 완료 항목과 남은 작업을 분리해 갱신합니다.</p>
+        <div class="grid two">
+          <div class="card">
+            <h3>완료</h3>
+            <p>아직 완료된 구현 TODO는 없습니다.</p>
+          </div>
+          <div class="card">
+            <h3>남은 작업</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" disabled /> <code>apps/outbox-relay-service</code> NestJS 기본 구조 생성</label></p>
+              <p><label><input type="checkbox" disabled /> Outbox 저장소별 polling adapter 설계</label></p>
+              <p><label><input type="checkbox" disabled /> EventBridge/SQS publisher 구현</label></p>
+              <p><label><input type="checkbox" disabled /> 실패 retry, backoff, DLQ 또는 parking 상태 설계</label></p>
+              <p><label><input type="checkbox" disabled /> idempotent publish 기준과 event lock 전략 검증</label></p>
+              <p><label><input type="checkbox" disabled /> relay 운영 API와 CloudWatch metric/alarm 문서화</label></p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h2>기능별 작업 내역</h2>
+        <table>
+          <tr><th>Polling</th><td>pending event 조회, batch size, visibility/lock timeout, 중복 relay 방지 기준을 구현합니다.</td></tr>
+          <tr><th>Publish</th><td>event schema 필수 필드 검증 후 EventBridge bus 또는 SQS queue로 발행합니다.</td></tr>
+          <tr><th>Retry</th><td>일시 장애는 재시도하고, 반복 실패는 실패 사유와 함께 운영자가 확인 가능한 상태로 분리합니다.</td></tr>
+          <tr><th>Observability</th><td>발행 성공/실패 수, 지연 시간, oldest pending age를 metric으로 남깁니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>테스트 시나리오</h2>
+        <table>
+          <tr><th>OUTBOX-001</th><td>pending event를 한 번만 발행하고 published 상태로 변경한다.</td></tr>
+          <tr><th>OUTBOX-002</th><td>publisher 장애 시 retry count와 last error를 기록하고 재시도 가능 상태를 유지한다.</td></tr>
+          <tr><th>OUTBOX-003</th><td>동일 event를 중복 polling해도 외부 발행은 idempotent하게 처리한다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>후속 작업</h2>
+        <p>현재 Outbox Relay 착수 전 이어서 확정할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>우선순위</th>
+                <th>작업</th>
+                <th>범위</th>
+                <th>완료 기준</th>
+                <th>함께 갱신할 문서</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td>Relay 대상과 DB 연결 경계 확정</td>
+                <td>Auth/IAM과 tenant-service의 <code>outbox_events</code>를 어떤 connection pool과 polling 기준으로 읽을지 정합니다.</td>
+                <td>서비스별 DB가 분리되어도 relay 대상, schema, connection secret, polling interval이 명확히 관리됩니다.</td>
+                <td>outbox-relay-service 개발 문서, environment 규칙, AWS ECS 기술 문서</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td>EventBridge 또는 SQS 발행 정책</td>
+                <td>pending event를 발행할 AWS 대상, event envelope, retry, DLQ, published/failed 상태 전환 기준을 확정합니다.</td>
+                <td>이벤트 발행 성공/실패가 DB 상태와 CloudWatch 로그로 추적되고 소비자가 idempotent하게 처리할 수 있습니다.</td>
+                <td>events/outbox 규칙, AWS ECS 기술 문서, smart-factory-aws-ecs.drawio</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>Replay Tool 설계</td>
+                <td>운영자가 실패 event를 조건별로 재발행하는 API와 승인, 감사 로그, 권한 제한 흐름을 설계합니다.</td>
+                <td>실패 이벤트 재처리가 임의 DB 수정 없이 승인과 audit evidence를 남기며 수행됩니다.</td>
+                <td>admin-bff-service 개발 문서, logging/audit 규칙, 운영 Runbook</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section>
         <h2>개발 기록</h2>
-        <p>아직 구현 전입니다.</p>
+        <article>
+          <h3>2026-06-12 착수 전 상태 점검</h3>
+          <ul>
+            <li>아직 구현 전이며 Auth/IAM과 tenant-service의 <code>outbox_events</code>를 EventBridge 또는 SQS로 relay하는 서비스로 유지합니다.</li>
+            <li>첫 구현 전에는 대상 DB 연결 방식, idempotency 기준, retry/DLQ 정책, published/failed 상태 전환 규칙을 확정해야 합니다.</li>
+          </ul>
+        </article>
       </section>
       <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
     </main>

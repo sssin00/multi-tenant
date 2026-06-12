@@ -6,7 +6,7 @@
 
 Docker Compose 프로젝트 이름은 `multi-tenant-local`로 고정합니다. Docker Desktop이나 `docker compose ls`에서 로컬 개발 스택이 이 이름으로 표시됩니다.
 
-현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `tenant-service`, `gateway-service`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. PostgreSQL 인스턴스는 공유하되 서비스별 database를 분리하며, 로컬에서는 `service-databases-init`이 `auth_iam`, `tenant` database를 idempotent하게 생성합니다. `auth-iam-db-push`와 `tenant-service-db-push`는 PostgreSQL 준비 후 각 서비스 Prisma schema를 자기 database에 반영하고 종료되는 초기화 작업입니다. 이후 `auth-iam-seed`와 `tenant-service-seed`가 직접 API 호출 테스트용 데이터를 넣습니다.
+현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `tenant-service`, `admin-bff-service`, `gateway-service`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. PostgreSQL 인스턴스는 공유하되 서비스별 database를 분리하며, 로컬에서는 `service-databases-init`이 `auth_iam`, `tenant` database를 idempotent하게 생성합니다. `auth-iam-db-push`와 `tenant-service-db-push`는 PostgreSQL 준비 후 각 서비스 Prisma schema를 자기 database에 반영하고 종료되는 초기화 작업입니다. 이후 `auth-iam-seed`와 `tenant-service-seed`가 직접 API 호출 테스트용 데이터를 넣습니다.
 
 환경 변수 파일 이름은 모든 프로젝트에서 `.env.local`, `.env.dev`, `.env.staging`, `.env.prod`만 사용합니다. `.env.example` 등 다른 env 파일 이름은 만들지 않습니다.
 
@@ -28,9 +28,11 @@ Health check:
 curl http://localhost:3000/health
 curl http://localhost:3001/health
 curl http://localhost:3002/health
+curl http://localhost:3003/health
 curl http://localhost:3000/ready
 curl http://localhost:3001/ready
 curl http://localhost:3002/ready
+curl http://localhost:3003/ready
 ```
 
 직접 호출 테스트 데이터:
@@ -68,7 +70,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 로그 확인:
 
 ```bash
-docker compose -f docker/local/docker-compose.yml logs -f gateway-service auth-iam-service tenant-service
+docker compose -f docker/local/docker-compose.yml logs -f gateway-service auth-iam-service tenant-service admin-bff-service
 ```
 
 중지:
@@ -123,7 +125,7 @@ SSL: off
 
 ## 배포용 실행
 
-배포용 compose는 이미 빌드/푸시된 `auth-iam-service`, `tenant-service`, `gateway-service` 이미지를 실행합니다. 환경별 값은 서비스별 `docker/env/{service}/.env.local`, `.env.dev`, `.env.staging`, `.env.prod` 중 하나를 사용합니다. 운영 secret은 저장소에 커밋하지 않습니다.
+배포용 compose는 이미 빌드/푸시된 `auth-iam-service`, `tenant-service`, `admin-bff-service`, `gateway-service` 이미지를 실행합니다. 환경별 값은 서비스별 `docker/env/{service}/.env.local`, `.env.dev`, `.env.staging`, `.env.prod` 중 하나를 사용합니다. 운영 secret은 저장소에 커밋하지 않습니다.
 
 배포 compose의 환경 선택은 `COMPOSE_ENV`로 합니다. 예: `COMPOSE_ENV=dev`, `COMPOSE_ENV=staging`, `COMPOSE_ENV=prod`. 값을 주지 않으면 `local`을 사용합니다.
 
@@ -144,12 +146,13 @@ Health check:
 ```bash
 curl http://localhost:3000/health
 curl http://localhost:3002/health
+curl http://localhost:3003/health
 ```
 
 로그 확인:
 
 ```bash
-COMPOSE_ENV=dev docker compose -f docker/deploy/docker-compose.yml logs -f gateway-service auth-iam-service tenant-service
+COMPOSE_ENV=dev docker compose -f docker/deploy/docker-compose.yml logs -f gateway-service auth-iam-service tenant-service admin-bff-service
 ```
 
 중지:

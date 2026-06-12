@@ -29,6 +29,26 @@ services:
       retries: 3
       start_period: 15s
 
+  admin-bff-service:
+    image: multi-tenant/admin-bff-service:${COMPOSE_ENV:-local}
+    container_name: multi-tenant-${COMPOSE_ENV:-local}-admin-bff-service
+    restart: unless-stopped
+    env_file:
+      - ../env/admin-bff-service/.env.${COMPOSE_ENV:-local}
+    ports:
+      - "3003:3000"
+    depends_on:
+      auth-iam-service:
+        condition: service_healthy
+      tenant-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${ADMIN_BFF_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
   gateway-service:
     image: multi-tenant/gateway-service:${COMPOSE_ENV:-local}
     container_name: multi-tenant-${COMPOSE_ENV:-local}-gateway-service
@@ -41,6 +61,8 @@ services:
       auth-iam-service:
         condition: service_healthy
       tenant-service:
+        condition: service_healthy
+      admin-bff-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${GATEWAY_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]

@@ -14,12 +14,21 @@
         <p class="lead">WMS 사용자와 현장 작업자를 위한 React + Vite 프론트엔드 앱입니다.</p>
       </header>
       <section>
-        <h2>앱 역할</h2>
+        <h2>서비스/앱 역할</h2>
         <table>
           <tr><th>위치</th><td><code>apps/web-wms</code></td></tr>
+          <tr><th>카테고리</th><td>Frontend App · WMS UI</td></tr>
           <tr><th>대상</th><td>창고 운영자, 현장 작업자, PDA Web 사용자</td></tr>
           <tr><th>연결</th><td><code>user-bff-service</code>를 통해 WMS 화면 데이터를 조회합니다.</td></tr>
           <tr><th>초기 화면</th><td>대시보드, 기준정보, 재고, 입고, 출고</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>구현 상태</h2>
+        <table>
+          <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>
+          <tr><th>선행 조건</th><td><code>wms-service</code>의 1차 조회 API와 <code>user-bff-service</code> 화면 조합 API가 준비되어야 합니다.</td></tr>
+          <tr><th>API 문서</th><td>사용자 화면 API 계약은 이후 <code>docs/apis/user-bff-service/index.html</code>에 기록합니다.</td></tr>
         </table>
       </section>
       <section>
@@ -31,8 +40,92 @@
         </div>
       </section>
       <section>
+        <h2>TODO</h2>
+        <p>web-wms TODO는 완료 항목과 남은 작업을 분리해 갱신합니다.</p>
+        <div class="grid two">
+          <div class="card">
+            <h3>완료</h3>
+            <p>아직 완료된 구현 TODO는 없습니다.</p>
+          </div>
+          <div class="card">
+            <h3>남은 작업</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" disabled /> <code>apps/web-wms</code> React + Vite 기본 구조 생성</label></p>
+              <p><label><input type="checkbox" disabled /> 로그인 후 app shell, navigation, tenant/module 표시 구현</label></p>
+              <p><label><input type="checkbox" disabled /> WMS dashboard와 inventory summary 화면 구현</label></p>
+              <p><label><input type="checkbox" disabled /> 창고/로케이션/품목 기준정보 조회 화면 구현</label></p>
+              <p><label><input type="checkbox" disabled /> 재고 조회/조정 화면 구현</label></p>
+              <p><label><input type="checkbox" disabled /> 입고/출고 목록과 작업 상태 화면 구현</label></p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h2>기능별 작업 내역</h2>
+        <table>
+          <tr><th>App Shell</th><td>사용자, tenant, 활성 module, 권한 summary를 기반으로 navigation과 route guard를 구성합니다.</td></tr>
+          <tr><th>Inventory</th><td>재고 검색, lot/serial 표시, 조정 요청 흐름을 WMS API 계약에 맞춰 구현합니다.</td></tr>
+          <tr><th>Inbound</th><td>입고 예정, 검수, 적치 상태를 현장 작업자가 빠르게 확인할 수 있게 구성합니다.</td></tr>
+          <tr><th>Outbound</th><td>출고 요청, 할당, 피킹, 출하 상태를 작업 중심 화면으로 정리합니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>테스트 시나리오</h2>
+        <table>
+          <tr><th>WEB-WMS-001</th><td>활성 tenant와 WMS module 권한이 있는 사용자는 WMS navigation을 볼 수 있다.</td></tr>
+          <tr><th>WEB-WMS-002</th><td>재고 목록 검색 조건과 paging이 API 응답과 화면 상태에 일치한다.</td></tr>
+          <tr><th>WEB-WMS-003</th><td>입고/출고 작업 상태 변경 후 목록과 상세 화면이 같은 상태를 표시한다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>후속 작업</h2>
+        <p>현재 web-wms 착수 전 이어서 확정할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>우선순위</th>
+                <th>작업</th>
+                <th>범위</th>
+                <th>완료 기준</th>
+                <th>함께 갱신할 문서</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td>WMS 첫 화면 연동</td>
+                <td>User BFF의 screen-data 응답을 기준으로 dashboard, inventory summary, 작업 목록 화면을 구성합니다.</td>
+                <td>tenant와 permission summary가 반영된 첫 화면이 실제 API 응답으로 렌더링됩니다.</td>
+                <td>user-bff-service 개발 문서, web-wms 개발 문서, wms-service API 문서</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>PDA Web UX</td>
+                <td>스캔 입력, 큰 터치 target, 네트워크 불안정 상황의 재시도 UX를 별도로 검증합니다.</td>
+                <td>현장 장비 화면에서 주요 버튼과 입력이 안정적으로 조작되고 실패 재시도가 명확히 표시됩니다.</td>
+                <td>web-wms 개발 문서, testing 규칙, WMS 시나리오 문서</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>현장 검증 evidence</td>
+                <td>WMS 핵심 흐름은 실제 창고 작업 순서에 맞춰 시나리오 기반 AI 검증 evidence를 남깁니다.</td>
+                <td>입고, 재고 조정, 출고 흐름별 화면 상태, API 응답, requestId, audit/outbox evidence가 연결됩니다.</td>
+                <td>web-wms 개발 문서, wms-service 개발 문서, testing 규칙</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section>
         <h2>개발 기록</h2>
-        <p>아직 구현 전입니다.</p>
+        <article>
+          <h3>2026-06-12 착수 전 상태 점검</h3>
+          <ul>
+            <li>아직 구현 전이며 WMS 1차 도메인 API와 User BFF 화면 조합 API가 준비된 뒤 화면 구현을 시작합니다.</li>
+            <li>입고, 재고, 출고 화면은 tenant context, 권한 summary, 현장 작업 evidence를 함께 확인하는 기준으로 유지합니다.</li>
+          </ul>
+        </article>
       </section>
       <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
     </main>

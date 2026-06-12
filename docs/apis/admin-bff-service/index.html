@@ -29,6 +29,7 @@
             <tr><th>Envelope</th><td>응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>, <code>data</code> 또는 <code>error</code> 구조를 사용합니다. <code>meta</code> 필드는 사용하지 않습니다.</td></tr>
             <tr><th>List response</th><td>목록 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용합니다. page는 <code>1</code>부터 시작하고 기본 size는 <code>20</code>입니다.</td></tr>
             <tr><th>Authorization</th><td>중요 관리자 액션은 auth-iam-service의 permission check를 호출합니다. JWT에는 role이나 permission을 넣지 않습니다.</td></tr>
+            <tr><th>Permission guard</th><td>Admin BFF controller는 <code>@AdminPermission("{domain}.{resource}.{action}")</code> decorator로 필요한 권한을 선언합니다. 화면 조합 API처럼 여러 권한이 필요한 route는 배열로 선언하고 모두 통과해야 합니다.</td></tr>
             <tr><th>Data ownership</th><td>Admin BFF는 직접 DB에 접근하지 않습니다. tenant 관리는 tenant-service, 사용자/role/permission 관리는 auth-iam-service로 위임합니다.</td></tr>
           </tbody>
         </table>
@@ -51,19 +52,19 @@
                 <td><code>tenant-service</code></td>
                 <td><code>POST /internal/admin/tenants</code></td>
                 <td>tenant 생성과 <code>tenant.code</code> 자동 생성</td>
-                <td><span class="tag done">Ready</span></td>
+                <td><span class="tag done">Client Ready</span></td>
               </tr>
               <tr>
                 <td><code>tenant-service</code></td>
                 <td><code>GET /internal/tenants/{tenantId}/modules</code></td>
                 <td>tenant별 활성 module 조회</td>
-                <td><span class="tag done">Ready</span></td>
+                <td><span class="tag done">Client Ready</span></td>
               </tr>
               <tr>
                 <td><code>tenant-service</code></td>
-                <td><code>GET/PATCH/PUT /internal/admin/tenants/**</code></td>
-                <td>tenant 목록, 상세, 기본 정보, 상태, module, domain 관리</td>
-                <td><span class="tag todo">Needed</span></td>
+                <td><code>GET/PATCH/PUT /internal/admin/tenants/{tenantId}/**</code></td>
+                <td>tenant 상세, 기본 정보, module, domain 관리</td>
+                <td><span class="tag done">Ready</span></td>
               </tr>
               <tr>
                 <td><code>auth-iam-service</code></td>
@@ -79,9 +80,9 @@
               </tr>
               <tr>
                 <td><code>audit-log-service</code></td>
-                <td><code>GET /internal/audit/logs</code></td>
+                <td><code>GET /api/internal/audit/logs</code></td>
                 <td>감사 로그 목록 조회</td>
-                <td><span class="tag todo">Later</span></td>
+                <td><span class="tag done">Contract Ready</span></td>
               </tr>
             </tbody>
           </table>
@@ -107,14 +108,14 @@
                 <td>Public</td>
                 <td>프로세스 생존 상태를 확인합니다.</td>
                 <td>-</td>
-                <td><span class="tag todo">Draft</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>GET /ready</code></td>
                 <td>Public</td>
                 <td>config, downstream URL, internal auth 준비 상태를 확인합니다.</td>
                 <td>tenant-service, auth-iam-service</td>
-                <td><span class="tag todo">Draft</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>GET /api/admin/me</code></td>
@@ -124,109 +125,116 @@
                 <td><span class="tag todo">Draft</span></td>
               </tr>
               <tr>
+                <td><code>GET /api/admin/access-control/screen-data</code></td>
+                <td>Bearer + permissions</td>
+                <td>사용자/role/permission 관리 화면 초기 데이터를 조합합니다.</td>
+                <td>auth-iam-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
                 <td><code>GET /api/admin/tenants</code></td>
                 <td>Bearer + permission</td>
                 <td>tenant 목록, 상태, module 요약을 조회합니다.</td>
                 <td>tenant-service</td>
-                <td><span class="tag todo">Blocked</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>POST /api/admin/tenants</code></td>
                 <td>Bearer + permission + idempotency</td>
                 <td>tenant 생성 요청을 검증한 뒤 tenant-service로 위임합니다.</td>
                 <td>tenant-service</td>
-                <td><span class="tag">First</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>GET /api/admin/tenants/{tenantId}</code></td>
                 <td>Bearer + permission</td>
                 <td>tenant 상세, domain, module, 설정 요약을 조회합니다.</td>
                 <td>tenant-service</td>
-                <td><span class="tag todo">Blocked</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>PATCH /api/admin/tenants/{tenantId}</code></td>
-                <td>Bearer + permission</td>
+                <td>Bearer + permission + idempotency</td>
                 <td>tenant 기본 정보를 수정합니다.</td>
                 <td>tenant-service</td>
-                <td><span class="tag todo">Blocked</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>PATCH /api/admin/tenants/{tenantId}/status</code></td>
                 <td>Bearer + permission + idempotency</td>
                 <td>tenant 상태를 <code>active</code>, <code>suspended</code>, <code>deleted</code> 등으로 변경합니다.</td>
                 <td>tenant-service</td>
-                <td><span class="tag todo">Blocked</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>PUT /api/admin/tenants/{tenantId}/modules</code></td>
                 <td>Bearer + permission + idempotency</td>
                 <td>tenant 활성 module 목록을 교체합니다.</td>
                 <td>tenant-service</td>
-                <td><span class="tag todo">Blocked</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>GET /api/admin/tenants/{tenantId}/domains</code></td>
                 <td>Bearer + permission</td>
                 <td>tenant domain 목록을 조회합니다.</td>
                 <td>tenant-service</td>
-                <td><span class="tag todo">Blocked</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>POST /api/admin/tenants/{tenantId}/domains</code></td>
                 <td>Bearer + permission + idempotency</td>
                 <td>tenant domain을 추가합니다.</td>
                 <td>tenant-service</td>
-                <td><span class="tag todo">Blocked</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>DELETE /api/admin/tenants/{tenantId}/domains/{domainId}</code></td>
                 <td>Bearer + permission + idempotency</td>
                 <td>tenant domain을 삭제하거나 비활성화합니다.</td>
                 <td>tenant-service</td>
-                <td><span class="tag todo">Blocked</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>GET /api/admin/users</code></td>
                 <td>Bearer + permission</td>
                 <td>관리자 화면의 사용자 목록을 조회합니다.</td>
                 <td>auth-iam-service</td>
-                <td><span class="tag todo">Draft</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>POST /api/admin/users</code></td>
                 <td>Bearer + permission + idempotency</td>
                 <td>사용자 생성 또는 초대 요청을 위임합니다.</td>
                 <td>auth-iam-service</td>
-                <td><span class="tag todo">Draft</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>PATCH /api/admin/users/{userId}/status</code></td>
                 <td>Bearer + permission + idempotency</td>
                 <td>사용자 상태를 변경합니다.</td>
                 <td>auth-iam-service</td>
-                <td><span class="tag todo">Draft</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>GET /api/admin/roles</code></td>
                 <td>Bearer + permission</td>
                 <td>tenant role 목록과 permission summary를 조회합니다.</td>
                 <td>auth-iam-service</td>
-                <td><span class="tag todo">Draft</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>PUT /api/admin/roles/{roleId}/permissions</code></td>
                 <td>Bearer + permission + idempotency</td>
                 <td>role에 연결된 permission code 목록을 교체합니다.</td>
                 <td>auth-iam-service</td>
-                <td><span class="tag todo">Draft</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>GET /api/admin/audit-logs</code></td>
                 <td>Bearer + permission</td>
                 <td>감사 로그 목록을 조회합니다.</td>
                 <td>audit-log-service</td>
-                <td><span class="tag todo">Later</span></td>
+                <td><span class="tag done">Prepared</span></td>
               </tr>
             </tbody>
           </table>
@@ -287,7 +295,7 @@
             <tr><th>Purpose</th><td>시스템 운영자가 tenant 목록, 상태, domain, 활성 module 요약을 조회합니다.</td></tr>
             <tr><th>Permission</th><td><code>tenant.tenants.read</code></td></tr>
             <tr><th>Query</th><td><code>page</code>, <code>size</code>, optional <code>status</code>, <code>code</code>, <code>name</code>, <code>domain</code></td></tr>
-            <tr><th>Downstream</th><td><code>GET /internal/admin/tenants</code>. tenant-service 선행 구현이 필요합니다.</td></tr>
+            <tr><th>Downstream</th><td><code>GET /internal/admin/tenants</code></td></tr>
             <tr><th>Success data</th><td><code>items</code>, <code>page</code>, <code>size</code>, <code>total</code></td></tr>
             <tr><th>Errors</th><td><code>400 VALIDATION_FAILED</code>, <code>403 FORBIDDEN</code>, upstream error codes</td></tr>
           </tbody>
@@ -322,12 +330,12 @@
           <tbody>
             <tr><th>Purpose</th><td>관리자 요청을 검증한 뒤 tenant-service의 내부 tenant 생성 API로 위임합니다.</td></tr>
             <tr><th>Permission</th><td><code>tenant.tenants.create</code></td></tr>
-            <tr><th>Headers</th><td><code>Idempotency-Key</code>를 권장합니다. 중복 실행 위험이 있으므로 구현 시 필수로 둘 수 있습니다.</td></tr>
+            <tr><th>Headers</th><td><code>Idempotency-Key</code>가 필수입니다.</td></tr>
             <tr><th>Request body</th><td><code>name</code>은 필수, <code>domain</code>은 선택입니다. 초기 <code>enabledModules</code>는 tenant-service module API가 준비된 뒤 지원합니다.</td></tr>
             <tr><th>Downstream</th><td><code>POST /internal/admin/tenants</code></td></tr>
             <tr><th>Success status</th><td><code>201 Created</code></td></tr>
             <tr><th>Success data</th><td><code>tenantId</code>, <code>code</code>, <code>name</code>, <code>status</code>, <code>dbStrategy</code>, <code>createdAt</code>, <code>updatedAt</code></td></tr>
-            <tr><th>Errors</th><td><code>400 VALIDATION_FAILED</code>, <code>403 FORBIDDEN</code>, <code>409 TENANT_DOMAIN_CONFLICT</code>, upstream error codes</td></tr>
+            <tr><th>Errors</th><td><code>400 IDEMPOTENCY_KEY_REQUIRED</code>, <code>400 VALIDATION_FAILED</code>, <code>403 FORBIDDEN</code>, <code>409 TENANT_DOMAIN_CONFLICT</code>, upstream error codes</td></tr>
           </tbody>
         </table>
         <pre><code>{
@@ -351,6 +359,25 @@
       </section>
 
       <section>
+        <h2>PATCH /api/admin/tenants/{tenantId}/status</h2>
+        <table>
+          <tbody>
+            <tr><th>Purpose</th><td>관리자가 tenant 상태를 변경합니다. 상태 변경은 tenant-service에서 outbox event와 같은 transaction으로 처리합니다.</td></tr>
+            <tr><th>Permission</th><td><code>tenant.tenants.updateStatus</code></td></tr>
+            <tr><th>Headers</th><td><code>Idempotency-Key</code>가 필수입니다.</td></tr>
+            <tr><th>Request body</th><td><code>status</code>는 필수이며 <code>provisioning</code>, <code>active</code>, <code>suspended</code>, <code>deleted</code>를 지원합니다. <code>reason</code>은 선택입니다.</td></tr>
+            <tr><th>Downstream</th><td><code>PATCH /internal/admin/tenants/{tenantId}/status</code></td></tr>
+            <tr><th>Success data</th><td><code>tenantId</code>, <code>code</code>, <code>name</code>, <code>status</code>, <code>dbStrategy</code>, <code>createdAt</code>, <code>updatedAt</code></td></tr>
+            <tr><th>Errors</th><td><code>400 IDEMPOTENCY_KEY_REQUIRED</code>, <code>400 VALIDATION_FAILED</code>, <code>400 TENANT_INVALID_ID</code>, <code>403 FORBIDDEN</code>, <code>404 TENANT_NOT_FOUND</code>, upstream error codes</td></tr>
+          </tbody>
+        </table>
+        <pre><code>{
+  "status": "active",
+  "reason": "Initial tenant setup completed"
+}</code></pre>
+      </section>
+
+      <section>
         <h2>Tenant 변경 API</h2>
         <div class="wide-table">
           <table>
@@ -359,28 +386,68 @@
             </thead>
             <tbody>
               <tr><td><code>GET /api/admin/tenants/{tenantId}</code></td><td><code>tenant.tenants.read</code></td><td>-</td><td>tenant 상세, domains, modules, settings summary</td></tr>
-              <tr><td><code>PATCH /api/admin/tenants/{tenantId}</code></td><td><code>tenant.tenants.update</code></td><td>optional <code>name</code>. At least one field is required.</td><td>tenant object</td></tr>
+              <tr><td><code>PATCH /api/admin/tenants/{tenantId}</code></td><td><code>tenant.tenants.update</code></td><td><code>name</code></td><td>tenant object</td></tr>
               <tr><td><code>PATCH /api/admin/tenants/{tenantId}/status</code></td><td><code>tenant.tenants.updateStatus</code></td><td><code>status</code>, optional <code>reason</code></td><td>tenant object</td></tr>
               <tr><td><code>PUT /api/admin/tenants/{tenantId}/modules</code></td><td><code>tenant.modules.manage</code></td><td><code>enabledModules</code> array</td><td><code>tenantId</code>, <code>enabledModules</code></td></tr>
               <tr><td><code>GET /api/admin/tenants/{tenantId}/domains</code></td><td><code>tenant.domains.read</code></td><td>-</td><td>domain list</td></tr>
               <tr><td><code>POST /api/admin/tenants/{tenantId}/domains</code></td><td><code>tenant.domains.manage</code></td><td><code>domain</code></td><td>domain object</td></tr>
-              <tr><td><code>DELETE /api/admin/tenants/{tenantId}/domains/{domainId}</code></td><td><code>tenant.domains.manage</code></td><td>-</td><td><code>{ "deleted": true }</code> 또는 disabled domain object</td></tr>
+              <tr><td><code>DELETE /api/admin/tenants/{tenantId}/domains/{domainId}</code></td><td><code>tenant.domains.manage</code></td><td>-</td><td>disabled domain object</td></tr>
             </tbody>
           </table>
         </div>
         <div class="card">
-          <strong>선행 작업</strong>
-          <p>위 API는 tenant-service의 <code>/internal/admin/tenants/**</code> 목록, 상세, 수정, 상태, module, domain 내부 API가 준비된 뒤 연결합니다.</p>
+          <strong>구현 상태</strong>
+          <p>tenant 상세, 기본 정보 수정, module 교체, domain 조회/추가/비활성화 API는 tenant-service 내부 API로 연결되어 있습니다. 변경성 요청은 <code>Idempotency-Key</code> header가 필수입니다.</p>
         </div>
+      </section>
+
+      <section>
+        <h2>GET /api/admin/access-control/screen-data</h2>
+        <table>
+          <tbody>
+            <tr><th>Purpose</th><td>사용자, role, permission 관리 화면 진입에 필요한 목록 데이터를 한 번에 조합합니다.</td></tr>
+            <tr><th>Permissions</th><td><code>auth.users.read</code>, <code>auth.roles.read</code>, <code>auth.permissions.read</code>를 모두 요구합니다.</td></tr>
+            <tr><th>Query</th><td><code>page</code>, <code>size</code>, optional <code>status</code> 또는 <code>userStatus</code>, <code>email</code>, <code>roleCode</code>, <code>permissionCode</code>, <code>rolePage</code>, <code>roleSize</code>, <code>permissionPage</code>, <code>permissionSize</code></td></tr>
+            <tr><th>Downstream</th><td><code>GET /api/auth/users</code>, <code>GET /api/auth/roles</code>, <code>GET /api/auth/permissions</code></td></tr>
+            <tr><th>Success data</th><td><code>users</code>, <code>roles</code>, <code>permissions</code>. 각 값은 auth-iam-service의 표준 list data입니다.</td></tr>
+            <tr><th>Errors</th><td><code>403 FORBIDDEN</code>, upstream error codes</td></tr>
+          </tbody>
+        </table>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-admin-auth-001",
+  "timestamp": "2026-06-11T00:00:00.000Z",
+  "data": {
+    "users": {
+      "items": [],
+      "page": 1,
+      "size": 20,
+      "total": 0
+    },
+    "roles": {
+      "items": [],
+      "page": 1,
+      "size": 100,
+      "total": 0
+    },
+    "permissions": {
+      "items": [],
+      "page": 1,
+      "size": 100,
+      "total": 0
+    }
+  }
+}</code></pre>
       </section>
 
       <section>
         <h2>사용자 관리 API</h2>
         <table>
           <tbody>
-            <tr><th>Purpose</th><td>관리자 화면에서 tenant 사용자 목록, 생성, 수정, 상태 변경, role 부여를 처리합니다.</td></tr>
+            <tr><th>Purpose</th><td>관리자 화면에서 tenant 사용자 목록, 생성, 수정, 상태 변경, role 부여를 처리합니다. 화면 초기 데이터는 <code>GET /api/admin/access-control/screen-data</code>로 조합 조회합니다.</td></tr>
             <tr><th>Tenant scope</th><td><code>X-Tenant-Id</code> 기준으로 auth-iam-service에 위임합니다. 다른 tenant 사용자는 노출하지 않습니다.</td></tr>
             <tr><th>Downstream</th><td><code>/api/auth/users/**</code>, <code>/api/auth/users/{userId}/roles</code>, <code>/api/auth/user-roles/{userRoleId}</code></td></tr>
+            <tr><th>Idempotency</th><td><code>POST</code>, <code>PATCH</code>, <code>DELETE</code> 요청은 <code>Idempotency-Key</code> header가 필수입니다.</td></tr>
             <tr><th>Secret</th><td>응답에는 password, password hash, token을 포함하지 않습니다.</td></tr>
           </tbody>
         </table>
@@ -392,7 +459,7 @@
             <tbody>
               <tr><td><code>GET /api/admin/users</code></td><td><code>auth.users.read</code></td><td><code>page</code>, <code>size</code>, optional <code>status</code>, <code>email</code></td><td>user list</td></tr>
               <tr><td><code>POST /api/admin/users</code></td><td><code>auth.users.create</code></td><td><code>email</code>, <code>displayName</code>, <code>password</code>, optional <code>status</code></td><td>user object</td></tr>
-              <tr><td><code>GET /api/admin/users/{userId}</code></td><td><code>auth.users.read</code></td><td>-</td><td>user object with role summary</td></tr>
+              <tr><td><code>GET /api/admin/users/{userId}</code></td><td><code>auth.users.read</code></td><td>-</td><td><code>user</code> object and <code>roles</code> summary</td></tr>
               <tr><td><code>PATCH /api/admin/users/{userId}</code></td><td><code>auth.users.update</code></td><td>optional <code>email</code>, <code>displayName</code></td><td>user object</td></tr>
               <tr><td><code>PATCH /api/admin/users/{userId}/status</code></td><td><code>auth.users.updateStatus</code></td><td><code>status</code>: <code>active</code>, <code>inactive</code>, <code>locked</code></td><td>user object</td></tr>
               <tr><td><code>POST /api/admin/users/{userId}/roles</code></td><td><code>auth.userRoles.manage</code></td><td><code>roleId</code>, optional <code>warehouseId</code></td><td>user role object</td></tr>
@@ -410,6 +477,7 @@
             <tr><th>System admin rule</th><td><code>system_admin</code>은 tenant-scoped role API에서 생성하지 않습니다. <code>system.*</code> permission은 tenant role mapping과 tenant permission check에서 차단됩니다.</td></tr>
             <tr><th>Tenant admin rule</th><td><code>tenant_admin</code>은 tenant 전체 scope role입니다. <code>warehouseId</code>가 포함된 assignment는 실패해야 합니다.</td></tr>
             <tr><th>Downstream</th><td><code>/api/auth/roles/**</code>, <code>/api/auth/permissions/**</code></td></tr>
+            <tr><th>Idempotency</th><td><code>POST</code>, <code>PATCH</code>, <code>PUT</code> 요청은 <code>Idempotency-Key</code> header가 필수입니다.</td></tr>
           </tbody>
         </table>
         <div class="wide-table">
@@ -437,11 +505,41 @@
             <tr><th>Purpose</th><td>운영자가 tenant 설정, 사용자, 권한, WMS 중요 변경 이력을 조회합니다.</td></tr>
             <tr><th>Permission</th><td><code>audit.logs.read</code></td></tr>
             <tr><th>Query</th><td><code>page</code>, <code>size</code>, optional <code>tenantId</code>, <code>actorId</code>, <code>action</code>, <code>resourceType</code>, <code>from</code>, <code>to</code></td></tr>
-            <tr><th>Downstream</th><td>audit-log-service가 준비된 뒤 연결합니다.</td></tr>
+            <tr><th>Downstream</th><td><code>GET /api/internal/audit/logs</code>. <code>AUDIT_LOG_SERVICE_URL</code>과 <code>AUDIT_INTERNAL_AUTH_SECRET</code>이 설정되면 내부 호출을 수행합니다.</td></tr>
+            <tr><th>Success data</th><td><code>items</code>, <code>page</code>, <code>size</code>, <code>total</code></td></tr>
             <tr><th>Secret</th><td>응답은 password, token, Authorization, cookie, secret, SQL, stack trace를 포함하지 않습니다.</td></tr>
-            <tr><th>Status</th><td>후속 단계입니다. 현재는 API 계약만 정의합니다.</td></tr>
+            <tr><th>Status</th><td>Admin BFF route와 internal client는 준비되었습니다. audit-log-service 저장소가 아직 없거나 URL이 없으면 <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>를 반환합니다.</td></tr>
+            <tr><th>Errors</th><td><code>403 FORBIDDEN</code>, <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>, <code>503 AUDIT_LOG_INTERNAL_AUTH_NOT_READY</code>, upstream error codes</td></tr>
           </tbody>
         </table>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-admin-audit-001",
+  "timestamp": "2026-06-12T00:00:00.000Z",
+  "data": {
+    "items": [
+      {
+        "auditId": "audit-uuid",
+        "occurredAt": "2026-06-12T00:00:00.000Z",
+        "tenantId": "tenant-uuid",
+        "actor": {
+          "type": "user",
+          "userId": "user-uuid"
+        },
+        "action": "auth.user.created",
+        "resource": {
+          "type": "user",
+          "id": "target-user-uuid"
+        },
+        "result": "success",
+        "requestId": "req-admin-audit-001"
+      }
+    ],
+    "page": 1,
+    "size": 20,
+    "total": 1
+  }
+}</code></pre>
       </section>
 
       <section>
@@ -452,14 +550,14 @@
               <tr><th>Status</th><th>Code</th><th>의미</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>400</code></td><td><code>VALIDATION_FAILED</code>, <code>TENANT_INVALID_ID</code></td><td>요청 body, query, path parameter 검증 실패</td></tr>
+              <tr><td><code>400</code></td><td><code>IDEMPOTENCY_KEY_REQUIRED</code>, <code>VALIDATION_FAILED</code>, <code>TENANT_INVALID_ID</code></td><td>필수 header, 요청 body, query, path parameter 검증 실패</td></tr>
               <tr><td><code>401</code></td><td><code>UNAUTHORIZED</code>, <code>AUTH_INVALID_TOKEN</code>, <code>AUTH_TOKEN_EXPIRED</code></td><td>인증 실패</td></tr>
               <tr><td><code>403</code></td><td><code>FORBIDDEN</code>, <code>TENANT_MISMATCH</code>, <code>TENANT_NOT_READY</code>, <code>AUTH_ADMIN_SCOPE_MISMATCH</code></td><td>권한, tenant, admin scope 차단</td></tr>
               <tr><td><code>404</code></td><td><code>TENANT_NOT_FOUND</code>, <code>AUTH_USER_NOT_FOUND</code>, <code>AUTH_ROLE_NOT_FOUND</code></td><td>대상 리소스 없음. cross-tenant 리소스는 not found로 숨길 수 있습니다.</td></tr>
               <tr><td><code>409</code></td><td><code>TENANT_DOMAIN_CONFLICT</code>, <code>AUTH_USER_EMAIL_CONFLICT</code>, <code>AUTH_ROLE_CODE_CONFLICT</code></td><td>중복 또는 충돌</td></tr>
               <tr><td><code>429</code></td><td><code>RATE_LIMIT_EXCEEDED</code></td><td>gateway rate limit 초과</td></tr>
               <tr><td><code>500</code></td><td><code>INTERNAL_SERVER_ERROR</code></td><td>예상하지 못한 서버 오류</td></tr>
-              <tr><td><code>503</code></td><td><code>UPSTREAM_UNAVAILABLE</code>, <code>SERVICE_UNAVAILABLE</code></td><td>downstream 서비스 준비 안 됨 또는 호출 실패</td></tr>
+              <tr><td><code>503</code></td><td><code>UPSTREAM_UNAVAILABLE</code>, <code>SERVICE_UNAVAILABLE</code>, <code>AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>, <code>AUDIT_LOG_INTERNAL_AUTH_NOT_READY</code></td><td>downstream 서비스 준비 안 됨, audit-log-service 미설정, 내부 인증 설정 미완료</td></tr>
             </tbody>
           </table>
         </div>
@@ -479,8 +577,10 @@
               <tr><td><code>ADBFF-TENANT-001</code></td><td>Tenant 생성 요청을 tenant-service로 위임한다</td><td><code>P0</code></td><td><code>POST /api/admin/tenants</code>가 permission check 후 <code>POST /internal/admin/tenants</code>를 호출하고 <code>201</code> envelope를 반환한다.</td><td>response JSON, tenant-service response, requestId</td></tr>
               <tr><td><code>ADBFF-TENANT-002</code></td><td>권한 없는 tenant 상태 변경을 차단한다</td><td><code>P0</code></td><td>permission check 실패 시 tenant-service 변경 API를 호출하지 않고 <code>403 FORBIDDEN</code>으로 응답한다.</td><td>response JSON, auth-iam permission check 응답, downstream 미호출 로그</td></tr>
               <tr><td><code>ADBFF-AUTH-001</code></td><td>사용자 목록은 tenant scope로 제한된다</td><td><code>P0</code></td><td><code>GET /api/admin/users</code>가 <code>X-Tenant-Id</code>를 auth-iam-service로 전달하고 다른 tenant 사용자를 반환하지 않는다.</td><td>response JSON, auth-iam query evidence</td></tr>
+              <tr><td><code>ADBFF-AUTH-002</code></td><td>사용자 관리 화면 데이터는 다중 권한을 모두 확인한다</td><td><code>P0</code></td><td><code>GET /api/admin/access-control/screen-data</code>가 users, roles, permissions read permission을 모두 확인한 뒤 Auth/IAM 세 목록 API를 호출한다.</td><td>permission check 응답, response JSON, downstream 호출 로그</td></tr>
               <tr><td><code>ADBFF-RBAC-001</code></td><td>Role permission 교체가 Auth/IAM에 위임된다</td><td><code>P1</code></td><td><code>PUT /api/admin/roles/{roleId}/permissions</code>가 permission check 후 auth-iam-service role permission 교체 API를 호출한다.</td><td>response JSON, auth-iam outbox/audit evidence</td></tr>
-              <tr><td><code>ADBFF-AUDIT-001</code></td><td>Audit log 조회 계약을 보류 상태로 관리한다</td><td><code>P2</code></td><td>audit-log-service 준비 전에는 문서 계약만 유지하고, 구현 시 readiness와 permission check를 추가한다.</td><td>문서 링크, 구현 TODO</td></tr>
+              <tr><td><code>ADBFF-AUDIT-001</code></td><td>Audit log 조회 API가 저장소 준비 전에도 안전하게 대기한다</td><td><code>P1</code></td><td><code>AUDIT_LOG_SERVICE_URL</code>이 없으면 permission check 후 audit-log-service를 호출하지 않고 <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>로 응답한다.</td><td>response JSON, Admin BFF access log</td></tr>
+              <tr><td><code>ADBFF-AUDIT-002</code></td><td>Audit log 조회를 내부 서비스로 위임한다</td><td><code>P1</code></td><td><code>AUDIT_LOG_SERVICE_URL</code>이 있으면 <code>GET /api/internal/audit/logs</code>로 query와 request context, internal auth header를 전파한다.</td><td>downstream 수신 header, response JSON, requestId</td></tr>
             </tbody>
           </table>
         </div>

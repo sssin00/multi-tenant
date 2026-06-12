@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>audit-log-service API 문서</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">API Docs · audit-log-service</p>
+        <h1>audit-log-service API 문서</h1>
+        <p class="lead">
+          audit-log-service는 append-only 감사 로그 저장과 관리자 조회를 담당할 예정입니다.
+          현재 문서는 구현 전 계약 초안이며, Auth/IAM과 Admin BFF가 이미 이 서비스 연동을 전제로 코드를 준비하고 있습니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>서비스 상태</h2>
+        <table>
+          <tbody>
+            <tr><th>상태</th><td><span class="tag todo">TODO</span> 서비스 골격과 CDK 배포 구성은 아직 없습니다.</td></tr>
+            <tr><th>소유 범위</th><td>감사 로그 저장, 조회, 보존 정책, evidence 추적</td></tr>
+            <tr><th>주요 호출자</th><td><code>auth-iam-service</code>, <code>wms-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code></td></tr>
+            <tr><th>배포 상태</th><td>현재 CDK 스택에는 포함되지 않습니다. 향후 ECR, ECS Fargate service, CloudWatch log group, 내부 SG, DB secret을 추가합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Endpoint 초안</h2>
+        <table>
+          <thead>
+            <tr><th>Method</th><th>Path</th><th>Caller</th><th>Status</th><th>설명</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>POST</code></td>
+              <td><code>/api/internal/audit/logs</code></td>
+              <td>도메인 서비스, Auth/IAM</td>
+              <td><span class="tag todo">TODO</span></td>
+              <td>업무 변경 성공 후 감사 record를 append-only 저장소에 기록합니다.</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/api/internal/audit/logs</code></td>
+              <td>admin-bff-service</td>
+              <td><span class="tag todo">TODO</span></td>
+              <td>운영자 화면에서 tenant, actor, action, 기간 기준으로 감사 로그를 조회합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>저장 요청 Payload 초안</h2>
+        <pre><code>{
+  "tenantId": "tenant_001",
+  "requestId": "req_01HZABC123",
+  "occurredAt": "2026-06-12T00:00:00.000Z",
+  "actor": {
+    "type": "user",
+    "userId": "user_001"
+  },
+  "action": "auth.user.created",
+  "resource": {
+    "type": "user",
+    "id": "user_002"
+  },
+  "result": "success",
+  "reason": "관리자 사용자 생성",
+  "changes": {
+    "after": {
+      "email": "new-user@example.com"
+    }
+  }
+}</code></pre>
+        <p class="card-subheading">민감정보, token, password, Authorization header, SQL, stack trace는 payload에 포함하지 않습니다.</p>
+      </section>
+
+      <section>
+        <h2>응답과 오류 기준</h2>
+        <table>
+          <tbody>
+            <tr><th>Envelope</th><td>모든 응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>를 포함합니다.</td></tr>
+            <tr><th>List</th><td>목록 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용합니다.</td></tr>
+            <tr><th>주요 오류</th><td><code>AUDIT_LOG_VALIDATION_FAILED</code>, <code>AUDIT_LOG_INTERNAL_AUTH_REQUIRED</code>, <code>AUDIT_LOG_WRITE_FAILED</code>, <code>AUDIT_LOG_QUERY_FAILED</code></td></tr>
+            <tr><th>장애 정책</th><td>저장 실패 시 caller가 재시도 가능한 결과를 받을 수 있도록 timeout, retry, dead-letter 기준을 구현 전에 확정합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer"><a href="../index.html">API 문서 허브로 돌아가기</a> · <a href="../../development/services/audit-log-service.html">audit-log-service 개발과정으로 돌아가기</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

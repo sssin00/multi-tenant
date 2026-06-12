@@ -146,7 +146,7 @@ export function getAppConfig(): AppConfig {
       admin: {
         key: "admin",
         publicPathPrefix: "/api/admin",
-        upstreamUrl: readString("ADMIN_BFF_SERVICE_URL", "http://admin-bff-service:3000"),
+        upstreamUrl: readString("ADMIN_BFF_SERVICE_URL", "http://admin-bff-service:3000/api/admin"),
         timeoutMs: readNumber("GATEWAY_ADMIN_UPSTREAM_TIMEOUT_MS", 5000),
         retryCount: readNumber("GATEWAY_SAFE_METHOD_RETRIES", DEFAULT_SAFE_METHOD_RETRY_COUNT)
       },

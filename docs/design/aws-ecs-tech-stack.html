@@ -398,7 +398,7 @@
         <p class="lead">
           모든 인프라는 AWS 서비스를 사용하고, 실행 환경은 ECS Fargate를 기준으로 합니다.
           이 문서는 장기 기술스택과 현재 CDK 구현 상태를 함께 정리합니다.
-          2026-06-10 현재 CDK는 gateway-service와 auth-iam-service를 먼저 배포하는 구조입니다.
+          2026-06-12 현재 CDK는 gateway-service, auth-iam-service, tenant-service, admin-bff-service를 같은 ECS 스택에서 배포하는 구조입니다.
         </p>
       </header>
 
@@ -442,7 +442,7 @@
             </tr>
             <tr>
               <th>배포 서비스</th>
-              <td><code>gateway-service</code>와 <code>auth-iam-service</code>입니다. 두 서비스 모두 ECR repository, ECS Fargate task/service, CloudWatch log group을 가집니다.</td>
+              <td><code>gateway-service</code>, <code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>입니다. 각 서비스는 ECR repository, ECS Fargate task/service, CloudWatch log group을 가집니다.</td>
             </tr>
             <tr>
               <th>외부 진입점</th>
@@ -450,7 +450,7 @@
             </tr>
             <tr>
               <th>내부 연결</th>
-              <td><code>auth-iam-service</code>는 ALB에 직접 노출하지 않고 ECS Cloud Map private DNS와 auth base path를 포함한 <code>auth-iam-service.{env}.multi-tenant.local:3000/api/auth</code>로 gateway-service가 호출합니다.</td>
+              <td><code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>는 ALB에 직접 노출하지 않고 ECS Cloud Map private DNS로 gateway-service가 호출합니다. Auth/IAM URL은 auth base path를 포함한 <code>auth-iam-service.{env}.multi-tenant.local:3000/api/auth</code>를 사용합니다.</td>
             </tr>
             <tr>
               <th>Redis</th>
@@ -462,7 +462,7 @@
             </tr>
             <tr>
               <th>아직 CDK 미포함</th>
-              <td>Route53 record, RDS/Aurora, EventBridge, SQS, S3, CloudFront, OpenSearch는 현재 스택 밖입니다.</td>
+              <td>Route53 record, RDS/Aurora, EventBridge, SQS, S3, CloudFront, OpenSearch, audit-log-service, outbox-relay-service, user-bff-service, WMS 서비스는 현재 스택 밖입니다.</td>
             </tr>
             <tr>
               <th>기준 문서</th>
@@ -526,7 +526,7 @@
             </tr>
             <tr>
               <th>CI/CD</th>
-              <td>GitHub Actions + CDK + ECR. 현재 <code>deploy-gateway-service.yml</code>, <code>deploy-auth-iam-service.yml</code>, <code>deploy-tenant-service.yml</code>이 각 서비스 이미지를 build/push하며, 자동 push 배포 없이 수동 실행만 허용합니다. 서비스별 workflow는 같은 CDK 스택을 갱신하므로 비대상 서비스 desired count와 image tag를 명시하지 않으면 실패합니다.</td>
+              <td>GitHub Actions + CDK + ECR. 현재 <code>deploy-gateway-service.yml</code>, <code>deploy-auth-iam-service.yml</code>, <code>deploy-tenant-service.yml</code>, <code>deploy-admin-bff-service.yml</code>이 각 서비스 이미지를 build/push하며, 자동 push 배포 없이 수동 실행만 허용합니다. 서비스별 workflow는 같은 CDK 스택을 갱신하므로 비대상 서비스 desired count와 image tag를 명시하지 않으면 실패합니다.</td>
             </tr>
           </tbody>
         </table>
@@ -611,10 +611,11 @@
             <div class="layer-items">
               <span class="pill">gateway-service</span>
               <span class="pill">auth-iam-service</span>
-              <span class="pill">admin-bff later</span>
+              <span class="pill">admin-bff-service</span>
               <span class="pill">user-bff later</span>
               <span class="pill">tenant-service</span>
               <span class="pill">wms-service later</span>
+              <span class="pill">audit-log-service later</span>
               <span class="pill">outbox-relay later</span>
             </div>
           </div>
@@ -652,17 +653,18 @@
         <h2>초기 서비스 구성</h2>
         <div class="split">
           <div class="panel">
-            <h3>처음부터 만들 서비스</h3>
+            <h3>1차 구현 또는 배포 준비 서비스</h3>
             <ul>
               <li>gateway-service</li>
               <li>auth-iam-service</li>
               <li>tenant-service</li>
+              <li>admin-bff-service</li>
             </ul>
           </div>
           <div class="panel">
             <h3>WMS 도메인 완성 전후 추가 서비스</h3>
             <ul>
-              <li>admin-bff-service</li>
+              <li>audit-log-service</li>
               <li>user-bff-service</li>
               <li>wms-service</li>
               <li>outbox-relay-service</li>
@@ -771,7 +773,7 @@
         </div>
       </section>
 
-      <p class="footer">작성일: 2026-05-29 · 현행화: 2026-06-10 · 프로젝트: multi-tenant smart factory · 기준: AWS ECS Fargate</p>
+      <p class="footer">작성일: 2026-05-29 · 현행화: 2026-06-12 · 프로젝트: multi-tenant smart factory · 기준: AWS ECS Fargate</p>
     </main>
   </body>
 </html>

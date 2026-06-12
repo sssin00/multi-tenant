@@ -34,16 +34,72 @@ const permissions = [
     description: "Update users in the tenant"
   },
   {
+    code: "auth.users.updateStatus",
+    description: "Update user status in the tenant"
+  },
+  {
+    code: "auth.users.delete",
+    description: "Delete users in the tenant"
+  },
+  {
+    code: "auth.userRoles.manage",
+    description: "Manage user role assignments in the tenant"
+  },
+  {
+    code: "auth.permissions.read",
+    description: "Read permission catalog in the tenant"
+  },
+  {
+    code: "auth.permissions.create",
+    description: "Create permission catalog entries in the tenant"
+  },
+  {
     code: "auth.roles.read",
     description: "Read roles and permissions in the tenant"
+  },
+  {
+    code: "auth.roles.create",
+    description: "Create roles in the tenant"
   },
   {
     code: "auth.roles.update",
     description: "Update roles and permissions in the tenant"
   },
   {
+    code: "auth.rolePermissions.manage",
+    description: "Manage role permission assignments in the tenant"
+  },
+  {
     code: "tenant.tenants.read",
     description: "Read tenant status and module settings"
+  },
+  {
+    code: "tenant.tenants.create",
+    description: "Create tenants"
+  },
+  {
+    code: "tenant.tenants.update",
+    description: "Update tenant settings"
+  },
+  {
+    code: "tenant.tenants.updateStatus",
+    description: "Update tenant status"
+  },
+  {
+    code: "tenant.modules.manage",
+    description: "Manage tenant module subscriptions"
+  },
+  {
+    code: "tenant.domains.read",
+    description: "Read tenant domains"
+  },
+  {
+    code: "tenant.domains.manage",
+    description: "Manage tenant domains"
+  },
+  {
+    code: "audit.logs.read",
+    description: "Read audit logs"
   },
   {
     code: "wms.inventory.read",

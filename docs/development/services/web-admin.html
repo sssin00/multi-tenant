@@ -14,12 +14,21 @@
         <p class="lead">운영자와 관리자를 위한 React + Vite 프론트엔드 앱입니다.</p>
       </header>
       <section>
-        <h2>앱 역할</h2>
+        <h2>서비스/앱 역할</h2>
         <table>
           <tr><th>위치</th><td><code>apps/web-admin</code></td></tr>
+          <tr><th>카테고리</th><td>Frontend App · Admin UI</td></tr>
           <tr><th>대상</th><td>시스템 운영자, 테넌트 관리자</td></tr>
           <tr><th>연결</th><td><code>admin-bff-service</code>를 통해 관리 화면 데이터를 조회합니다.</td></tr>
           <tr><th>초기 화면</th><td>테넌트 관리, 사용자/권한 관리, 운영 설정, 감사 로그</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>구현 상태</h2>
+        <table>
+          <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>
+          <tr><th>선행 조건</th><td><code>admin-bff-service</code>의 tenant/user/role/permission API와 첫 화면 IA가 준비되어야 합니다.</td></tr>
+          <tr><th>API 문서</th><td>화면 연동 기준은 <code>docs/apis/admin-bff-service/index.html</code>를 따릅니다.</td></tr>
         </table>
       </section>
       <section>
@@ -31,8 +40,92 @@
         </div>
       </section>
       <section>
+        <h2>TODO</h2>
+        <p>web-admin TODO는 완료 항목과 남은 작업을 분리해 갱신합니다.</p>
+        <div class="grid two">
+          <div class="card">
+            <h3>완료</h3>
+            <p>아직 완료된 구현 TODO는 없습니다.</p>
+          </div>
+          <div class="card">
+            <h3>남은 작업</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" disabled /> <code>apps/web-admin</code> React + Vite 기본 구조 생성</label></p>
+              <p><label><input type="checkbox" disabled /> 로그인 후 admin app shell, route guard, API client 구성</label></p>
+              <p><label><input type="checkbox" disabled /> tenant 목록/상세/생성/상태/module/domain 관리 화면 구현</label></p>
+              <p><label><input type="checkbox" disabled /> 사용자/role/permission 관리 화면 구현</label></p>
+              <p><label><input type="checkbox" disabled /> audit log 조회 화면 구현</label></p>
+              <p><label><input type="checkbox" disabled /> 화면별 권한에 따른 메뉴/버튼 표시 제어</label></p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h2>기능별 작업 내역</h2>
+        <table>
+          <tr><th>Tenant Admin</th><td>tenant 목록, 상세, 생성, 기본 정보 수정, 상태 변경, module/domain 관리를 Admin BFF API와 연결합니다.</td></tr>
+          <tr><th>User Admin</th><td>사용자 목록/상세/생성/상태 변경과 role 부여/해제를 Auth/IAM 경계에 맞춰 구현합니다.</td></tr>
+          <tr><th>Access Control</th><td>role/permission 화면은 BFF의 screen-data 조합 API를 사용하고, 변경성 요청은 idempotency 기준을 따릅니다.</td></tr>
+          <tr><th>Audit</th><td>audit-log-service 저장소 연결 후 검색 조건, paging, 상세 evidence 표시를 구현합니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>테스트 시나리오</h2>
+        <table>
+          <tr><th>WEB-ADMIN-001</th><td>권한이 있는 관리자는 tenant 목록과 상세 화면을 조회할 수 있다.</td></tr>
+          <tr><th>WEB-ADMIN-002</th><td>권한이 없는 메뉴와 변경 버튼은 표시되지 않거나 API 호출 전 차단된다.</td></tr>
+          <tr><th>WEB-ADMIN-003</th><td>tenant 상태/module/domain 변경 후 목록과 상세 화면이 갱신된다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>후속 작업</h2>
+        <p>현재 web-admin 착수 전 이어서 확정할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>우선순위</th>
+                <th>작업</th>
+                <th>범위</th>
+                <th>완료 기준</th>
+                <th>함께 갱신할 문서</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>P0</code></td>
+                <td>Admin session 초기화 화면</td>
+                <td>Admin BFF의 <code>/api/admin/me</code> 또는 permission summary 응답을 기준으로 메뉴와 접근 가능 화면을 렌더링합니다.</td>
+                <td>로그인 후 관리자 권한과 tenant scope에 따라 접근 가능한 메뉴만 표시됩니다.</td>
+                <td>admin-bff-service 개발 문서, web-admin 개발 문서, Auth/IAM 개발 문서</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td>운영 UX 기준</td>
+                <td>tenant 생성, 상태 변경, module 교체, domain 비활성화 같은 위험 작업에 확인 dialog와 결과 evidence 표시를 추가합니다.</td>
+                <td>위험 작업 수행 전 사용자 확인을 받고 완료 후 requestId와 변경 결과를 화면에서 확인할 수 있습니다.</td>
+                <td>web-admin 개발 문서, admin-bff-service API 문서, testing 규칙</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>Scenario Evidence 절차</td>
+                <td>AI 검증 시 화면 상태, API 응답, requestId를 함께 남길 수 있는 체크 절차를 정리합니다.</td>
+                <td>테스트 시나리오별 evidence가 화면 캡처, 응답 JSON, requestId 기준으로 재현 가능합니다.</td>
+                <td>web-admin 개발 문서, testing 규칙, 개발 로그</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section>
         <h2>개발 기록</h2>
-        <p>아직 구현 전입니다.</p>
+        <article>
+          <h3>2026-06-12 착수 전 상태 점검</h3>
+          <ul>
+            <li>아직 구현 전이며 Admin BFF의 tenant, user, role, permission API가 화면 연동 기준이 됩니다.</li>
+            <li>첫 화면 구현 전에는 admin session 초기화, tenant 관리 화면, access-control 화면의 API 응답 형태를 Admin BFF 문서와 맞춥니다.</li>
+          </ul>
+        </article>
       </section>
       <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
     </main>

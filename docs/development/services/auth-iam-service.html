@@ -15,12 +15,22 @@
       </header>
 
       <section>
-        <h2>서비스 역할</h2>
+        <h2>서비스/앱 역할</h2>
         <table>
           <tr><th>위치</th><td><code>apps/auth-iam-service</code></td></tr>
+          <tr><th>카테고리</th><td>Backend Service · Auth/IAM</td></tr>
           <tr><th>책임</th><td>사용자 인증, JWT 발급, refresh token rotation, 사용자/역할/권한 관리, permission summary/check 제공</td></tr>
           <tr><th>연동</th><td>gateway-service의 <code>/api/auth/**</code> proxy route 뒤에서 동작하고, BFF와 도메인 서비스에 권한 조회 API를 제공합니다.</td></tr>
           <tr><th>주의</th><td>JWT에는 <code>roles</code>, <code>permissions</code>를 넣지 않습니다. WMS 재고/입출고 업무 규칙은 <code>wms-service</code>에 둡니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>구현 상태</h2>
+        <table>
+          <tr><th>상태</th><td><span class="tag done">1차 구현</span></td></tr>
+          <tr><th>완료 범위</th><td>login/refresh/logout, JWT 발급, user/role/permission 관리, permission summary/check, audit 저장 호출, outbox event 저장, 내부 인증</td></tr>
+          <tr><th>남은 범위</th><td>tenant bootstrap, outbox-relay-service 연동, 운영 key rotation, permission cache, idempotency 고도화</td></tr>
+          <tr><th>API 문서</th><td><code>docs/apis/auth-iam-service/index.html</code></td></tr>
         </table>
       </section>
 
@@ -37,8 +47,8 @@
       </section>
 
       <section>
-        <h2>Auth/IAM 기능 TODO</h2>
-        <p>auth-iam-service 기능은 이 체크리스트를 기준으로 구현 내역에 맞춰 갱신합니다.</p>
+        <h2>TODO</h2>
+        <p>auth-iam-service TODO는 완료 항목과 남은 작업을 분리해 갱신합니다.</p>
         <div class="grid two">
           <div class="card">
             <h3>완료</h3>
@@ -71,7 +81,7 @@
             </div>
           </div>
           <div class="card">
-            <h3>후속 작업</h3>
+            <h3>남은 작업</h3>
             <div class="task-list">
               <p><label><input type="checkbox" disabled /> outbox-relay-service 연동 후 발행 상태 문서화</label></p>
               <p><label><input type="checkbox" disabled /> 운영 JWT <code>RS256</code> key rotation 기준 적용</label></p>
@@ -85,7 +95,7 @@
       </section>
 
       <section>
-        <h2>후속 작업 백로그</h2>
+        <h2>후속 작업</h2>
         <p>현재 Auth/IAM의 1차 구현 이후 이어서 진행할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
         <div class="wide-table">
           <table>
@@ -440,7 +450,7 @@
       </section>
 
       <section>
-        <h2>Auth/IAM 테스트 시나리오</h2>
+        <h2>테스트 시나리오</h2>
         <p>1차 검증은 자동 E2E 코드가 아니라 시나리오 기반 AI 검증으로 진행합니다. 성공 판정에는 응답 JSON, access log, JWT payload, refresh token row, permission row, audit/outbox row 중 필요한 증거를 남깁니다.</p>
         <div class="wide-table">
           <table>
@@ -547,7 +557,7 @@
       </section>
 
       <section>
-        <h2>향후 서비스 개발 연동 작업</h2>
+        <h2>서비스 연동 작업</h2>
         <p>auth-iam-service가 구현될 때 다른 서비스 문서와 함께 확인해야 할 작업입니다.</p>
         <div class="wide-table">
           <table>
@@ -606,11 +616,12 @@
 
       <section>
         <h2>개발 기록</h2>
+
         <article>
           <h3>2026-06-09 Auth/IAM 작업 계획 문서화</h3>
           <ul>
             <li>gateway-service 개발 문서 구조에 맞춰 Auth/IAM 개발 문서를 재구성했습니다.</li>
-            <li>문서 구조를 서비스 역할, 첫 구현 범위, 기능 TODO, 기능별 작업 내역, 테스트 시나리오, 향후 연동 작업, 개발 기록 순서로 맞췄습니다.</li>
+            <li>문서 구조를 서비스/앱 역할, 구현 상태, 첫 구현 범위, TODO, 기능별 작업 내역, 테스트 시나리오, 후속 작업, 개발 기록 기준으로 맞췄습니다.</li>
             <li>당시 <code>apps/auth-iam-service/src</code>에는 서비스 기본 구성이 필요했으며, 이후 NestJS/Prisma 기반 구현으로 확장했습니다.</li>
             <li>Auth/IAM API 시작점은 <a href="../../apis/auth-iam-service/index.html"><code>docs/apis/auth-iam-service/index.html</code></a>에 기록했습니다.</li>
           </ul>
@@ -667,20 +678,6 @@
             <li>Docker image build 단계에서 <code>prisma generate</code>가 실행되도록 <code>build</code> script를 조정했습니다.</li>
             <li>이미지 빌드 시점에는 운영 DB secret을 요구하지 않도록 <code>prisma.config.ts</code>에 build-time fallback URL을 둡니다.</li>
             <li><code>apps/auth-iam-service/Dockerfile</code>을 추가했고, production 형태의 컨테이너 실행에서 <code>/ready</code>가 database, redis, security check를 모두 <code>ok</code>로 반환하는 것을 확인했습니다.</li>
-          </ul>
-        </article>
-        <article>
-          <h3>2026-06-10 Auth/IAM CDK 배포 구성</h3>
-          <ul>
-            <li><code>infra/cdk/lib/gateway-service-stack.ts</code>에 Auth/IAM용 ECR repository, ECS Fargate task definition/service, CloudWatch log group, security group을 추가했습니다.</li>
-            <li>첫 인프라 배포에서 비어 있는 ECR 때문에 task가 실패하지 않도록 <code>authDesiredCount=0</code>을 기본값으로 사용합니다.</li>
-            <li>서비스 실행은 이미지 push와 runtime secret 준비 후 <code>authDesiredCount=1</code>, <code>authImageTag=...</code>로 재배포해 시작합니다.</li>
-            <li>Auth/IAM은 ALB target으로 직접 노출하지 않고 Cloud Map 내부 DNS와 auth base path를 포함한 <code>auth-iam-service.{envName}.multi-tenant.local:3000/api/auth</code>로 gateway-service가 호출합니다.</li>
-            <li><code>DATABASE_URL</code>, JWT secret/key, 내부 호출 인증 secret은 Secrets Manager ARN context로 받아 ECS task secret에 주입합니다.</li>
-            <li>security group은 gateway-service에서 Auth/IAM <code>3000</code> 포트 접근만 허용하고, Auth/IAM에서 Redis <code>6379</code> 포트 접근만 허용합니다.</li>
-            <li><code>deploy-gateway-service.yml</code>도 Auth/IAM task definition context를 함께 갱신하므로 <code>AUTH_DESIRED_COUNT</code>와 <code>AUTH_IMAGE_TAG</code>를 명시해야 합니다. Auth/IAM image build/push와 실행 배포는 수동 실행 전용 <code>deploy-auth-iam-service.yml</code>에서 처리합니다.</li>
-            <li><code>deploy-auth-iam-service.yml</code>은 gateway/tenant desired count와 image tag가 비어 있으면 실패해, 같은 스택의 다른 서비스를 암묵적으로 0대로 낮추지 않습니다.</li>
-            <li><code>pnpm --filter @multi-tenant/infra-cdk typecheck</code>와 <code>pnpm --filter @multi-tenant/infra-cdk exec cdk synth -c gatewayDesiredCount=0 -c authDesiredCount=0 -c gatewayUseNatGateway=false</code>가 통과했습니다.</li>
           </ul>
         </article>
         <article>
@@ -805,11 +802,34 @@
           </ul>
         </article>
         <article>
+          <h3>2026-06-10 Auth/IAM CDK 배포 구성</h3>
+          <ul>
+            <li><code>infra/cdk/lib/gateway-service-stack.ts</code>에 Auth/IAM용 ECR repository, ECS Fargate task definition/service, CloudWatch log group, security group을 추가했습니다.</li>
+            <li>첫 인프라 배포에서 비어 있는 ECR 때문에 task가 실패하지 않도록 <code>authDesiredCount=0</code>을 기본값으로 사용합니다.</li>
+            <li>서비스 실행은 이미지 push와 runtime secret 준비 후 <code>authDesiredCount=1</code>, <code>authImageTag=...</code>로 재배포해 시작합니다.</li>
+            <li>Auth/IAM은 ALB target으로 직접 노출하지 않고 Cloud Map 내부 DNS와 auth base path를 포함한 <code>auth-iam-service.{envName}.multi-tenant.local:3000/api/auth</code>로 gateway-service가 호출합니다.</li>
+            <li><code>DATABASE_URL</code>, JWT secret/key, 내부 호출 인증 secret은 Secrets Manager ARN context로 받아 ECS task secret에 주입합니다.</li>
+            <li>security group은 gateway-service에서 Auth/IAM <code>3000</code> 포트 접근만 허용하고, Auth/IAM에서 Redis <code>6379</code> 포트 접근만 허용합니다.</li>
+            <li><code>deploy-gateway-service.yml</code>도 Auth/IAM task definition context를 함께 갱신하므로 <code>AUTH_DESIRED_COUNT</code>와 <code>AUTH_IMAGE_TAG</code>를 명시해야 합니다. Auth/IAM image build/push와 실행 배포는 수동 실행 전용 <code>deploy-auth-iam-service.yml</code>에서 처리합니다.</li>
+            <li><code>deploy-auth-iam-service.yml</code>은 gateway/tenant/admin-bff desired count와 image tag가 비어 있으면 실패해, 같은 스택의 다른 서비스를 암묵적으로 0대로 낮추지 않습니다.</li>
+            <li><code>pnpm --filter @multi-tenant/infra-cdk typecheck</code>와 <code>pnpm --filter @multi-tenant/infra-cdk exec cdk synth -c gatewayDesiredCount=0 -c authDesiredCount=0 -c tenantDesiredCount=0 -c adminBffDesiredCount=0 -c gatewayUseNatGateway=false</code>가 통과했습니다.</li>
+          </ul>
+        </article>
+        <article>
           <h3>2026-06-11 로컬 API 테스트 Seed 추가</h3>
           <ul>
             <li><code>apps/auth-iam-service/prisma/seed.ts</code>를 추가해 로그인 가능한 <code>admin@demo.local</code> 사용자, <code>tenant_admin</code> role, auth/tenant/wms permission catalog와 role mapping을 생성합니다.</li>
             <li><code>pnpm --filter auth-iam-service prisma:seed</code>와 루트 <code>pnpm seed:local</code>로 재실행할 수 있습니다.</li>
+            <li><code>pnpm db:reset:local</code>은 auth_iam DB를 초기화한 뒤 schema push와 seed를 다시 실행하므로 Postman 직접 호출 전 기준 데이터를 재생성할 때 사용합니다.</li>
+            <li><code>postman/multi-tenant-local.postman_collection.json</code>에는 gateway 경유 login/me/refresh와 Auth/IAM 직접 호출 요청을 함께 유지합니다.</li>
             <li>로컬 Docker compose에서는 <code>auth-iam-seed</code> job이 schema push 이후 seed를 실행합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 Admin BFF 테스트 권한 Seed 보강</h3>
+          <ul>
+            <li><code>tenant_admin</code> seed role에 Admin BFF가 요구하는 <code>auth.permissions.read</code>, <code>auth.rolePermissions.manage</code>, <code>tenant.modules.manage</code>, <code>tenant.domains.manage</code>, <code>audit.logs.read</code> 등 관리자 화면 권한을 추가했습니다.</li>
+            <li><code>pnpm db:reset:local</code> 후 gateway 경유 <code>GET /api/admin/access-control/screen-data</code>가 사용자 1건, role 1건, permission 22건을 포함해 성공하는 것을 확인했습니다.</li>
           </ul>
         </article>
       </section>
