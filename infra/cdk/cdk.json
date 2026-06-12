@@ -12,7 +12,6 @@
     "gatewayDomainName": "",
     "gatewayCorsAllowedOrigins": "",
     "gatewayJwtSecretArn": "",
-    "gatewayTenantStatusCheckEnabled": "false",
     "authImageTag": "latest",
     "authDesiredCount": 0,
     "authCorsAllowedOrigins": "",
@@ -36,7 +35,6 @@
     "auditLogServiceUrl": "",
     "authIamServiceUrl": "",
     "adminBffServiceUrl": "",
-    "userBffServiceUrl": "",
     "tenantServiceUrl": ""
   }
 }

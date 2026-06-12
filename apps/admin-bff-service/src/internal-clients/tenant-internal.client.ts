@@ -20,6 +20,15 @@ export interface TenantResponse {
   updatedAt: string;
 }
 
+export type TenantStatus = "provisioning" | "active" | "suspended" | "deleted";
+
+export interface TenantStatusResponse {
+  tenantId: string;
+  code: string;
+  name: string;
+  status: TenantStatus;
+}
+
 export interface TenantModulesResponse {
   tenantId: string;
   status: string;
@@ -88,6 +97,14 @@ export class TenantInternalClient {
   private readonly config = getAppConfig();
 
   constructor(private readonly internalAuthSignerService: InternalAuthSignerService) {}
+
+  async getTenantStatus(context: TenantClientContext, tenantId: string): Promise<TenantStatusResponse> {
+    return this.request<TenantStatusResponse>({
+      method: "GET",
+      path: `/internal/tenants/${encodeURIComponent(tenantId)}/status`,
+      ...context
+    });
+  }
 
   async getTenantModules(context: TenantClientContext, tenantId: string): Promise<TenantModulesResponse> {
     return this.request<TenantModulesResponse>({

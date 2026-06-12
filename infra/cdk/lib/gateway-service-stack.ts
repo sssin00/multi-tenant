@@ -21,7 +21,6 @@ export interface GatewayServiceStackProps extends cdk.StackProps {
   gatewayDomainName?: string;
   gatewayCorsAllowedOrigins?: string;
   gatewayJwtSecretArn?: string;
-  gatewayTenantStatusCheckEnabled: boolean;
   authImageTag: string;
   authDesiredCount: number;
   authCorsAllowedOrigins?: string;
@@ -45,7 +44,6 @@ export interface GatewayServiceStackProps extends cdk.StackProps {
   auditLogServiceUrl?: string;
   authIamServiceUrl?: string;
   adminBffServiceUrl?: string;
-  userBffServiceUrl?: string;
   tenantServiceUrl?: string;
 }
 
@@ -236,14 +234,9 @@ export class GatewayServiceStack extends cdk.Stack {
     const tenantServiceSecurityGroup = new ec2.SecurityGroup(this, "TenantServiceSecurityGroup", {
       vpc,
       securityGroupName: `${namePrefix}-${tenantServiceName}-sg`,
-      description: "Allow gateway-service traffic to tenant-service",
+      description: "Allow BFF traffic to tenant-service",
       allowAllOutbound: true
     });
-    tenantServiceSecurityGroup.addIngressRule(
-      serviceSecurityGroup,
-      ec2.Port.tcp(3000),
-      "Allow gateway-service to tenant-service"
-    );
 
     const adminBffServiceSecurityGroup = new ec2.SecurityGroup(this, "AdminBffServiceSecurityGroup", {
       vpc,
@@ -255,6 +248,11 @@ export class GatewayServiceStack extends cdk.Stack {
       serviceSecurityGroup,
       ec2.Port.tcp(3000),
       "Allow gateway-service to admin-bff-service"
+    );
+    tenantServiceSecurityGroup.addIngressRule(
+      adminBffServiceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow admin-bff-service to tenant-service"
     );
 
     const redisSecurityGroup = new ec2.SecurityGroup(this, "GatewayRedisSecurityGroup", {
@@ -392,9 +390,6 @@ export class GatewayServiceStack extends cdk.Stack {
     if (jwtSecret) {
       gatewayContainerSecrets.JWT_SECRET = ecs.Secret.fromSecretsManager(jwtSecret);
     }
-    if (tenantInternalAuthSecret) {
-      gatewayContainerSecrets.TENANT_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(tenantInternalAuthSecret);
-    }
 
     const container = taskDefinition.addContainer("GatewayContainer", {
       containerName: serviceName,
@@ -409,10 +404,6 @@ export class GatewayServiceStack extends cdk.Stack {
         AWS_REGION: cdk.Stack.of(this).region,
         REQUEST_ID_HEADER: "x-request-id",
         TENANT_HEADER: "x-tenant-id",
-        TENANT_SERVICE_URL: props.tenantServiceUrl ?? tenantInternalUrl,
-        GATEWAY_TENANT_STATUS_CHECK_ENABLED: String(props.gatewayTenantStatusCheckEnabled),
-        GATEWAY_TENANT_STATUS_CACHE_TTL_SECONDS: "30",
-        GATEWAY_TENANT_STATUS_TIMEOUT_MS: "1000",
         GATEWAY_SECURITY_HEADERS_ENABLED: "true",
         GATEWAY_CORS_ALLOWED_ORIGINS: corsAllowedOrigins,
         GATEWAY_CORS_ALLOWED_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
@@ -424,17 +415,14 @@ export class GatewayServiceStack extends cdk.Stack {
         JWT_AUDIENCE: "multi-tenant-gateway-service",
         GATEWAY_AUTH_UPSTREAM_TIMEOUT_MS: "3000",
         GATEWAY_ADMIN_UPSTREAM_TIMEOUT_MS: "5000",
-        GATEWAY_APP_UPSTREAM_TIMEOUT_MS: "5000",
         GATEWAY_SAFE_METHOD_RETRIES: "1",
         REDIS_URL: redisUrl,
         GATEWAY_RATE_LIMIT_ENABLED: "true",
         GATEWAY_RATE_LIMIT_WINDOW_SECONDS: "60",
         GATEWAY_RATE_LIMIT_AUTH_PER_WINDOW: "60",
         GATEWAY_RATE_LIMIT_ADMIN_PER_WINDOW: "300",
-        GATEWAY_RATE_LIMIT_APP_PER_WINDOW: "600",
         AUTH_IAM_SERVICE_URL: props.authIamServiceUrl ?? authIamInternalUrl,
-        ADMIN_BFF_SERVICE_URL: props.adminBffServiceUrl ?? adminBffInternalUrl,
-        USER_BFF_SERVICE_URL: props.userBffServiceUrl ?? "http://user-bff-service:3000"
+        ADMIN_BFF_SERVICE_URL: props.adminBffServiceUrl ?? adminBffInternalUrl
       },
       secrets: Object.keys(gatewayContainerSecrets).length > 0 ? gatewayContainerSecrets : undefined,
       logging: ecs.LogDrivers.awsLogs({
@@ -629,7 +617,7 @@ export class GatewayServiceStack extends cdk.Stack {
         TENANT_CORS_CREDENTIALS: "true",
         TENANT_CORS_MAX_AGE_SECONDS: "600",
         TENANT_INTERNAL_AUTH_ENABLED: "true",
-        TENANT_INTERNAL_AUTH_ALLOWED_SERVICES: "gateway-service,admin-bff-service,user-bff-service,wms-service",
+        TENANT_INTERNAL_AUTH_ALLOWED_SERVICES: "admin-bff-service,user-bff-service,wms-service",
         TENANT_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS: "300",
         REDIS_URL: redisUrl
       },
@@ -829,7 +817,7 @@ export class GatewayServiceStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, "TenantServiceInternalUrl", {
       value: tenantInternalUrl,
-      description: "Cloud Map internal URL used by gateway-service to reach tenant-service"
+      description: "Cloud Map internal URL used by BFF services to reach tenant-service"
     });
 
     new cdk.CfnOutput(this, "AdminBffServiceInternalUrl", {

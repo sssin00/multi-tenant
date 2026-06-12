@@ -4,17 +4,14 @@ export interface AppConfig {
   env: AppEnvironment;
   requestIdHeader: string;
   tenantHeader: string;
-  authMode: "local-dev";
   cors: CorsConfig;
   securityHeaders: SecurityHeadersConfig;
   jwt: JwtConfig;
   redis: RedisConfig;
   rateLimit: RateLimitConfig;
-  tenantStatus: TenantStatusConfig;
   routes: {
     auth: ProxyRouteConfig;
     admin: ProxyRouteConfig;
-    app: ProxyRouteConfig;
   };
 }
 
@@ -51,16 +48,8 @@ export interface RateLimitConfig {
   limits: Record<ProxyRouteConfig["key"], number>;
 }
 
-export interface TenantStatusConfig {
-  enabled: boolean;
-  serviceUrl?: string;
-  cacheTtlSeconds: number;
-  timeoutMs: number;
-  internalAuthSecret?: string;
-}
-
 export interface ProxyRouteConfig {
-  key: "auth" | "admin" | "app";
+  key: "auth" | "admin";
   publicPathPrefix: string;
   upstreamUrl: string;
   timeoutMs: number;
@@ -77,7 +66,6 @@ export function getAppConfig(): AppConfig {
     env: readAppEnvironment("APP_ENV", "local"),
     requestIdHeader: readString("REQUEST_ID_HEADER", "x-request-id"),
     tenantHeader: readString("TENANT_HEADER", "x-tenant-id"),
-    authMode: "local-dev",
     cors: {
       allowedOrigins: readStringList("GATEWAY_CORS_ALLOWED_ORIGINS", defaultCorsOrigins()),
       allowedMethods: readStringList("GATEWAY_CORS_ALLOWED_METHODS", [
@@ -124,16 +112,8 @@ export function getAppConfig(): AppConfig {
       windowSeconds: readNumber("GATEWAY_RATE_LIMIT_WINDOW_SECONDS", 60),
       limits: {
         auth: readNumber("GATEWAY_RATE_LIMIT_AUTH_PER_WINDOW", 60),
-        admin: readNumber("GATEWAY_RATE_LIMIT_ADMIN_PER_WINDOW", 300),
-        app: readNumber("GATEWAY_RATE_LIMIT_APP_PER_WINDOW", 600)
+        admin: readNumber("GATEWAY_RATE_LIMIT_ADMIN_PER_WINDOW", 300)
       }
-    },
-    tenantStatus: {
-      enabled: readBoolean("GATEWAY_TENANT_STATUS_CHECK_ENABLED", false),
-      serviceUrl: readOptionalString("TENANT_SERVICE_URL"),
-      cacheTtlSeconds: readNumber("GATEWAY_TENANT_STATUS_CACHE_TTL_SECONDS", 30),
-      timeoutMs: readNumber("GATEWAY_TENANT_STATUS_TIMEOUT_MS", 1000),
-      internalAuthSecret: readOptionalString("TENANT_INTERNAL_AUTH_SECRET")
     },
     routes: {
       auth: {
@@ -148,13 +128,6 @@ export function getAppConfig(): AppConfig {
         publicPathPrefix: "/api/admin",
         upstreamUrl: readString("ADMIN_BFF_SERVICE_URL", "http://admin-bff-service:3000/api/admin"),
         timeoutMs: readNumber("GATEWAY_ADMIN_UPSTREAM_TIMEOUT_MS", 5000),
-        retryCount: readNumber("GATEWAY_SAFE_METHOD_RETRIES", DEFAULT_SAFE_METHOD_RETRY_COUNT)
-      },
-      app: {
-        key: "app",
-        publicPathPrefix: "/api/app",
-        upstreamUrl: readString("USER_BFF_SERVICE_URL", "http://user-bff-service:3000"),
-        timeoutMs: readNumber("GATEWAY_APP_UPSTREAM_TIMEOUT_MS", 5000),
         retryCount: readNumber("GATEWAY_SAFE_METHOD_RETRIES", DEFAULT_SAFE_METHOD_RETRY_COUNT)
       }
     }

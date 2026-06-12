@@ -11,7 +11,6 @@ export interface ReadinessResponse {
     jwt: ReadinessCheck;
     proxyRoutes: ReadinessCheck;
     rateLimit: ReadinessCheck;
-    tenantStatus: ReadinessCheck;
     security: ReadinessCheck;
   };
 }
@@ -31,7 +30,6 @@ export class HealthService {
       jwt: this.checkJwt(this.config),
       proxyRoutes: this.checkProxyRoutes(this.config),
       rateLimit: this.checkRateLimit(this.config),
-      tenantStatus: this.checkTenantStatus(this.config),
       security: this.checkSecurity(this.config)
     };
     const isReady = Object.values(checks).every((check) => check.status === "ok");
@@ -75,34 +73,6 @@ export class HealthService {
         status: "failed",
         message: `${invalidLimit[0]} rate limit must be positive`
       };
-    }
-
-    return { status: "ok" };
-  }
-
-  private checkTenantStatus(config: AppConfig): ReadinessCheck {
-    if (!config.tenantStatus.enabled) {
-      return { status: "ok", message: "Tenant status check is disabled" };
-    }
-
-    if (!config.tenantStatus.serviceUrl) {
-      return { status: "failed", message: "TENANT_SERVICE_URL is required" };
-    }
-
-    if (!config.tenantStatus.internalAuthSecret) {
-      return { status: "failed", message: "TENANT_INTERNAL_AUTH_SECRET is required" };
-    }
-
-    if (!this.isValidHttpUrlValue(config.tenantStatus.serviceUrl)) {
-      return { status: "failed", message: "TENANT_SERVICE_URL must be a valid http or https URL" };
-    }
-
-    if (config.tenantStatus.cacheTtlSeconds <= 0) {
-      return { status: "failed", message: "GATEWAY_TENANT_STATUS_CACHE_TTL_SECONDS must be positive" };
-    }
-
-    if (config.tenantStatus.timeoutMs <= 0) {
-      return { status: "failed", message: "GATEWAY_TENANT_STATUS_TIMEOUT_MS must be positive" };
     }
 
     return { status: "ok" };

@@ -19,15 +19,28 @@
           <tr><th>위치</th><td><code>apps/gateway-service</code></td></tr>
           <tr><th>카테고리</th><td>Backend Service · Edge Gateway</td></tr>
           <tr><th>책임</th><td>request id 발급, tenant 식별, JWT 검증, 라우팅, rate limit, 공통 로그와 보안 정책 적용</td></tr>
-          <tr><th>라우팅</th><td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>를 각 서비스/BFF로 전달</td></tr>
+          <tr><th>라우팅</th><td><code>/api/auth/**</code>, <code>/api/admin/**</code>를 Auth/IAM과 Admin BFF로 전달</td></tr>
           <tr><th>주의</th><td>재고 차감, 입고 완료, 출고 할당 같은 업무 로직과 DB 직접 접근은 넣지 않습니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>기능 정의</h2>
+        <table>
+          <tbody>
+            <tr><th>요청 진입</th><td>외부 HTTP 요청의 첫 진입점으로 <code>X-Request-Id</code>를 보장하고, 표준 응답 header와 access log 기준을 적용합니다.</td></tr>
+            <tr><th>인증 전처리</th><td>public route를 제외한 요청의 JWT 서명, 만료, issuer, audience를 검증하고 user/tenant context를 추출합니다.</td></tr>
+            <tr><th>Tenant 보호</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code> mismatch를 차단하고 downstream으로 tenant context를 전파합니다.</td></tr>
+            <tr><th>라우팅</th><td><code>/api/auth/**</code>, <code>/api/admin/**</code>, 이후 <code>/api/app/**</code> surface를 각 BFF 또는 Auth/IAM upstream으로 전달합니다.</td></tr>
+            <tr><th>공통 정책</th><td>rate limit, CORS, security header, upstream timeout, retry, 표준 error envelope를 gateway 레벨에서 통일합니다.</td></tr>
+            <tr><th>제외 범위</th><td>도메인 업무 판단, 화면 데이터 조합, DB 접근, tenant 상태 상세 검증은 gateway 기능이 아닙니다.</td></tr>
+          </tbody>
         </table>
       </section>
       <section>
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag done">1차 구현</span></td></tr>
-          <tr><th>완료 범위</th><td>health/readiness, request context, JWT 검증, tenant mismatch/status check, proxy route, rate limit, security/CORS, AWS 배포 기준</td></tr>
+          <tr><th>완료 범위</th><td>health/readiness, request context, JWT 검증, tenant mismatch 차단, Auth/BFF proxy route, rate limit, security/CORS, AWS 배포 기준</td></tr>
           <tr><th>남은 범위</th><td>새 BFF/API surface가 추가될 때 route group, timeout, rate limit, CORS 기준을 함께 검증합니다.</td></tr>
           <tr><th>API 문서</th><td><code>docs/apis/gateway-service</code></td></tr>
         </table>
@@ -38,9 +51,9 @@
           <div class="card"><strong>Health</strong><p><code>GET /health</code>, <code>GET /ready</code></p></div>
           <div class="card"><strong>Context</strong><p><code>x-request-id</code>, <code>x-tenant-id</code> 추출과 전파</p></div>
           <div class="card"><strong>Auth</strong><p>JWT guard 기본 구조와 public/private route 구분</p></div>
-          <div class="card"><strong>Routing</strong><p>user-bff, admin-bff, auth-iam으로 프록시 라우팅</p></div>
+          <div class="card"><strong>Routing</strong><p>auth-iam, admin-bff로 프록시 라우팅</p></div>
           <div class="card"><strong>Log</strong><p>tenant_id, request_id, user_id 기반 access log</p></div>
-          <div class="card"><strong>Policy</strong><p>Redis rate limit, tenant status check, 보안 header/CORS 운영 기준</p></div>
+          <div class="card"><strong>Policy</strong><p>Redis rate limit, 보안 header/CORS 운영 기준</p></div>
         </div>
       </section>
       <section>
@@ -59,7 +72,7 @@
               <p><label><input type="checkbox" checked disabled /> Bearer token 기반 auth guard 기본 구조</label></p>
               <p><label><input type="checkbox" checked disabled /> JWT payload의 <code>sub</code>, <code>tenantId</code> 추출</label></p>
               <p><label><input type="checkbox" checked disabled /> JWT <code>tenantId</code>와 header tenant mismatch 차단</label></p>
-              <p><label><input type="checkbox" checked disabled /> <code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code> proxy route map</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>/api/auth/**</code>, <code>/api/admin/**</code> proxy route map</label></p>
               <p><label><input type="checkbox" checked disabled /> upstream으로 <code>x-request-id</code>, <code>x-tenant-id</code>, <code>x-user-id</code> 전파</label></p>
               <p><label><input type="checkbox" checked disabled /> Proxy request body 전달 처리</label></p>
               <p><label><input type="checkbox" checked disabled /> Global exception filter로 API 에러 응답 포맷 통일</label></p>
@@ -68,7 +81,7 @@
               <p><label><input type="checkbox" checked disabled /> <code>/ready</code> 내부 의존성 readiness 기준 강화</label></p>
               <p><label><input type="checkbox" checked disabled /> upstream timeout과 retry 정책</label></p>
               <p><label><input type="checkbox" checked disabled /> Redis 기반 rate limit</label></p>
-              <p><label><input type="checkbox" checked disabled /> tenant status check 연동</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant-service 직접 호출 제거</label></p>
               <p><label><input type="checkbox" checked disabled /> 보안 header와 CORS 운영 기준 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> HTTPS, ACM, Route53 연결 기준 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> GitHub Actions 배포 자동화</label></p>
@@ -138,11 +151,9 @@
                 <div class="doc-chip-items">
                   <code>src/auth/gateway-auth.guard.ts</code>
                   <code>src/auth/jwt-verifier.ts</code>
-                  <code>src/tenant/tenant-status.guard.ts</code>
-                  <code>src/tenant/tenant-status.service.ts</code>
                 </div>
                 <div class="doc-chip-label">정책</div>
-                <div class="doc-chip-items">JWT에는 <code>roles</code>, <code>permissions</code>를 넣지 않고, tenant status check는 active tenant만 통과시킵니다.</div>
+                <div class="doc-chip-items">JWT에는 <code>roles</code>, <code>permissions</code>를 넣지 않고, tenant 상태 검증은 Admin BFF와 이후 추가되는 BFF가 tenant-service 내부 API로 수행합니다.</div>
               </div>
             </div>
           </details>
@@ -150,9 +161,9 @@
             <summary>Proxy Routing, Body 전달, Timeout/Retry</summary>
             <div class="detail-body">
               <div class="compact-grid">
-                <div class="card"><strong>Route Map</strong><p><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>를 각각 Auth/IAM, Admin BFF, User BFF로 전달합니다.</p></div>
+                <div class="card"><strong>Route Map</strong><p><code>/api/auth/**</code>, <code>/api/admin/**</code>를 각각 Auth/IAM, Admin BFF로 전달합니다.</p></div>
                 <div class="card"><strong>전달</strong><p>request body, query string, request context headers를 upstream으로 보존해 전달합니다.</p></div>
-                <div class="card"><strong>Timeout</strong><p>auth는 기본 <code>3000ms</code>, admin/app은 기본 <code>5000ms</code>입니다.</p></div>
+                <div class="card"><strong>Timeout</strong><p>auth는 기본 <code>3000ms</code>, admin은 기본 <code>5000ms</code>입니다.</p></div>
                 <div class="card"><strong>Retry</strong><p><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout/network error/502/503/504에서 재시도합니다.</p></div>
               </div>
               <div class="doc-chip-list">
@@ -240,7 +251,7 @@
               <td><code>GWS-AUTH-001</code></td>
               <td>Private API는 bearer token 없이 차단된다</td>
               <td><code>P0</code></td>
-              <td><code>/api/app/**</code> 요청에 token이 없으면 <code>401 UNAUTHORIZED</code> envelope로 응답한다.</td>
+              <td><code>/api/admin/**</code> 요청에 token이 없으면 <code>401 UNAUTHORIZED</code> envelope로 응답한다.</td>
               <td>response JSON, status code, <code>requestId</code></td>
             </tr>
             <tr>
@@ -261,14 +272,14 @@
               <td><code>GWS-TENANT-002</code></td>
               <td>Active가 아닌 tenant 접근을 차단한다</td>
               <td><code>P0</code></td>
-              <td>tenant status check 활성화 시 <code>provisioning</code>, <code>suspended</code>, <code>deleted</code> tenant는 <code>403 TENANT_NOT_READY</code>로 차단한다.</td>
-              <td>tenant-service 실제 응답, Redis cache key, response JSON</td>
+              <td>Admin BFF에서 <code>provisioning</code>, <code>suspended</code>, <code>deleted</code> tenant는 <code>403 TENANT_NOT_READY</code>로 차단한다. gateway는 해당 BFF 응답을 그대로 전달한다.</td>
+              <td>BFF response JSON, tenant-service 실제 응답, requestId</td>
             </tr>
             <tr>
               <td><code>GWS-PROXY-001</code></td>
               <td>Proxy route가 request context와 body를 upstream으로 전달한다</td>
               <td><code>P0</code></td>
-              <td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>가 각각 설정된 upstream으로 전달되고 body, query, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>가 보존된다.</td>
+              <td><code>/api/auth/**</code>, <code>/api/admin/**</code>가 각각 설정된 upstream으로 전달되고 body, query, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>가 보존된다.</td>
               <td>upstream mock 수신 headers/body/query, gateway access log</td>
             </tr>
             <tr>
@@ -313,7 +324,7 @@
         <h3>상세 실행 기준</h3>
         <table>
           <tbody>
-            <tr><th>preconditions</th><td>로컬 또는 dev 환경에서 gateway-service, Redis, upstream mock service, tenant-service를 준비합니다. JWT는 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</td></tr>
+            <tr><th>preconditions</th><td>로컬 또는 dev 환경에서 gateway-service, Redis, Auth/IAM, Admin BFF 또는 upstream mock service를 준비합니다. JWT는 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</td></tr>
             <tr><th>steps</th><td>시나리오별 API 요청을 실행하고, response status/body/header, gateway JSON log, Redis key, upstream mock 수신 값을 확인합니다.</td></tr>
             <tr><th>expectedResult</th><td>API envelope, error code, tenant 차단, JWT 차단, upstream 전달, rate limit, CORS/security header가 위 표의 기대 결과와 일치해야 합니다.</td></tr>
             <tr><th>evidence</th><td>각 시나리오 결과에는 <code>requestId</code>, response JSON, 필요한 header, mock 수신 payload, Redis key, 관련 log line을 남깁니다.</td></tr>
@@ -345,10 +356,10 @@
               </tr>
               <tr>
                 <td><code>P0</code></td>
-                <td>Tenant status check 통합</td>
-                <td>tenant-service의 <code>GET /internal/tenants/{tenantId}/status</code> 실제 응답 계약에 맞춰 guard, cache, HMAC 호출 기준을 유지합니다.</td>
-                <td>inactive tenant와 tenant mismatch가 gateway에서 차단되고 Redis cache key에 tenant 식별자가 포함됩니다.</td>
-                <td>tenant-service 개발 문서, gateway 테스트 시나리오, Redis 운영 문서</td>
+                <td>BFF tenant status check 통합</td>
+                <td>Admin BFF와 이후 추가되는 BFF가 tenant-service의 <code>GET /internal/tenants/{tenantId}/status</code> 실제 응답 계약에 맞춰 HMAC 내부 호출을 수행합니다.</td>
+                <td>inactive tenant는 BFF에서 차단되고, gateway는 tenant-service를 직접 호출하지 않습니다.</td>
+                <td>admin-bff-service 개발 문서, tenant-service 개발 문서, gateway 테스트 시나리오</td>
               </tr>
               <tr>
                 <td><code>P0</code></td>
@@ -360,8 +371,8 @@
               <tr>
                 <td><code>P1</code></td>
                 <td>User BFF와 WMS route 연결</td>
-                <td><code>/api/app/**</code> route map과 WMS 업무 API 라우팅 경계를 User BFF 중심으로 검증합니다.</td>
-                <td>gateway에는 WMS 업무 로직이 없고, tenant/user context가 User BFF와 domain service까지 전파됩니다.</td>
+                <td>User BFF 구현 시 <code>/api/app/**</code> route map과 WMS 업무 API 라우팅 경계를 별도 작업으로 추가합니다.</td>
+                <td>gateway에는 WMS 업무 로직이 없고, tenant/user context가 BFF와 domain service까지 전파됩니다.</td>
                 <td>user-bff-service 개발 문서, wms-service 개발 문서, gateway 테스트 시나리오</td>
               </tr>
               <tr>
@@ -429,13 +440,13 @@
             <li>요청 완료 시 JSON access log를 남기며 <code>method</code>, <code>path</code>, <code>statusCode</code>, <code>durationMs</code>, <code>requestId</code>, <code>tenantId</code>, <code>userId</code>를 포함합니다.</li>
             <li><code>/health</code>, <code>/ready</code>는 public route로 유지하고, <code>/api/**</code>는 기본 private route로 처리합니다.</li>
             <li>JWT verifier는 local-dev 기본 구조로 시작하며 <code>sub</code>, <code>tenantId</code>, <code>exp</code>를 확인합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</li>
-            <li><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code> proxy routing 뼈대를 추가했습니다.</li>
+            <li>초기 proxy routing 뼈대에는 <code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>를 포함했습니다. 2026-06-12 기준 미구현 user-bff 경로인 <code>/api/app/**</code>는 gateway 활성 route에서 제거했습니다.</li>
             <li>Proxy route API 문서는 <a href="../../apis/gateway-service/proxy-routes.html"><code>docs/apis/gateway-service/proxy-routes.html</code></a>에 기록합니다.</li>
           </ul>
           <table>
             <tbody>
               <tr><th>GWS-CTX-001</th><td><code>GET /health</code> 호출 시 <code>X-Request-Id</code>가 응답 header로 전파되고 access log에 남는다.</td></tr>
-              <tr><th>GWS-AUTH-001</th><td><code>/api/app/**</code> 호출 시 bearer token이 없으면 <code>401 UNAUTHORIZED</code>로 차단된다.</td></tr>
+              <tr><th>GWS-AUTH-001</th><td><code>/api/admin/**</code> 호출 시 bearer token이 없으면 <code>401 UNAUTHORIZED</code>로 차단된다.</td></tr>
               <tr><th>GWS-TENANT-001</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 차단된다.</td></tr>
               <tr><th>GWS-PROXY-001</th><td>JWT와 tenant header가 일치하면 request context header를 upstream으로 전파하는 proxy 흐름까지 진입한다.</td></tr>
             </tbody>
@@ -488,7 +499,7 @@
             <li><code>GET /ready</code>가 gateway-service의 트래픽 수용 가능 여부를 판단하도록 readiness check를 추가했습니다.</li>
             <li><code>config</code> check는 gateway port와 request context header 설정을 확인합니다.</li>
             <li><code>jwt</code> check는 signing key 설정과 <code>JWT_ISSUER</code>, <code>JWT_AUDIENCE</code> 설정을 확인합니다.</li>
-            <li><code>proxyRoutes</code> check는 Auth/IAM, Admin BFF, User BFF upstream URL 형식을 확인합니다.</li>
+            <li><code>proxyRoutes</code> check는 Auth/IAM, Admin BFF upstream URL 형식을 확인합니다.</li>
             <li>check 중 하나라도 실패하면 <code>503 Service Unavailable</code>과 <code>status=not_ready</code>를 반환합니다.</li>
           </ul>
         </article>
@@ -496,7 +507,7 @@
           <h3>2026-06-09 Upstream Timeout과 Retry 정책</h3>
           <ul>
             <li>proxy route별 upstream timeout을 추가했습니다.</li>
-            <li><code>/api/auth/**</code>는 기본 <code>3000ms</code>, <code>/api/admin/**</code>와 <code>/api/app/**</code>는 기본 <code>5000ms</code>를 적용합니다.</li>
+            <li><code>/api/auth/**</code>는 기본 <code>3000ms</code>, <code>/api/admin/**</code>는 기본 <code>5000ms</code>를 적용합니다.</li>
             <li><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout, network error, upstream <code>502</code>, <code>503</code>, <code>504</code> 응답에 대해 기본 1회 재시도합니다.</li>
             <li><code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>는 중복 실행 위험 때문에 재시도하지 않습니다.</li>
             <li>최종 timeout은 <code>504 GATEWAY_TIMEOUT</code>, 최종 연결 실패는 <code>503 UPSTREAM_UNAVAILABLE</code>로 응답합니다.</li>
@@ -510,9 +521,9 @@
             <li>제한 기준은 인증 후 <code>tenantId + userId + routeGroup</code>, 인증 전 <code>IP + routeGroup</code>입니다.</li>
             <li>Redis key는 인증 후 <code>rate-limit:{env}:gateway:{tenantId}:{userId}:{routeGroup}</code> 형식을 사용합니다.</li>
             <li>Redis key는 인증 전 <code>rate-limit:{env}:gateway:anonymous:{ip}:{routeGroup}</code> 형식을 사용합니다.</li>
-            <li>route group은 <code>auth</code>, <code>admin</code>, <code>app</code>으로 나눕니다.</li>
+            <li>route group은 <code>auth</code>, <code>admin</code>으로 나눕니다.</li>
             <li>로컬 Docker 환경은 compose Redis를 사용하고, AWS 배포 환경은 ElastiCache Redis를 사용합니다.</li>
-            <li>기본 제한은 <code>auth=60/min</code>, <code>admin=300/min</code>, <code>app=600/min</code>입니다.</li>
+            <li>기본 제한은 <code>auth=60/min</code>, <code>admin=300/min</code>입니다.</li>
             <li>제한 초과 시 <code>429 RATE_LIMIT_EXCEEDED</code>, Redis 저장소 장애 시 <code>503 RATE_LIMIT_UNAVAILABLE</code>로 응답합니다.</li>
             <li>응답 header에 <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code>을 추가합니다.</li>
           </ul>
@@ -528,16 +539,14 @@
           </ul>
         </article>
         <article>
-          <h3>2026-06-09 Tenant Status Check 연동</h3>
+          <h3>2026-06-09 Tenant Status Check 연동 (이후 BFF로 이관)</h3>
           <ul>
-            <li>tenant status check guard를 추가했습니다.</li>
-            <li>기능 활성화 시 <code>TENANT_SERVICE_URL</code>의 <code>GET /internal/tenants/{tenantId}/status</code>를 호출합니다.</li>
+            <li>초기에는 gateway-service에 tenant status check guard를 추가했습니다.</li>
+            <li>2026-06-12 기준 tenant status check는 Admin BFF와 이후 추가되는 BFF로 이관했고, gateway-service는 <code>TENANT_SERVICE_URL</code>을 사용하지 않습니다.</li>
             <li>tenant-service 내부 API 계약에 맞춰 <code>X-Internal-Service-Id</code>, <code>X-Internal-Timestamp</code>, <code>X-Internal-Signature</code> HMAC 인증 header를 전송합니다.</li>
             <li>tenant-service 응답 envelope의 <code>data.status</code>를 읽어 tenant 상태를 판단합니다.</li>
-            <li>tenant status는 Redis에 <code>tenant-status:{env}:{tenantId}</code> key로 기본 30초 캐시합니다.</li>
             <li><code>active</code> tenant만 통과하고 <code>provisioning</code>, <code>suspended</code>, <code>deleted</code>는 <code>403 TENANT_NOT_READY</code>로 차단합니다.</li>
             <li>tenant status 조회 실패는 <code>503 TENANT_STATUS_UNAVAILABLE</code>로 응답합니다.</li>
-            <li>로컬 gateway 환경은 tenant-service 연동 검증을 위해 <code>GATEWAY_TENANT_STATUS_CHECK_ENABLED=true</code>로 활성화합니다.</li>
           </ul>
         </article>
         <article>
@@ -595,12 +604,11 @@
           </ul>
         </article>
         <article>
-          <h3>2026-06-11 tenant-service 실제 연결 정리</h3>
+          <h3>2026-06-11 tenant-service 실제 연결 정리 (이후 BFF로 이관)</h3>
           <ul>
-            <li>gateway-service의 tenant status check는 관리 API 우회가 아니라 업무 API 진입 전 <code>active</code> tenant 확인 용도로만 tenant-service를 직접 호출합니다.</li>
+            <li>초기에는 gateway-service가 업무 API 진입 전 <code>active</code> tenant 확인 용도로 tenant-service를 직접 호출했습니다.</li>
             <li><code>GET /internal/tenants/{tenantId}/status</code> HMAC 서명에서 GET 요청 body hash를 tenant-service guard의 canonical body 기준과 맞췄습니다.</li>
-            <li>login과 token refresh는 multi-tenant 예외 API이므로 tenant status check 대상에서 제외했습니다.</li>
-            <li>local compose 기준 <code>TENANT_SERVICE_URL=http://tenant-service:3000</code>, <code>GATEWAY_TENANT_STATUS_CHECK_ENABLED=true</code>, 공유 <code>TENANT_INTERNAL_AUTH_SECRET</code>로 연결합니다.</li>
+            <li>2026-06-12 기준 이 책임은 Admin BFF와 이후 추가되는 BFF로 옮겼고, gateway-service 환경에서 <code>TENANT_SERVICE_URL</code>, <code>GATEWAY_TENANT_STATUS_CHECK_ENABLED</code>, <code>TENANT_INTERNAL_AUTH_SECRET</code>을 제거했습니다.</li>
           </ul>
         </article>
         <article>
@@ -609,6 +617,36 @@
             <li><code>postman/multi-tenant-local.postman_collection.json</code>에 gateway health/ready/login/me/refresh 요청을 유지해 seed 데이터로 직접 호출할 수 있게 했습니다.</li>
             <li>login 요청은 <code>X-Tenant-Id</code>가 필요한 기준으로 정리하고, 발급된 access token으로 <code>/api/auth/me</code> 호출을 이어서 확인합니다.</li>
             <li><code>pnpm db:reset:local</code>은 auth_iam/tenant DB 초기화, schema push, seed 삽입, gateway/auth/tenant/admin-bff 재기동을 한 번에 수행하는 로컬 검증 진입점입니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 구현 서비스 연동 기준 정리</h3>
+          <ul>
+            <li>gateway-service는 현재 구현된 <code>auth-iam-service</code>, <code>admin-bff-service</code>만 upstream으로 연결합니다.</li>
+            <li><code>/api/auth/**</code>는 <code>AUTH_IAM_SERVICE_URL</code>로 전달하고, 로그인과 토큰 갱신은 public 예외로 처리합니다.</li>
+            <li><code>/api/admin/**</code>는 <code>ADMIN_BFF_SERVICE_URL</code>로 전달하며, admin-bff가 auth-iam 권한 확인과 tenant-service 내부 조회를 수행합니다.</li>
+            <li>tenant 관리 API는 gateway가 tenant-service로 직접 proxy하지 않고 <code>/api/admin/tenants/**</code> → admin-bff-service → tenant-service 내부 API 경로를 사용합니다.</li>
+            <li>tenant status check도 BFF가 tenant-service 내부 API로 수행합니다. gateway-service에는 tenant-service URL이나 tenant internal auth secret을 두지 않습니다.</li>
+            <li><code>user-bff-service</code>, <code>wms-service</code>, <code>outbox-relay-service</code>는 아직 실행 가능한 NestJS 구현이 없으므로 gateway route/env에서는 제거하고, 해당 서비스 구현 시 별도 작업으로 다시 추가합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 전역 BFF 경유 원칙 확정</h3>
+          <ul>
+            <li>이후 추가되는 모든 외부 업무/관리/앱 API는 <code>gateway-service</code> → BFF → domain/platform service 순서로만 연결합니다.</li>
+            <li>gateway-service의 직접 upstream은 현재 <code>auth-iam-service</code>, <code>admin-bff-service</code>로 제한합니다.</li>
+            <li><code>tenant-service</code>, <code>wms-service</code>, <code>audit-log-service</code>와 이후 추가되는 domain/platform service는 gateway가 직접 호출하지 않습니다.</li>
+            <li>tenant status check는 Admin BFF와 이후 추가되는 모든 BFF가 tenant-service 내부 API로 수행합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 미사용 Gateway API와 설정 제거</h3>
+          <ul>
+            <li>실행 가능한 user-bff-service 구현이 아직 없으므로 gateway-service의 활성 route에서 <code>/api/app/**</code>를 제거했습니다.</li>
+            <li><code>USER_BFF_SERVICE_URL</code>, <code>GATEWAY_APP_UPSTREAM_TIMEOUT_MS</code>, <code>GATEWAY_RATE_LIMIT_APP_PER_WINDOW</code> 설정을 gateway 환경 파일과 CDK task 환경 변수에서 제거했습니다.</li>
+            <li>rate limit route group은 현재 활성 proxy surface인 <code>auth</code>, <code>admin</code>만 사용합니다.</li>
+            <li>코드에서 사용하지 않는 <code>authMode</code> 설정 필드를 제거했습니다.</li>
+            <li>user-bff-service가 구현될 때 <code>/api/app/**</code> route, timeout, rate limit, env, 문서를 별도 변경으로 다시 추가합니다.</li>
           </ul>
         </article>
       </section>

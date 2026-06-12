@@ -25,6 +25,19 @@
         </table>
       </section>
       <section>
+        <h2>기능 정의</h2>
+        <table>
+          <tbody>
+            <tr><th>관리자 API 조합</th><td>운영자/관리자 화면에서 필요한 tenant, user, role, permission, audit 데이터를 내부 서비스 호출로 조합합니다.</td></tr>
+            <tr><th>Tenant 관리 Surface</th><td><code>/api/admin/tenants</code> 계열 외부 API를 소유하고 실제 변경은 tenant-service 내부 API로 위임합니다.</td></tr>
+            <tr><th>Access Control 화면</th><td>Auth/IAM의 role, permission, user API를 조합해 관리 화면용 응답 형태를 제공합니다.</td></tr>
+            <tr><th>Audit 조회</th><td>운영자 감사 로그 조회 API를 제공하고 audit-log-service 내부 조회 API로 위임합니다.</td></tr>
+            <tr><th>권한 확인</th><td>관리자 API별 permission을 Auth/IAM에 확인하고 tenant status check를 통과한 요청만 처리합니다.</td></tr>
+            <tr><th>제외 범위</th><td>도메인 데이터 저장, 인증 토큰 발급, tenant/WMS business rule 직접 판단은 하지 않습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag done">1차 구현</span></td></tr>
@@ -141,7 +154,7 @@
           <h3>2026-06-11 BFF 경계 최신화</h3>
           <ul>
             <li>admin-bff-service는 외부 관리자 API surface를 담당하고, tenant 생성은 tenant-service의 <code>POST /internal/admin/tenants</code> 내부 API로 위임하는 기준을 명확히 했습니다.</li>
-            <li>Gateway가 tenant-service에 직접 연결하는 범위는 업무 API 진입 전 status check로 제한하고, tenant 관리 API는 Admin BFF를 앞에 둡니다.</li>
+            <li>gateway-service는 tenant-service를 직접 호출하지 않고, tenant status check와 tenant 관리 API는 Admin BFF가 tenant-service 내부 API로 위임하는 기준을 확정했습니다.</li>
             <li>제작 순서는 User BFF보다 앞입니다. WMS 업무 화면보다 tenant, 사용자, role, module 운영 기반을 먼저 준비합니다.</li>
           </ul>
         </article>
@@ -181,6 +194,7 @@
           <ul>
             <li><code>GET /api/admin/tenants</code>, <code>POST /api/admin/tenants</code>, <code>PATCH /api/admin/tenants/{tenantId}/status</code> controller를 추가했습니다.</li>
             <li>각 API에 <code>@AdminPermission</code>을 적용해 auth-iam-service permission check를 거친 뒤 tenant-service 내부 API로 위임합니다.</li>
+            <li>Admin BFF 전역 tenant status guard를 추가해 <code>GET /internal/tenants/{tenantId}/status</code>로 <code>active</code> tenant만 관리자 API를 통과시킵니다.</li>
             <li>외부 응답은 Admin BFF envelope로 감싸고, request context와 internal auth header를 downstream으로 전파합니다.</li>
           </ul>
         </article>
@@ -235,6 +249,14 @@
             <li><code>pnpm db:reset:local</code>로 auth_iam/tenant DB를 재생성하고 seed를 넣은 뒤 네 개 API 서비스의 <code>/ready</code>가 모두 <code>ok</code>인 것을 확인했습니다.</li>
             <li>gateway 경유 <code>POST /api/auth/login</code> 후 <code>GET /api/admin/access-control/screen-data</code>를 호출해 Admin BFF proxy, internal auth, tenant status check, Auth/IAM permission check, downstream 조합 응답을 통합 확인했습니다.</li>
             <li>검증 중 발견한 gateway upstream base path 누락은 <code>ADMIN_BFF_SERVICE_URL</code>에 <code>/api/admin</code>을 포함하도록 수정했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-12 전역 BFF 경유 원칙 확정</h3>
+          <ul>
+            <li>관리자 surface는 계속 <code>/api/admin/**</code>를 소유하고, gateway-service는 admin-bff-service까지만 호출하는 기준을 확정했습니다.</li>
+            <li>tenant 관리, tenant status check, audit 조회처럼 platform/domain service가 필요한 관리자 요청은 Admin BFF가 내부 API로 위임합니다.</li>
+            <li>이후 관리자 기능이 추가되어도 gateway-service에서 domain/platform service로 직접 route를 만들지 않고 Admin BFF API 계약을 먼저 확장합니다.</li>
           </ul>
         </article>
       </section>

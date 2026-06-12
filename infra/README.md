@@ -196,7 +196,6 @@ Auth/IAM 실행 배포는 `deploy-auth-iam-service.yml`, Tenant 실행 배포는
 | `AUDIT_LOG_SERVICE_URL` | empty | audit-log-service 내부 조회 URL. 설정하면 `ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN`도 필요합니다. |
 | `AUTH_IAM_SERVICE_URL` | Cloud Map 내부 DNS + `/api/auth` | Auth/IAM upstream URL override. auth-iam-service 컨트롤러 경로와 맞추기 위해 `/api/auth` base path까지 포함합니다. |
 | `ADMIN_BFF_SERVICE_URL` | Cloud Map 내부 DNS + `/api/admin` | Admin BFF upstream URL override. gateway proxy가 `/api/admin` prefix를 upstream base path로 치환하므로 base path까지 포함합니다. |
-| `USER_BFF_SERVICE_URL` | `http://user-bff-service:3000` | User BFF upstream URL |
 | `TENANT_SERVICE_URL` | `http://tenant-service:3000` | Tenant service upstream URL |
 
 ### Optional Auth/IAM context secrets

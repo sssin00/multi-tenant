@@ -24,6 +24,19 @@
         </table>
       </section>
       <section>
+        <h2>기능 정의</h2>
+        <table>
+          <tbody>
+            <tr><th>관리자 App Shell</th><td>로그인 후 관리자 navigation, tenant scope, 사용자 context, route guard를 제공합니다.</td></tr>
+            <tr><th>Tenant 관리 화면</th><td>tenant 목록, 상세, 생성, 상태 변경, module/domain 관리를 Admin BFF API와 연결합니다.</td></tr>
+            <tr><th>사용자/권한 화면</th><td>사용자 목록/상세/상태 변경, role 부여, permission 구성 화면을 제공합니다.</td></tr>
+            <tr><th>감사 로그 화면</th><td>기간, actor, action, resource, result, requestId 조건 검색과 상세 evidence 표시를 제공합니다.</td></tr>
+            <tr><th>권한 기반 UI</th><td>permission summary를 기준으로 메뉴, 버튼, 변경성 action 노출 여부를 제어합니다.</td></tr>
+            <tr><th>제외 범위</th><td>도메인 검증, token 발급, 직접 DB 접근, BFF를 우회한 내부 서비스 호출은 하지 않습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>

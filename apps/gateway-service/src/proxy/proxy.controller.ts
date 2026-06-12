@@ -23,9 +23,4 @@ export class ProxyController {
   admin(@Req() req: GatewayRequest, @Res() res: Response) {
     return this.proxyService.forward(req, res, this.routes.admin);
   }
-
-  @All(["app", "app/*"])
-  app(@Req() req: GatewayRequest, @Res() res: Response) {
-    return this.proxyService.forward(req, res, this.routes.app);
-  }
 }

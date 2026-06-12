@@ -12,3 +12,4 @@ create_database_if_missing() {
 
 create_database_if_missing auth_iam
 create_database_if_missing tenant
+create_database_if_missing audit_log

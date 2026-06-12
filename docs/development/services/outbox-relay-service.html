@@ -24,6 +24,19 @@
         </table>
       </section>
       <section>
+        <h2>기능 정의</h2>
+        <table>
+          <tbody>
+            <tr><th>Outbox 수집</th><td>각 서비스 DB의 <code>outbox_events</code>에서 pending event를 batch 단위로 조회하고 lock 기준을 적용합니다.</td></tr>
+            <tr><th>Event 발행</th><td>event envelope 필수 필드를 검증한 뒤 EventBridge 또는 SQS로 발행합니다.</td></tr>
+            <tr><th>상태 전환</th><td>성공 시 published, 실패 시 retryable/failed 상태와 last error, retry count를 기록합니다.</td></tr>
+            <tr><th>중복 방지</th><td><code>eventId</code> 기반 idempotency와 lock timeout 기준으로 중복 발행 위험을 줄입니다.</td></tr>
+            <tr><th>운영 관측</th><td>발행 성공/실패 수, oldest pending age, retry count, DLQ 전환 수를 metric/log로 남깁니다.</td></tr>
+            <tr><th>제외 범위</th><td>도메인 트랜잭션 처리, event payload 생성, 다른 서비스 DB의 업무 데이터 수정은 담당하지 않습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>

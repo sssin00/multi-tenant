@@ -16,7 +16,7 @@ const prisma = new PrismaClient({
   })
 });
 
-const tenantId = "11111111-1111-4111-8111-111111111111";
+const tenantId = process.env.LOCAL_SEED_TENANT_ID ?? "11111111-1111-4111-8111-111111111111";
 const adminUserId = "22222222-2222-4222-8222-222222222222";
 const tenantAdminRoleId = "33333333-3333-4333-8333-333333333333";
 

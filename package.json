@@ -15,7 +15,7 @@
     "infra:diff": "pnpm --filter @multi-tenant/infra-cdk diff",
     "infra:deploy": "pnpm --filter @multi-tenant/infra-cdk deploy",
     "db:reset:local": "bash scripts/db/reset-local-db.sh",
-    "seed:local": "docker compose -f docker/local/docker-compose.yml up --build --no-deps tenant-service-seed auth-iam-seed"
+    "seed:local": "docker compose -f docker/local/docker-compose.yml up --build --no-deps tenant-service-seed auth-iam-seed && node scripts/db/seed-local-api.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.3",

@@ -54,18 +54,11 @@
   <text x="485" y="468" text-anchor="middle" font-size="11" font-weight="600" fill="#23785b">SG: gateway to 3000</text>
 
   <!-- tenant-service -->
-  <rect x="90" y="500" width="226" height="84" rx="8" fill="#ffffff" stroke="#0f6b73" stroke-width="1.5" />
-  <text x="203" y="524" text-anchor="middle" font-size="14" font-weight="700" fill="#0a4d53">tenant-service</text>
-  <text x="203" y="543" text-anchor="middle" font-size="11" fill="#5d6976">ECS Fargate - port 3000</text>
-  <line x1="106" y1="556" x2="300" y2="556" stroke="#d8e2e8" stroke-width="1" />
-  <text x="203" y="574" text-anchor="middle" font-size="11" fill="#5d6976">tenant status / modules</text>
-
-  <!-- admin-bff-service -->
-  <rect x="372" y="500" width="226" height="84" rx="8" fill="#ffffff" stroke="#0f6b73" stroke-width="1.5" />
-  <text x="485" y="524" text-anchor="middle" font-size="14" font-weight="700" fill="#0a4d53">admin-bff-service</text>
-  <text x="485" y="543" text-anchor="middle" font-size="11" fill="#5d6976">ECS Fargate - port 3000</text>
-  <line x1="388" y1="556" x2="582" y2="556" stroke="#d8e2e8" stroke-width="1" />
-  <text x="485" y="574" text-anchor="middle" font-size="11" fill="#5d6976">admin API aggregation</text>
+  <rect x="231" y="500" width="226" height="84" rx="8" fill="#ffffff" stroke="#0f6b73" stroke-width="1.5" />
+  <text x="344" y="524" text-anchor="middle" font-size="14" font-weight="700" fill="#0a4d53">tenant-service</text>
+  <text x="344" y="543" text-anchor="middle" font-size="11" fill="#5d6976">ECS Fargate - port 3000</text>
+  <line x1="247" y1="556" x2="441" y2="556" stroke="#d8e2e8" stroke-width="1" />
+  <text x="344" y="574" text-anchor="middle" font-size="11" fill="#5d6976">tenant status / modules</text>
 
   <!-- Redis subnet group uses app subnets -->
   <rect x="64" y="640" width="560" height="96" rx="8" fill="#edf4f7" stroke="#b45309" stroke-width="1" stroke-dasharray="5 4" />
@@ -77,14 +70,14 @@
   <!-- Cloud Map note -->
   <rect x="64" y="754" width="560" height="50" rx="8" fill="#ffffff" stroke="#0f6b73" stroke-width="1" />
   <text x="344" y="776" text-anchor="middle" font-size="12" font-weight="700" fill="#0a4d53">ECS Cloud Map - {env}.multi-tenant.local</text>
-  <text x="344" y="794" text-anchor="middle" font-size="11" fill="#5d6976">gateway to auth-iam-service / tenant-service / admin-bff-service</text>
+  <text x="344" y="794" text-anchor="middle" font-size="11" fill="#5d6976">gateway to auth-iam-service / tenant-service</text>
 
   <!-- Managed services / resources outside this CDK stack boundary -->
   <text x="676" y="170" font-size="12" font-weight="700" fill="#5d6976">AWS managed / external to stack</text>
 
   <rect x="676" y="184" width="260" height="64" rx="8" fill="#ffffff" stroke="#5d6976" stroke-width="1.2" />
   <text x="806" y="208" text-anchor="middle" font-size="13" font-weight="700" fill="#17212b">ECR</text>
-  <text x="806" y="228" text-anchor="middle" font-size="11" fill="#5d6976">gateway / auth-iam / tenant / admin-bff</text>
+  <text x="806" y="228" text-anchor="middle" font-size="11" fill="#5d6976">gateway / auth-iam / tenant</text>
 
   <rect x="676" y="266" width="260" height="64" rx="8" fill="#ffffff" stroke="#5d6976" stroke-width="1.2" />
   <text x="806" y="290" text-anchor="middle" font-size="13" font-weight="700" fill="#17212b">Secrets Manager</text>
@@ -113,12 +106,8 @@
   <text x="344" y="402" text-anchor="middle" font-size="10" font-weight="600" fill="#0a4d53">Cloud Map</text>
 
   <!-- gateway -> tenant (Cloud Map) -->
-  <line x1="203" y1="484" x2="203" y2="500" stroke="#0a4d53" stroke-width="1.8" marker-end="url(#arrow)" />
-  <text x="176" y="496" text-anchor="middle" font-size="10" font-weight="600" fill="#0a4d53">tenant</text>
-
-  <!-- gateway -> admin-bff (Cloud Map) -->
-  <line x1="316" y1="466" x2="412" y2="500" stroke="#0a4d53" stroke-width="1.8" marker-end="url(#arrow)" />
-  <text x="370" y="488" text-anchor="middle" font-size="10" font-weight="600" fill="#0a4d53">admin-bff</text>
+  <line x1="250" y1="484" x2="300" y2="500" stroke="#0a4d53" stroke-width="1.8" marker-end="url(#arrow)" />
+  <text x="278" y="492" text-anchor="middle" font-size="10" font-weight="600" fill="#0a4d53">tenant</text>
 
   <!-- gateway -> redis -->
   <line x1="244" y1="484" x2="300" y2="670" stroke="#b45309" stroke-width="1.6" marker-end="url(#arrow)" />
@@ -129,29 +118,26 @@
   <text x="454" y="608" text-anchor="middle" font-size="10" fill="#b45309">cache/session</text>
 
   <!-- tenant -> redis -->
-  <line x1="203" y1="584" x2="300" y2="670" stroke="#b45309" stroke-width="1.6" marker-end="url(#arrow)" />
-  <text x="246" y="628" font-size="10" fill="#b45309">cache</text>
+  <line x1="344" y1="584" x2="344" y2="670" stroke="#b45309" stroke-width="1.6" marker-end="url(#arrow)" />
+  <text x="368" y="628" font-size="10" fill="#b45309">cache</text>
 
   <!-- auth -> postgres (dashed) -->
   <line x1="598" y1="430" x2="676" y2="490" stroke="#5d6976" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrowMuted)" />
   <text x="648" y="452" text-anchor="middle" font-size="10" fill="#5d6976">5432</text>
-  <line x1="316" y1="542" x2="676" y2="520" stroke="#5d6976" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrowMuted)" />
+  <line x1="457" y1="542" x2="676" y2="520" stroke="#5d6976" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrowMuted)" />
 
   <!-- services -> secrets/logs (dashed) -->
   <line x1="316" y1="366" x2="676" y2="300" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
   <line x1="316" y1="390" x2="676" y2="378" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
   <line x1="598" y1="372" x2="676" y2="300" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
   <line x1="598" y1="396" x2="676" y2="378" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
-  <line x1="316" y1="518" x2="676" y2="300" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
-  <line x1="316" y1="560" x2="676" y2="396" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
-  <line x1="598" y1="518" x2="676" y2="300" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
-  <line x1="598" y1="560" x2="676" y2="396" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
+  <line x1="457" y1="518" x2="676" y2="300" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
+  <line x1="457" y1="560" x2="676" y2="396" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
 
   <!-- ECR -> services (image pull, dashed) -->
   <line x1="676" y1="216" x2="316" y2="350" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
   <line x1="676" y1="228" x2="598" y2="350" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
-  <line x1="676" y1="240" x2="316" y2="512" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
-  <line x1="676" y1="240" x2="598" y2="512" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
+  <line x1="676" y1="240" x2="457" y2="512" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
   <text x="540" y="276" text-anchor="middle" font-size="10" fill="#5d6976">image pull</text>
 
   <!-- Legend -->

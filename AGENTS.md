@@ -39,6 +39,8 @@
 - Shared packages must not contain service-specific business rules.
 - BFF services may aggregate screen data, but must not own domain business rules.
 - `gateway-service` must not contain domain business logic or direct DB access.
+- External business/admin/app APIs must enter through `gateway-service` and then a BFF service. `gateway-service` may call only `auth-iam-service`, `admin-bff-service`, and `user-bff-service` as upstreams.
+- Domain/platform services such as `tenant-service`, `wms-service`, `audit-log-service`, and future services must not be exposed as direct gateway upstreams. They are reached by BFF services or internal event consumers only.
 - WMS business rules belong in `wms-service`.
 - Backend services use NestJS + TypeScript. Frontend apps use React + Vite.
 - Apps run on AWS ECS Fargate. Infrastructure is managed from `infra/cdk` with AWS CDK TypeScript.
@@ -51,7 +53,9 @@
 - If `X-Tenant-Id` is present, it must match JWT `tenantId`.
 - Tenant mismatch must fail with `403 TENANT_MISMATCH`.
 - Only `active` tenants may use business APIs.
-- `gateway-service` resolves tenant context and propagates it to internal services.
+- `gateway-service` resolves tenant context and propagates it to BFF services.
+- Tenant status checks must be performed in the BFF layer before domain/platform service calls. This applies to admin, user, and any future BFF surface.
+- `gateway-service` must not call `tenant-service` or any other domain/platform service directly for tenant status checks.
 - Internal services use propagated tenant context, but must revalidate required permission and scope before important business actions.
 - Every tenant-scoped request, log, event, audit record, and data access path must carry `tenantId` and `requestId`.
 - Tenant-owned data access must always be constrained by `tenantId`.
@@ -99,6 +103,7 @@
 - Do not put `roles` or `permissions` in JWT claims.
 - `auth-iam-service` is the source of truth for roles and permissions.
 - `gateway-service` validates JWT signature/expiration, extracts `sub` and `tenantId`, and blocks basic tenant mismatch.
+- BFF services validate tenant readiness by calling `tenant-service` internal APIs before serving tenant-scoped business/admin/app APIs.
 - BFF services may fetch role/permission summaries for menu and button visibility.
 - Domain services must validate required permissions before executing business actions.
 - Permission names use `{domain}.{resource}.{action}`, e.g. `wms.inventory.adjust`.
@@ -196,6 +201,8 @@
 - Service implementation changes update `docs/development/services/{service}.html`.
 - New services must be added to `docs/index.html`.
 - Common rule changes update `docs/design/project-rules.html` and the relevant `docs/design/rules/*.html` file.
+- API additions or changes update the matching `docs/apis/{service}/` HTML files, the relevant service development document, and `postman/multi-tenant-local.postman_collection.json`.
 - AWS configuration changes update `docs/design/aws-ecs-tech-stack.html` and, when needed, `docs/design/smart-factory-aws-ecs.drawio`.
+- Infra status documents under `docs/infra/` are date-based snapshots. When the calendar date changes, create a new folder `docs/infra/YYYY-MM-DD/` and add that day's `index.html` and related assets there. If infra changes multiple times on the same date, update that date's existing HTML instead of creating another folder.
 - Event additions are recorded in the relevant rules document or service development document with event name and payload.
 - Test scenario additions are recorded in the service development document with scenario details and evidence criteria.

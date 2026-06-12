@@ -13,8 +13,6 @@ import { ProxyService } from "./proxy/proxy.service.js";
 import { RateLimitGuard } from "./rate-limit/rate-limit.guard.js";
 import { RedisRateLimitService } from "./rate-limit/redis-rate-limit.service.js";
 import { SecurityHeadersMiddleware } from "./security/security-headers.middleware.js";
-import { TenantStatusGuard } from "./tenant/tenant-status.guard.js";
-import { TenantStatusService } from "./tenant/tenant-status.service.js";
 
 @Module({
   controllers: [HealthController, ProxyController],
@@ -24,7 +22,6 @@ import { TenantStatusService } from "./tenant/tenant-status.service.js";
     JwtVerifier,
     ProxyService,
     RedisRateLimitService,
-    TenantStatusService,
     {
       provide: APP_GUARD,
       useClass: GatewayAuthGuard
@@ -32,10 +29,6 @@ import { TenantStatusService } from "./tenant/tenant-status.service.js";
     {
       provide: APP_GUARD,
       useClass: RateLimitGuard
-    },
-    {
-      provide: APP_GUARD,
-      useClass: TenantStatusGuard
     }
   ]
 })

@@ -12,8 +12,8 @@
         <p class="eyebrow">API Docs · audit-log-service</p>
         <h1>audit-log-service API 문서</h1>
         <p class="lead">
-          audit-log-service는 append-only 감사 로그 저장과 관리자 조회를 담당할 예정입니다.
-          현재 문서는 구현 전 계약 초안이며, Auth/IAM과 Admin BFF가 이미 이 서비스 연동을 전제로 코드를 준비하고 있습니다.
+          audit-log-service는 append-only 감사 로그 저장과 관리자 조회를 담당합니다.
+          현재 NestJS 기본 실행 구조와 health/readiness는 준비됐고, 감사 로그 저장소와 내부 저장/조회 API는 계약 초안 단계입니다.
         </p>
       </header>
 
@@ -21,7 +21,7 @@
         <h2>서비스 상태</h2>
         <table>
           <tbody>
-            <tr><th>상태</th><td><span class="tag todo">TODO</span> 서비스 골격과 CDK 배포 구성은 아직 없습니다.</td></tr>
+            <tr><th>상태</th><td><span class="tag progress">기본 실행 구조 완료</span> NestJS bootstrap, config, health/readiness, request context, access log, security headers, internal auth guard가 있습니다.</td></tr>
             <tr><th>소유 범위</th><td>감사 로그 저장, 조회, 보존 정책, evidence 추적</td></tr>
             <tr><th>주요 호출자</th><td><code>auth-iam-service</code>, <code>wms-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code></td></tr>
             <tr><th>배포 상태</th><td>현재 CDK 스택에는 포함되지 않습니다. 향후 ECR, ECS Fargate service, CloudWatch log group, 내부 SG, DB secret을 추가합니다.</td></tr>
@@ -36,6 +36,20 @@
             <tr><th>Method</th><th>Path</th><th>Caller</th><th>Status</th><th>설명</th></tr>
           </thead>
           <tbody>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/health</code></td>
+              <td>Public</td>
+              <td><span class="tag done">구현</span></td>
+              <td>프로세스 생존 확인용 endpoint입니다.</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/ready</code></td>
+              <td>Public</td>
+              <td><span class="tag done">구현</span></td>
+              <td>config와 internal auth 설정 기준으로 트래픽 수용 가능 여부를 확인합니다.</td>
+            </tr>
             <tr>
               <td><code>POST</code></td>
               <td><code>/api/internal/audit/logs</code></td>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2026-06-12 반복 테스트 로그</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Test Log · 2026-06-12</p>
+        <h1>코드/문서 정합성 반복 테스트</h1>
+        <p class="lead">
+          코드와 문서 정합성을 맞춘 뒤, 구현된 서비스의 typecheck/build와 문서 HTML 파싱을 10회 반복 검증한 기록입니다.
+          사용자가 요청한 기준에 따라 10회까지만 반복하고 멈췄습니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>테스트 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>실행 일시</th><td>2026-06-12</td></tr>
+            <tr><th>반복 횟수</th><td>10회</td></tr>
+            <tr><th>검증 대상</th><td>문서 HTML 37개, 구현된 NestJS 서비스 5개</td></tr>
+            <tr><th>대상 서비스</th><td><code>gateway-service</code>, <code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>, <code>audit-log-service</code></td></tr>
+            <tr><th>결과</th><td><span class="tag done">통과</span> 반복 테스트 중 typecheck/build/HTML 파싱 실패는 발견되지 않았습니다.</td></tr>
+            <tr><th>Raw 로그</th><td><code>docs/test-logs/2026-06-12/repeat-test-raw.log</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>수행한 검증</h2>
+        <div class="grid">
+          <div class="card">
+            <strong>문서 검사</strong>
+            <p><code>docs/**/*.html</code> 37개를 HTML parser로 읽어 파싱 오류가 없는지 확인했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Whitespace 검사</strong>
+            <p><code>git diff --check</code>로 trailing whitespace와 diff 오류를 확인했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Typecheck</strong>
+            <p>구현된 5개 서비스의 <code>pnpm --filter {service} typecheck</code>를 반복 실행했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Build</strong>
+            <p>구현된 5개 서비스의 <code>pnpm --filter {service} build</code>를 반복 실행했습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>반복 결과</h2>
+        <table>
+          <thead>
+            <tr><th>회차</th><th>문서 파싱</th><th>Typecheck</th><th>Build</th><th>비고</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>통과</td><td>통과</td><td>통과</td><td>검증 후 shell 변수명 충돌로 루프 기록이 중단되어 나머지 9회를 별도 실행했습니다.</td></tr>
+            <tr><td>2</td><td>통과</td><td>통과</td><td>통과</td><td>-</td></tr>
+            <tr><td>3</td><td>통과</td><td>통과</td><td>통과</td><td>-</td></tr>
+            <tr><td>4</td><td>통과</td><td>통과</td><td>통과</td><td>-</td></tr>
+            <tr><td>5</td><td>통과</td><td>통과</td><td>통과</td><td>-</td></tr>
+            <tr><td>6</td><td>통과</td><td>통과</td><td>통과</td><td>-</td></tr>
+            <tr><td>7</td><td>통과</td><td>통과</td><td>통과</td><td>-</td></tr>
+            <tr><td>8</td><td>통과</td><td>통과</td><td>통과</td><td>-</td></tr>
+            <tr><td>9</td><td>통과</td><td>통과</td><td>통과</td><td>-</td></tr>
+            <tr><td>10</td><td>통과</td><td>통과</td><td>통과</td><td>-</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>수정한 정합성 항목</h2>
+        <table>
+          <tbody>
+            <tr><th>user-bff 문서</th><td>gateway의 <code>/api/app/**</code> route가 이미 연결된 것처럼 표시된 내용을, user-bff 구현 시 추가할 남은 준비 항목으로 수정했습니다.</td></tr>
+            <tr><th>gateway 라우팅 문서</th><td>현재 활성 라우트가 <code>/api/auth/**</code>, <code>/api/admin/**</code> 중심임을 유지하고, user-bff route는 후속 작업으로 남겼습니다.</td></tr>
+            <tr><th>audit-log API 문서</th><td>실제 코드에 존재하는 NestJS 기본 실행 구조와 <code>GET /health</code>, <code>GET /ready</code> 구현 상태를 반영했습니다.</td></tr>
+            <tr><th>서비스 개발 문서</th><td><code>docs/development/services</code>의 서비스별 기능 정의를 추가해 서비스 책임과 제외 범위를 명확히 했습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>보완해야 할 점</h2>
+        <div class="grid">
+          <div class="card">
+            <strong>Audit 저장/조회 API 미구현</strong>
+            <p><code>audit-log-service</code>는 health/readiness와 internal auth 골격은 있지만 <code>POST/GET /api/internal/audit/logs</code>는 아직 없습니다.</p>
+          </div>
+          <div class="card">
+            <strong>User BFF 라우팅 미연결</strong>
+            <p><code>user-bff-service</code>가 실행 가능한 NestJS 앱으로 구현된 뒤 gateway route/env/CDK/Postman 문서를 함께 추가해야 합니다.</p>
+          </div>
+          <div class="card">
+            <strong>미구현 앱 스크립트</strong>
+            <p><code>wms-service</code>, <code>user-bff-service</code>, <code>web-admin</code>, <code>web-wms</code>, <code>outbox-relay-service</code>는 아직 echo script 상태입니다.</p>
+          </div>
+          <div class="card">
+            <strong>자동 테스트 부재</strong>
+            <p>현재 규칙상 E2E 자동화는 사용하지 않지만, 최소한 API 시나리오 실행 스크립트와 결과 저장 방식은 정리할 가치가 있습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>개선 제안</h2>
+        <table>
+          <thead>
+            <tr><th>우선순위</th><th>개선 항목</th><th>이유</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>P0</code></td><td>audit-log-service Prisma schema와 저장 API 구현</td><td>Auth/IAM과 Admin BFF가 이미 audit 연동을 전제로 준비되어 있어 다음 연결점입니다.</td></tr>
+            <tr><td><code>P0</code></td><td>Postman에 audit-log-service health/ready와 이후 저장/조회 API 추가</td><td>API 추가 시 Postman JSON도 갱신한다는 프로젝트 규칙을 유지하기 위해 필요합니다.</td></tr>
+            <tr><td><code>P1</code></td><td>반복 검증 스크립트 공식화</td><td>이번 수동 반복 테스트를 <code>scripts/test/repeat-verify.mjs</code> 같은 재사용 가능한 스크립트로 만들면 로그 품질이 좋아집니다.</td></tr>
+            <tr><td><code>P1</code></td><td>미구현 서비스의 package script 상태를 대시보드에 표시</td><td>착수 전 서비스와 실제 구현 서비스가 섞여 있어 개발 우선순위를 더 쉽게 볼 수 있습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

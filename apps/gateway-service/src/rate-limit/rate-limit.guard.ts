@@ -90,10 +90,6 @@ export class RateLimitGuard implements CanActivate {
       return "admin";
     }
 
-    if (path === "/api/app" || path.startsWith("/api/app/")) {
-      return "app";
-    }
-
     return undefined;
   }
 

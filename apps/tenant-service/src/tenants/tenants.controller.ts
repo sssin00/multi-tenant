@@ -11,7 +11,7 @@ export class TenantsController {
     private readonly tenantsService: TenantsService
   ) {}
 
-  @InternalService({ allowedServices: ["gateway-service"] })
+  @InternalService({ allowedServices: ["admin-bff-service", "user-bff-service"] })
   @Get(":tenantId/status")
   async getStatus(@Param("tenantId") tenantId: string, @Req() req: TenantRequest) {
     const result = await this.tenantsService.getStatus({
@@ -24,7 +24,7 @@ export class TenantsController {
     return this.success(req, result);
   }
 
-  @InternalService({ allowedServices: ["gateway-service", "admin-bff-service", "user-bff-service", "wms-service"] })
+  @InternalService({ allowedServices: ["admin-bff-service", "user-bff-service", "wms-service"] })
   @Get(":tenantId/modules")
   async getModules(@Param("tenantId") tenantId: string, @Req() req: TenantRequest) {
     const result = await this.tenantsService.getModules({

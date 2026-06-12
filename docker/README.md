@@ -6,7 +6,7 @@
 
 Docker Compose 프로젝트 이름은 `multi-tenant-local`로 고정합니다. Docker Desktop이나 `docker compose ls`에서 로컬 개발 스택이 이 이름으로 표시됩니다.
 
-현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `tenant-service`, `admin-bff-service`, `gateway-service`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. PostgreSQL 인스턴스는 공유하되 서비스별 database를 분리하며, 로컬에서는 `service-databases-init`이 `auth_iam`, `tenant` database를 idempotent하게 생성합니다. `auth-iam-db-push`와 `tenant-service-db-push`는 PostgreSQL 준비 후 각 서비스 Prisma schema를 자기 database에 반영하고 종료되는 초기화 작업입니다. 이후 `auth-iam-seed`와 `tenant-service-seed`가 직접 API 호출 테스트용 데이터를 넣습니다.
+현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `tenant-service`, `admin-bff-service`, `gateway-service`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. PostgreSQL 인스턴스는 공유하되 서비스별 database를 분리하며, 로컬에서는 `service-databases-init`이 `auth_iam`, `tenant` database를 idempotent하게 생성합니다. `auth-iam-db-push`와 `tenant-service-db-push`는 PostgreSQL 준비 후 각 서비스 Prisma schema를 자기 database에 반영하고 종료되는 초기화 작업입니다. 이후 고정 id, camelCase permission code, tenant setting처럼 현재 API가 표현하지 못하는 기준값은 DB seed로 유지하고, tenant status와 module 활성화처럼 API로 가능한 항목은 `scripts/db/seed-local-api.mjs`가 서비스 API를 호출해 반영합니다.
 
 환경 변수 파일 이름은 모든 프로젝트에서 `.env.local`, `.env.dev`, `.env.staging`, `.env.prod`만 사용합니다. `.env.example` 등 다른 env 파일 이름은 만들지 않습니다.
 
@@ -39,7 +39,7 @@ curl http://localhost:3003/ready
 
 ```text
 tenantId: 11111111-1111-4111-8111-111111111111
-tenantCode: demo
+tenantCode: DEMO0001
 email: admin@demo.local
 password: Test1234!
 role: tenant_admin
@@ -52,11 +52,15 @@ seed만 다시 실행:
 pnpm seed:local
 ```
 
+`pnpm seed:local`은 DB seed job을 먼저 실행한 뒤, 실행 중인 tenant-service API에 status/module 기준값을 반영합니다.
+
 서비스 DB를 모두 초기화하고 schema와 seed를 다시 넣기:
 
 ```bash
 pnpm db:reset:local
 ```
+
+`pnpm db:reset:local`은 database 재생성, Prisma schema push, DB seed, API 서비스 재기동, API seed를 순서대로 실행합니다.
 
 gateway를 통한 로그인 확인:
 

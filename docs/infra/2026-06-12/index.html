@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CDK 인프라 코드 분석 (2026-06-12)</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Infra · CDK Review</p>
+        <h1>CDK 인프라 코드 분석</h1>
+        <p class="lead">
+          <code>infra/cdk</code>의 AWS CDK 코드를 파일별·기능별로 정리한 문서입니다.
+          현재 스택은 <strong>gateway-service</strong>, <strong>auth-iam-service</strong>, <strong>tenant-service</strong>, <strong>admin-bff-service</strong>를
+          하나의 CloudFormation 스택으로 함께 배포하며, 내부 서비스는 ECS Cloud Map 내부 DNS로 연결합니다.
+        </p>
+        <p class="lead">
+          이 문서는 <strong>CDK 코드 기준의 아키텍처 현황</strong>입니다.
+          현재 AWS 계정에 리소스가 실행 중이라는 의미는 아니며, 테스트 배포 리소스는 비용 절감을 위해 삭제되었을 수 있습니다.
+        </p>
+        <p class="lead">검토 기준일: 2026-06-12</p>
+      </header>
+
+      <section>
+        <h2>전체 구조</h2>
+        <p>현재 CDK는 단일 스택만 정의하며, 스택 이름은 <code>{project}-{env}-gateway-service-stack</code>입니다.</p>
+        <table>
+          <tr><th>파일</th><th>역할</th></tr>
+          <tr><td><code>bin/app.ts</code></td><td>CDK 앱 진입점. context를 읽어 스택을 인스턴스화</td></tr>
+          <tr><td><code>lib/gateway-service-stack.ts</code></td><td>실제 AWS 리소스 정의 (gateway + auth-iam + tenant + admin-bff)</td></tr>
+          <tr><td><code>cdk.json</code></td><td>CDK CLI 설정과 기본 context</td></tr>
+          <tr><td><code>cdk.context.json</code></td><td>가용 AZ 조회 결과 캐시</td></tr>
+          <tr><td><code>package.json</code></td><td><code>@multi-tenant/infra-cdk</code> 패키지·스크립트</td></tr>
+          <tr><td><code>tsconfig.json</code></td><td>TypeScript 컴파일 설정</td></tr>
+        </table>
+        <p class="card-subheading">루트에서 <code>pnpm infra:synth</code>, <code>infra:diff</code>, <code>infra:deploy</code>로 호출합니다.</p>
+      </section>
+
+      <section>
+        <h2>파일별 설명</h2>
+
+        <div class="detail-list">
+          <details open>
+            <summary>bin/app.ts — CDK 앱 진입점</summary>
+            <div class="detail-body">
+              <p>CDK App을 만들고 <code>GatewayServiceStack</code> 하나를 인스턴스화합니다. <code>cdk.json</code> 또는 CLI <code>-c key=value</code>로 context를 주입합니다. desired count context는 0 이상의 정수만 허용하며 잘못된 값은 synth/deploy 전에 실패합니다.</p>
+              <div class="grid">
+                <div class="card"><strong>gateway context</strong><p><code>gatewayImageTag</code>, <code>gatewayDesiredCount</code>, <code>gatewayUseNatGateway</code>, <code>gatewayRedisNodeType</code>, ACM/도메인/CORS/JWT secret</p></div>
+                <div class="card"><strong>auth context</strong><p><code>authImageTag</code>, <code>authDesiredCount</code>, <code>authCorsAllowedOrigins</code>, <code>authJwtAlgorithm</code>, DB/JWT/internal secret ARN</p></div>
+                <div class="card"><strong>tenant context</strong><p><code>tenantImageTag</code>, <code>tenantDesiredCount</code>, <code>tenantCorsAllowedOrigins</code>, DB/internal secret ARN</p></div>
+                <div class="card"><strong>admin-bff context</strong><p><code>adminBffImageTag</code>, <code>adminBffDesiredCount</code>, <code>adminBffCorsAllowedOrigins</code>, 내부 호출 secret ARN, <code>auditLogServiceUrl</code></p></div>
+                <div class="card"><strong>기본값</strong><p><code>project=multi-tenant</code>, <code>envName=dev</code>, <code>defaultRegion=ap-northeast-2</code>, CDK 단독 실행의 desired count 기본값은 모두 <code>0</code></p></div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>lib/gateway-service-stack.ts — 핵심 인프라 스택</summary>
+            <div class="detail-body">
+              <p>gateway-service, auth-iam-service, tenant-service, admin-bff-service 배포에 필요한 AWS 리소스를 한 스택에 모두 정의합니다. 네이밍은 <code>{project}-{env}</code> 접두사를 사용합니다.</p>
+              <div class="doc-chip-list">
+                <div class="doc-chip-label">관련 코드</div>
+                <div class="doc-chip-items">
+                  <code>infra/cdk/lib/gateway-service-stack.ts</code>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>cdk.json / cdk.context.json</summary>
+            <div class="detail-body">
+              <div class="compact-grid">
+                <div class="card"><strong>cdk.json</strong><p>app 실행 명령(<code>node --loader ts-node/esm bin/app.ts</code>)과 기본 context를 저장합니다.</p></div>
+                <div class="card"><strong>cdk.context.json</strong><p>계정 <code>252660243277</code>, region <code>ap-northeast-2</code>의 가용 AZ 목록 캐시입니다.</p></div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>package.json / tsconfig.json</summary>
+            <div class="detail-body">
+              <table>
+                <tr><th>스크립트</th><th>역할</th></tr>
+                <tr><td><code>synth</code></td><td>CloudFormation 템플릿 생성</td></tr>
+                <tr><td><code>diff</code></td><td>배포 전 변경 diff</td></tr>
+                <tr><td><code>deploy</code></td><td>AWS 배포</td></tr>
+                <tr><td><code>typecheck</code></td><td>타입 검사만 수행</td></tr>
+              </table>
+              <p class="card-subheading">의존성: <code>aws-cdk-lib</code>, <code>constructs</code> / dev: <code>aws-cdk</code> CLI. tsconfig는 루트 <code>tsconfig.base.json</code>을 상속합니다.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section>
+        <h2>기능별 리소스</h2>
+        <p><code>gateway-service-stack.ts</code>가 생성하는 AWS 리소스를 기능 단위로 정리합니다.</p>
+        <figure style="margin: 20px 0 0;">
+          <img
+            src="./architecture.svg"
+            alt="CDK 기능별 아키텍처 도면: Internet에서 ALB를 거쳐 gateway-service로, gateway-service가 auth-iam-service와 admin-bff-service를 호출하고 tenant status와 tenant 관리 API는 admin-bff-service가 tenant-service로 위임하는 구조"
+            style="display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff;"
+          />
+          <figcaption style="margin-top: 10px; color: var(--muted); font-size: 13px;">
+            기능별 아키텍처: ALB → gateway-service → auth-iam-service/admin-bff-service, tenant status와 tenant 관리 API는 admin-bff-service → tenant-service 경유
+          </figcaption>
+        </figure>
+        <table>
+          <tr><th>기능</th><th>gateway-service</th><th>auth-iam-service</th><th>tenant-service</th><th>admin-bff-service</th></tr>
+          <tr><td>ECR repository</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+          <tr><td>ECS Fargate task/service</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+          <tr><td>ALB 노출</td><td>O (public)</td><td>X (내부 전용)</td><td>X (내부 전용)</td><td>X (내부 전용)</td></tr>
+          <tr><td>Cloud Map 등록</td><td>-</td><td>O</td><td>O</td><td>O</td></tr>
+          <tr><td>ElastiCache Redis 접근</td><td>rate limit</td><td>cache/session</td><td>cache/readiness</td><td>-</td></tr>
+          <tr><td>Secrets Manager</td><td><code>JWT_SECRET</code>, tenant internal auth</td><td>DB URL, JWT, internal auth</td><td>DB URL, internal auth</td><td>auth/tenant/audit internal auth</td></tr>
+          <tr><td>CloudWatch Logs</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+          <tr><td>RDS/PostgreSQL</td><td>-</td><td>CDK 미포함 (외부 secret 참조)</td><td>CDK 미포함 (외부 secret 참조)</td><td>-</td></tr>
+        </table>
+
+        <div class="grid">
+          <div class="card"><strong>네트워크 (VPC)</strong><p>2 AZ. <code>gatewayUseNatGateway=true</code>이면 private subnet + NAT Gateway 1개, <code>false</code>이면 public subnet만 사용합니다.</p></div>
+          <div class="card"><strong>ECS 클러스터</strong><p>Fargate 클러스터에 Container Insights V2와 Cloud Map private DNS namespace <code>{env}.multi-tenant.local</code>을 구성합니다.</p></div>
+          <div class="card"><strong>Security Group (6개)</strong><p>ALB SG, gateway SG, auth SG, tenant SG, admin-bff SG, redis SG. auth와 admin-bff는 gateway SG에서 오는 3000만 허용하고, tenant는 admin-bff의 tenant status/admin 위임 호출만 허용합니다. gateway SG에서 tenant SG로 가는 ingress는 두지 않습니다.</p></div>
+          <div class="card"><strong>ElastiCache Redis</strong><p>1노드(기본 <code>cache.t4g.micro</code>). gateway rate limit, auth cache/session, tenant cache/readiness에서 공유합니다.</p></div>
+          <div class="card"><strong>ALB</strong><p>인터넷 facing. ACM ARN이 있으면 HTTPS 443 listener를 만들고 HTTP 80은 HTTPS로 리다이렉트합니다. gateway만 target group에 연결합니다.</p></div>
+          <div class="card"><strong>Cloud Map 내부 연결</strong><p>gateway는 auth를 <code>http://auth-iam-service.{env}.multi-tenant.local:3000/api/auth</code>, admin-bff를 <code>http://admin-bff-service.{env}.multi-tenant.local:3000/api/admin</code>으로 proxy 호출합니다. user-bff는 route/env placeholder만 유지합니다. tenant-service와 이후 추가되는 domain/platform service는 gateway가 직접 호출하지 않고 BFF가 tenant status check와 내부 API 호출을 위임합니다.</p></div>
+        </div>
+
+        <p class="card-subheading">주요 CfnOutput: <code>GatewayServiceRepositoryUri</code>, <code>GatewayLoadBalancerDns</code>, <code>GatewayRedisEndpoint</code>, <code>AuthIamServiceRepositoryUri</code>, <code>AuthIamServiceInternalUrl</code>, <code>TenantServiceRepositoryUri</code>, <code>TenantServiceInternalUrl</code>, <code>AdminBffServiceRepositoryUri</code>, <code>AdminBffServiceInternalUrl</code> 등.</p>
+      </section>
+
+      <section>
+        <h2>현재 배포 상태 해석</h2>
+        <div class="grid">
+          <div class="card"><strong>코드 기준</strong><p>CDK synth 기준으로 gateway-service, auth-iam-service, tenant-service, admin-bff-service 배포 리소스가 모두 정의되어 있습니다.</p></div>
+          <div class="card"><strong>AWS 실행 상태</strong><p>이 문서만으로 실제 AWS 리소스 실행 여부를 판단하지 않습니다. 콘솔 또는 AWS CLI에서 CloudFormation stack, ECS service, ALB, ECR을 확인해야 합니다.</p></div>
+          <div class="card"><strong>비용 상태</strong><p>테스트 리소스는 비용 절감을 위해 삭제하거나 desired count를 0으로 낮출 수 있습니다. NAT Gateway, ALB, ElastiCache는 task가 0이어도 비용이 발생할 수 있습니다.</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Auth/IAM 실행 전 필수 조건</h2>
+        <p><code>authDesiredCount=1</code>로 올리기 전에 이미지와 runtime secret이 준비되어 있어야 합니다.</p>
+        <table>
+          <tr><th>항목</th><th>CDK context</th><th>용도</th></tr>
+          <tr><td>Auth/IAM Docker image</td><td><code>authImageTag</code></td><td>ECR에 push된 auth-iam-service image tag</td></tr>
+          <tr><td>PostgreSQL URL secret</td><td><code>authDatabaseUrlSecretArn</code></td><td>ECS task의 <code>DATABASE_URL</code> secret</td></tr>
+          <tr><td>JWT secret</td><td><code>authJwtSecretArn</code></td><td><code>HS256</code> access token 서명 secret</td></tr>
+          <tr><td>JWT key pair</td><td><code>authJwtPrivateKeySecretArn</code>, <code>authJwtPublicKeySecretArn</code></td><td><code>RS256</code> 사용 시 private/public key secret</td></tr>
+          <tr><td>Internal auth secret</td><td><code>authInternalAuthSecretArn</code></td><td>gateway, BFF, domain service의 내부 호출 인증</td></tr>
+        </table>
+        <p class="card-subheading">secret 없이 task를 실행하면 컨테이너가 시작되어도 <code>/ready</code>의 database, jwt, security check가 실패할 수 있습니다.</p>
+      </section>
+
+      <section>
+        <h2>Tenant 실행 전 필수 조건</h2>
+        <p><code>tenantDesiredCount=1</code>로 올리기 전에 이미지와 runtime secret이 준비되어 있어야 합니다.</p>
+        <table>
+          <tr><th>항목</th><th>CDK context</th><th>용도</th></tr>
+          <tr><td>Tenant Docker image</td><td><code>tenantImageTag</code></td><td>ECR에 push된 tenant-service image tag</td></tr>
+          <tr><td>PostgreSQL URL secret</td><td><code>tenantDatabaseUrlSecretArn</code></td><td>ECS task의 <code>DATABASE_URL</code> secret</td></tr>
+          <tr><td>Internal auth secret</td><td><code>tenantInternalAuthSecretArn</code></td><td>tenant-service가 내부 호출 서명을 검증할 때 사용하는 secret</td></tr>
+          <tr><td>BFF tenant check</td><td><code>adminBffTenantInternalAuthSecretArn</code></td><td>admin-bff-service가 tenant-service 상태 API와 tenant 관리 API를 호출할 때 사용하는 secret</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Admin BFF 실행 전 필수 조건</h2>
+        <p><code>adminBffDesiredCount=1</code>로 올리기 전에 이미지와 내부 호출 secret이 준비되어 있어야 합니다.</p>
+        <table>
+          <tr><th>항목</th><th>CDK context</th><th>용도</th></tr>
+          <tr><td>Admin BFF Docker image</td><td><code>adminBffImageTag</code></td><td>ECR에 push된 admin-bff-service image tag</td></tr>
+          <tr><td>Auth internal auth secret</td><td><code>adminBffAuthInternalAuthSecretArn</code></td><td>admin-bff-service가 auth-iam-service 내부 API를 호출할 때 사용</td></tr>
+          <tr><td>Tenant internal auth secret</td><td><code>adminBffTenantInternalAuthSecretArn</code></td><td>admin-bff-service가 tenant-service 내부 API를 호출할 때 사용</td></tr>
+          <tr><td>Audit internal auth secret</td><td><code>adminBffAuditInternalAuthSecretArn</code></td><td><code>auditLogServiceUrl</code>을 설정한 경우 audit-log-service 내부 API 호출에 사용</td></tr>
+          <tr><td>Audit upstream URL</td><td><code>auditLogServiceUrl</code></td><td>audit-log-service 구현 전까지 비워둘 수 있습니다.</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Redis 공유 기준</h2>
+        <p>현재 Redis는 gateway-service, auth-iam-service, tenant-service가 하나의 ElastiCache Redis를 공유합니다.</p>
+        <div class="grid">
+          <div class="card"><strong>공유 이유</strong><p>초기 dev/staging 단계에서 비용과 CDK 복잡도를 낮추기 위한 선택입니다. 서비스별 Redis를 만들면 ElastiCache 노드, subnet group, security group, 설정 값이 함께 늘어납니다.</p></div>
+          <div class="card"><strong>논리 분리 기준</strong><p>서비스별 key prefix를 사용해 gateway rate limit key, auth cache/session key, tenant cache key가 섞이지 않도록 관리해야 합니다.</p></div>
+          <div class="card"><strong>운영 전 검토</strong><p>prod 전에는 gateway rate-limit Redis, auth Redis, tenant Redis를 분리할지 결정해야 합니다. 장애 격리와 부하 격리가 필요하면 서비스별 또는 용도별 Redis 분리가 적합합니다.</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>이전 대비 변경점</h2>
+        <p>직전 버전은 <strong>gateway-service, auth-iam-service, tenant-service 중심 스택</strong>이었고, 현재는 <strong>admin-bff-service가 같은 스택에 추가</strong>되었습니다.</p>
+        <table>
+          <tr><th>영역</th><th>이전</th><th>현재</th></tr>
+          <tr><td>배포 대상</td><td>gateway + auth-iam-service + tenant-service</td><td>gateway + auth-iam-service + tenant-service + admin-bff-service</td></tr>
+          <tr><td>서비스 디스커버리</td><td>auth + tenant Cloud Map private DNS</td><td>auth + tenant + admin-bff Cloud Map private DNS. gateway의 tenant 직접 호출은 제거</td></tr>
+          <tr><td>ECR / ECS 서비스</td><td>각 3개</td><td>각 4개</td></tr>
+          <tr><td>Redis 접근</td><td>gateway + auth + tenant</td><td>gateway + auth + tenant. admin-bff는 Redis 미사용</td></tr>
+          <tr><td>tenant status URL</td><td><code>http://tenant-service:3000</code> placeholder</td><td>admin-bff-service가 Cloud Map 내부 DNS로 status guard를 수행</td></tr>
+          <tr><td>tenant 관리 API 경로</td><td>정리 전</td><td><code>/api/admin/tenants/**</code> → gateway → admin-bff-service → tenant-service 내부 API</td></tr>
+          <tr><td>admin-bff upstream URL</td><td><code>http://admin-bff-service:3000</code> placeholder</td><td>Cloud Map 내부 DNS와 <code>/api/admin</code> base path로 실제 연결</td></tr>
+          <tr><td>Security Group</td><td>5개</td><td>6개 (admin-bff SG 추가)</td></tr>
+          <tr><td>CDK region 결정</td><td><code>CDK_DEFAULT_REGION</code> 우선</td><td><code>defaultRegion</code> 고정</td></tr>
+          <tr><td>리소스 태그</td><td><code>Service=gateway-service</code> 포함</td><td><code>Service</code> 태그 제거</td></tr>
+          <tr><td>RDS PostgreSQL</td><td>CDK 없음</td><td>여전히 CDK 없음</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>아직 CDK 미포함</h2>
+        <div class="grid">
+          <div class="card"><strong>GitHub Actions</strong><p><code>deploy-gateway-service.yml</code>, <code>deploy-auth-iam-service.yml</code>, <code>deploy-tenant-service.yml</code>, <code>deploy-admin-bff-service.yml</code>가 준비되어 있습니다. 네 workflow 모두 자동 push 배포 없이 수동 실행만 허용하며, 비대상 서비스 desired count와 image tag는 명시 필수입니다.</p></div>
+          <div class="card"><strong>RDS / Aurora</strong><p><code>authDatabaseUrlSecretArn</code>으로 기존 DB secret만 참조합니다. DB 인스턴스와 SG는 CDK에 없습니다.</p></div>
+          <div class="card"><strong>기타 리소스</strong><p>Route53, EventBridge, SQS, S3, audit-log-service, outbox-relay-service, user-bff-service, WMS 서비스는 아직 CDK로 정의되지 않았습니다.</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>수동 배포 Workflow</h2>
+        <p>현재 GitHub Actions 배포는 모두 <code>workflow_dispatch</code> 전용입니다. <code>push</code>, <code>pull_request</code>, <code>schedule</code> 자동 트리거는 사용하지 않습니다.</p>
+        <table>
+          <tr><th>Workflow</th><th>빌드/푸시 대상</th><th>대상 서비스 기본 최종 desired count</th><th>다른 서비스 처리</th><th>필수 secret guard</th></tr>
+          <tr>
+            <td><code>deploy-gateway-service.yml</code></td>
+            <td>gateway-service image</td>
+            <td><code>GATEWAY_DESIRED_COUNT=1</code></td>
+            <td>auth/tenant/admin-bff desired count와 image tag 명시 필수</td>
+            <td><code>GATEWAY_JWT_SECRET_ARN</code></td>
+          </tr>
+          <tr>
+            <td><code>deploy-auth-iam-service.yml</code></td>
+            <td>auth-iam-service image</td>
+            <td><code>AUTH_DESIRED_COUNT=1</code></td>
+            <td>gateway/tenant/admin-bff desired count와 image tag 명시 필수</td>
+            <td>DB URL, JWT secret/key, internal auth secret</td>
+          </tr>
+          <tr>
+            <td><code>deploy-tenant-service.yml</code></td>
+            <td>tenant-service image</td>
+            <td><code>TENANT_DESIRED_COUNT=1</code></td>
+            <td>gateway/auth/admin-bff desired count와 image tag 명시 필수</td>
+            <td>DB URL, internal auth secret</td>
+          </tr>
+          <tr>
+            <td><code>deploy-admin-bff-service.yml</code></td>
+            <td>admin-bff-service image</td>
+            <td><code>ADMIN_BFF_DESIRED_COUNT=1</code></td>
+            <td>gateway/auth/tenant desired count와 image tag 명시 필수</td>
+            <td>auth internal auth, tenant internal auth secret</td>
+          </tr>
+        </table>
+        <p class="card-subheading">네 workflow는 모두 같은 CDK 스택을 갱신합니다. 비대상 서비스 값이 비어 있으면 workflow가 실패하므로, 처음 인프라만 만들 때도 명시적으로 <code>0</code>과 사용할 image tag를 설정해야 합니다. 해당 서비스 desired count가 0보다 크면 runtime secret ARN도 필요합니다.</p>
+      </section>
+
+      <section>
+        <h2>배포 시 context 예시</h2>
+        <p>dev에서 비용을 줄여 확인할 때는 NAT Gateway를 끄고, 네 서비스 desired count를 0으로 둔 상태에서 ECR과 기본 인프라를 먼저 만듭니다.</p>
+        <pre><code># 1단계: 인프라만 생성 (태스크 0, dev 비용 절감용 public subnet 배치)
+pnpm --filter @multi-tenant/infra-cdk exec cdk deploy \
+  -c gatewayDesiredCount=0 \
+  -c authDesiredCount=0 \
+  -c tenantDesiredCount=0 \
+  -c adminBffDesiredCount=0 \
+  -c gatewayUseNatGateway=false
+
+# 2단계: 이미지 push 후 실행
+pnpm --filter @multi-tenant/infra-cdk deploy \
+  -c gatewayDesiredCount=1 \
+  -c authDesiredCount=1 \
+  -c tenantDesiredCount=1 \
+  -c adminBffDesiredCount=1 \
+  -c gatewayImageTag=latest \
+  -c authImageTag=latest \
+  -c tenantImageTag=latest \
+  -c adminBffImageTag=latest \
+  -c gatewayJwtSecretArn=arn:aws:secretsmanager:... \
+  -c authDatabaseUrlSecretArn=arn:aws:secretsmanager:... \
+  -c authJwtSecretArn=arn:aws:secretsmanager:... \
+  -c authInternalAuthSecretArn=arn:aws:secretsmanager:... \
+  -c tenantDatabaseUrlSecretArn=arn:aws:secretsmanager:... \
+  -c tenantInternalAuthSecretArn=arn:aws:secretsmanager:... \
+  -c adminBffAuthInternalAuthSecretArn=arn:aws:secretsmanager:... \
+  -c adminBffTenantInternalAuthSecretArn=arn:aws:secretsmanager:...</code></pre>
+        <p class="card-subheading"><code>gatewayUseNatGateway=true</code>는 private subnet + NAT Gateway 구성이며 dev에서도 NAT Gateway 비용이 발생합니다.</p>
+        <p class="card-subheading">GitHub Actions로 서비스별 배포를 실행할 때는 같은 스택의 비대상 서비스가 실수로 내려가지 않도록 비대상 서비스의 desired count와 image tag를 모두 GitHub Environment variable에 명시합니다.</p>
+      </section>
+
+      <section>
+        <h2>검증 완료</h2>
+        <p>2026-06-12 기준 아래 명령으로 CDK 타입 검사와 synth를 확인했습니다.</p>
+        <pre><code>pnpm --filter @multi-tenant/infra-cdk typecheck
+pnpm --filter @multi-tenant/infra-cdk exec cdk synth \
+  -c gatewayDesiredCount=0 \
+  -c authDesiredCount=0 \
+  -c tenantDesiredCount=0 \
+  -c adminBffDesiredCount=0 \
+  -c gatewayUseNatGateway=false</code></pre>
+        <p class="card-subheading">synth 결과에서 <code>AuthIamServiceRepositoryUri</code>, <code>TenantServiceRepositoryUri</code>, <code>AdminBffServiceRepositoryUri</code>, <code>AuthIamServiceInternalUrl</code>, <code>TenantServiceInternalUrl</code>, <code>AdminBffServiceInternalUrl</code>, 각 서비스 desired count <code>0</code>, <code>ap-northeast-2</code> region 설정을 확인했습니다.</p>
+      </section>
+
+      <p class="footer">작성일: 2026-06-12 · 대상: <code>infra/cdk</code> · 스택: <code>multi-tenant-{env}-gateway-service-stack</code></p>
+    </main>
+  </body>
+</html>

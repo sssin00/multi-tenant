@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 860" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" role="img" aria-label="CDK functional architecture diagram">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#0a4d53" />
+    </marker>
+    <marker id="arrowMuted" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5d6976" />
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="980" height="860" fill="#f4f7f9" />
+
+  <!-- Internet / Client -->
+  <rect x="380" y="20" width="220" height="54" rx="8" fill="#ffffff" stroke="#2c5f92" stroke-width="1.5" />
+  <text x="490" y="50" text-anchor="middle" font-size="15" font-weight="700" fill="#2c5f92">Internet / Client</text>
+
+  <!-- AWS Cloud -->
+  <rect x="20" y="100" width="940" height="740" rx="12" fill="#ffffff" stroke="#d8e2e8" stroke-width="1.5" />
+  <text x="40" y="126" font-size="13" font-weight="800" fill="#b45309">AWS CLOUD - ap-northeast-2</text>
+
+  <!-- VPC -->
+  <rect x="44" y="146" width="600" height="666" rx="10" fill="#fbfcfd" stroke="#0f6b73" stroke-width="1.5" />
+  <text x="62" y="170" font-size="13" font-weight="800" fill="#0f6b73">VPC (2 AZ)</text>
+
+  <!-- Public subnet -->
+  <rect x="64" y="184" width="560" height="96" rx="8" fill="#edf4f7" stroke="#2c5f92" stroke-width="1" stroke-dasharray="5 4" />
+  <text x="78" y="204" font-size="12" font-weight="700" fill="#2c5f92">Public Subnet</text>
+  <rect x="244" y="214" width="200" height="54" rx="8" fill="#ffffff" stroke="#2c5f92" stroke-width="1.5" />
+  <text x="344" y="237" text-anchor="middle" font-size="14" font-weight="700" fill="#2c5f92">ALB</text>
+  <text x="344" y="255" text-anchor="middle" font-size="11" fill="#5d6976">HTTP 80 / HTTPS 443</text>
+
+  <!-- App subnet -->
+  <rect x="64" y="300" width="560" height="310" rx="8" fill="#edf4f7" stroke="#0f6b73" stroke-width="1" stroke-dasharray="5 4" />
+  <text x="78" y="320" font-size="12" font-weight="700" fill="#0f6b73">App Subnet (private + NAT or public)</text>
+
+  <!-- gateway-service -->
+  <rect x="90" y="338" width="226" height="146" rx="8" fill="#ffffff" stroke="#0f6b73" stroke-width="1.5" />
+  <text x="203" y="362" text-anchor="middle" font-size="14" font-weight="700" fill="#0a4d53">gateway-service</text>
+  <text x="203" y="381" text-anchor="middle" font-size="11" fill="#5d6976">ECS Fargate - port 3000</text>
+  <line x1="106" y1="394" x2="300" y2="394" stroke="#d8e2e8" stroke-width="1" />
+  <text x="203" y="412" text-anchor="middle" font-size="11" fill="#5d6976">ALB target (public)</text>
+  <text x="203" y="430" text-anchor="middle" font-size="11" fill="#5d6976">routing / JWT / rate limit</text>
+  <text x="203" y="448" text-anchor="middle" font-size="11" fill="#5d6976">tenant context propagate</text>
+  <text x="203" y="468" text-anchor="middle" font-size="11" font-weight="600" fill="#23785b">SG: ALB to 3000</text>
+
+  <!-- auth-iam-service -->
+  <rect x="372" y="338" width="226" height="146" rx="8" fill="#ffffff" stroke="#0f6b73" stroke-width="1.5" />
+  <text x="485" y="362" text-anchor="middle" font-size="14" font-weight="700" fill="#0a4d53">auth-iam-service</text>
+  <text x="485" y="381" text-anchor="middle" font-size="11" fill="#5d6976">ECS Fargate - port 3000</text>
+  <line x1="388" y1="394" x2="582" y2="394" stroke="#d8e2e8" stroke-width="1" />
+  <text x="485" y="412" text-anchor="middle" font-size="11" fill="#5d6976">internal only (no ALB)</text>
+  <text x="485" y="430" text-anchor="middle" font-size="11" fill="#5d6976">Cloud Map registered</text>
+  <text x="485" y="448" text-anchor="middle" font-size="11" fill="#5d6976">login / JWT / permission</text>
+  <text x="485" y="468" text-anchor="middle" font-size="11" font-weight="600" fill="#23785b">SG: gateway to 3000</text>
+
+  <!-- tenant-service -->
+  <rect x="90" y="500" width="226" height="84" rx="8" fill="#ffffff" stroke="#0f6b73" stroke-width="1.5" />
+  <text x="203" y="524" text-anchor="middle" font-size="14" font-weight="700" fill="#0a4d53">tenant-service</text>
+  <text x="203" y="543" text-anchor="middle" font-size="11" fill="#5d6976">ECS Fargate - port 3000</text>
+  <line x1="106" y1="556" x2="300" y2="556" stroke="#d8e2e8" stroke-width="1" />
+  <text x="203" y="574" text-anchor="middle" font-size="11" fill="#5d6976">tenant domain / internal API</text>
+
+  <!-- admin-bff-service -->
+  <rect x="372" y="500" width="226" height="84" rx="8" fill="#ffffff" stroke="#0f6b73" stroke-width="1.5" />
+  <text x="485" y="524" text-anchor="middle" font-size="14" font-weight="700" fill="#0a4d53">admin-bff-service</text>
+  <text x="485" y="543" text-anchor="middle" font-size="11" fill="#5d6976">ECS Fargate - port 3000</text>
+  <line x1="388" y1="556" x2="582" y2="556" stroke="#d8e2e8" stroke-width="1" />
+  <text x="485" y="574" text-anchor="middle" font-size="11" fill="#5d6976">admin API aggregation</text>
+
+  <!-- Redis subnet group uses app subnets -->
+  <rect x="64" y="640" width="560" height="96" rx="8" fill="#edf4f7" stroke="#b45309" stroke-width="1" stroke-dasharray="5 4" />
+  <text x="78" y="660" font-size="12" font-weight="700" fill="#b45309">Redis Subnet Group (app subnets)</text>
+  <rect x="244" y="670" width="200" height="54" rx="8" fill="#ffffff" stroke="#b45309" stroke-width="1.5" />
+  <text x="344" y="693" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">ElastiCache Redis</text>
+  <text x="344" y="711" text-anchor="middle" font-size="11" fill="#5d6976">port 6379 - cache.t4g.micro</text>
+
+  <!-- Cloud Map note -->
+  <rect x="64" y="754" width="560" height="50" rx="8" fill="#ffffff" stroke="#0f6b73" stroke-width="1" />
+  <text x="344" y="776" text-anchor="middle" font-size="12" font-weight="700" fill="#0a4d53">ECS Cloud Map - {env}.multi-tenant.local</text>
+  <text x="344" y="794" text-anchor="middle" font-size="11" fill="#5d6976">gateway routes auth/admin-bff/user-bff only; tenant is reached by BFFs</text>
+
+  <!-- Managed services / resources outside this CDK stack boundary -->
+  <text x="676" y="170" font-size="12" font-weight="700" fill="#5d6976">AWS managed / external to stack</text>
+
+  <rect x="676" y="184" width="260" height="64" rx="8" fill="#ffffff" stroke="#5d6976" stroke-width="1.2" />
+  <text x="806" y="208" text-anchor="middle" font-size="13" font-weight="700" fill="#17212b">ECR</text>
+  <text x="806" y="228" text-anchor="middle" font-size="11" fill="#5d6976">gateway / auth-iam / tenant / admin-bff</text>
+
+  <rect x="676" y="266" width="260" height="64" rx="8" fill="#ffffff" stroke="#5d6976" stroke-width="1.2" />
+  <text x="806" y="290" text-anchor="middle" font-size="13" font-weight="700" fill="#17212b">Secrets Manager</text>
+  <text x="806" y="310" text-anchor="middle" font-size="11" fill="#5d6976">JWT / DB URLs / internal auth</text>
+
+  <rect x="676" y="348" width="260" height="64" rx="8" fill="#ffffff" stroke="#5d6976" stroke-width="1.2" />
+  <text x="806" y="372" text-anchor="middle" font-size="13" font-weight="700" fill="#17212b">CloudWatch Logs</text>
+  <text x="806" y="392" text-anchor="middle" font-size="11" fill="#5d6976">per-service log group</text>
+
+  <!-- PostgreSQL: outside CDK -->
+  <rect x="676" y="464" width="260" height="84" rx="8" fill="#fbfcfd" stroke="#b45309" stroke-width="1.5" stroke-dasharray="6 4" />
+  <text x="806" y="492" text-anchor="middle" font-size="13" font-weight="700" fill="#b45309">PostgreSQL (RDS/Aurora)</text>
+  <text x="806" y="512" text-anchor="middle" font-size="11" fill="#5d6976">not in current CDK stack</text>
+  <text x="806" y="530" text-anchor="middle" font-size="11" fill="#5d6976">DATABASE_URL secret ref</text>
+
+  <!-- Flows -->
+  <!-- Internet -> ALB -->
+  <path d="M490 74 C490 128 425 166 380 214" fill="none" stroke="#0a4d53" stroke-width="1.8" marker-end="url(#arrow)" />
+  <text x="430" y="142" font-size="11" font-weight="600" fill="#0a4d53">HTTP / HTTPS optional</text>
+
+  <!-- ALB -> gateway -->
+  <path d="M300 268 C282 300 254 318 225 338" fill="none" stroke="#0a4d53" stroke-width="1.8" marker-end="url(#arrow)" />
+
+  <!-- gateway -> auth (Cloud Map) -->
+  <path d="M316 408 C334 402 354 402 372 408" fill="none" stroke="#0a4d53" stroke-width="1.8" marker-end="url(#arrow)" />
+  <text x="344" y="402" text-anchor="middle" font-size="10" font-weight="600" fill="#0a4d53">Cloud Map</text>
+
+  <!-- gateway -> admin-bff (Cloud Map) -->
+  <path d="M316 452 C354 466 372 490 412 500" fill="none" stroke="#0a4d53" stroke-width="1.8" marker-end="url(#arrow)" />
+  <text x="370" y="484" text-anchor="middle" font-size="10" font-weight="600" fill="#0a4d53">admin-bff</text>
+
+  <!-- admin-bff -> tenant status/admin APIs -->
+  <path d="M372 572 C352 614 336 614 316 572" fill="none" stroke="#0a4d53" stroke-width="1.8" marker-end="url(#arrow)" />
+  <text x="344" y="620" text-anchor="middle" font-size="10" font-weight="600" fill="#0a4d53">status / admin APIs</text>
+
+  <!-- gateway -> redis -->
+  <path d="M90 456 C42 456 42 674 244 694" fill="none" stroke="#b45309" stroke-width="1.6" marker-end="url(#arrow)" />
+  <text x="92" y="704" font-size="10" fill="#b45309">rate limit</text>
+
+  <!-- auth -> redis -->
+  <path d="M598 456 C630 456 650 674 444 694" fill="none" stroke="#b45309" stroke-width="1.6" marker-end="url(#arrow)" />
+  <text x="468" y="704" font-size="10" fill="#b45309">cache/session</text>
+
+  <!-- tenant -> redis -->
+  <path d="M203 584 C208 628 256 646 312 670" fill="none" stroke="#b45309" stroke-width="1.6" marker-end="url(#arrow)" />
+  <text x="222" y="638" font-size="10" fill="#b45309">cache</text>
+
+  <!-- auth -> postgres (dashed) -->
+  <path d="M598 430 C640 430 638 490 676 490" fill="none" stroke="#5d6976" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrowMuted)" />
+  <text x="628" y="422" text-anchor="middle" font-size="10" fill="#5d6976">5432</text>
+  <path d="M316 542 C386 632 548 646 624 612 C654 590 660 548 676 520" fill="none" stroke="#5d6976" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrowMuted)" />
+
+  <!-- services -> secrets/logs (dashed, routed through right-side bus) -->
+  <path d="M624 336 C646 330 654 310 676 300" fill="none" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
+  <path d="M624 372 C646 372 654 378 676 378" fill="none" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
+  <text x="612" y="332" text-anchor="end" font-size="10" fill="#5d6976">secrets</text>
+  <text x="612" y="376" text-anchor="end" font-size="10" fill="#5d6976">logs</text>
+
+  <!-- ECR -> services (image pull, dashed) -->
+  <path d="M676 216 C644 226 644 276 624 288" fill="none" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#arrowMuted)" />
+  <text x="630" y="252" text-anchor="end" font-size="10" fill="#5d6976">image pull</text>
+
+  <!-- Legend -->
+  <line x1="700" y1="600" x2="724" y2="600" stroke="#0a4d53" stroke-width="1.8" />
+  <text x="730" y="604" font-size="11" fill="#5d6976">request / call path</text>
+  <line x1="700" y1="622" x2="724" y2="622" stroke="#5d6976" stroke-width="1.2" stroke-dasharray="4 4" />
+  <text x="730" y="626" font-size="11" fill="#5d6976">managed / aux integration</text>
+</svg>

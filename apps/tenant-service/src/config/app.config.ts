@@ -78,7 +78,6 @@ export function getAppConfig(): AppConfig {
       enabled: readBoolean("TENANT_INTERNAL_AUTH_ENABLED", true),
       secret: readOptionalString("TENANT_INTERNAL_AUTH_SECRET"),
       allowedServices: readStringList("TENANT_INTERNAL_AUTH_ALLOWED_SERVICES", [
-        "gateway-service",
         "admin-bff-service",
         "user-bff-service",
         "wms-service"

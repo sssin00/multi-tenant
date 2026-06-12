@@ -553,9 +553,9 @@
       <section>
         <h2>코드 작성 진행 순서</h2>
         <ol class="ordered">
-          <li><span class="item-text"><code>gateway-service</code>는 health/readiness, request context, JWT guard, proxy routing, Redis rate limit, tenant status check까지 1차 구현을 완료했습니다.</span></li>
+          <li><span class="item-text"><code>gateway-service</code>는 health/readiness, request context, JWT guard, proxy routing, Redis rate limit까지 1차 구현을 완료했습니다. tenant status check는 BFF로 이관했습니다.</span></li>
           <li><span class="item-text"><code>auth-iam-service</code>는 로그인, token refresh, 사용자, 역할, 권한, internal permission summary/check API를 1차 구현했습니다.</span></li>
-          <li><span class="item-text"><code>tenant-service</code>는 health/readiness, tenant status/modules 조회, tenant 생성과 code 자동 생성, outbox 저장, gateway status check 연결을 1차 구현했습니다.</span></li>
+          <li><span class="item-text"><code>tenant-service</code>는 health/readiness, tenant status/modules 조회, tenant 생성과 code 자동 생성, outbox 저장, BFF tenant status check 연결을 1차 구현했습니다.</span></li>
           <li><span class="item-text"><code>admin-bff-service</code>는 tenant, 사용자, role, permission, module 운영 API와 CDK 배포 준비까지 1차 구현했습니다.</span></li>
           <li><span class="item-text">다음 단계는 <code>audit-log-service</code>를 구현해 Auth/IAM 감사 저장과 Admin BFF 감사 조회를 실제 서비스로 연결하는 것입니다.</span></li>
           <li><span class="item-text"><code>wms-service</code>는 admin 운영 기반과 감사 로그 기준이 잡힌 뒤 warehouse, location, item, inventory 조회 API부터 WMS MVP를 시작합니다.</span></li>
@@ -595,7 +595,7 @@
       <section>
         <h2>gateway-service 기능 범위</h2>
         <p>
-          <code>gateway-service</code>는 ALB 뒤에서 외부 요청을 받아 내부 BFF와 서비스로 넘기는 공통 출입구입니다.
+          <code>gateway-service</code>는 ALB 뒤에서 외부 요청을 받아 Auth/IAM과 BFF로 넘기는 공통 출입구입니다.
           이 서비스는 업무 로직을 처리하지 않고, 공통 보안, 테넌트 식별, 요청 컨텍스트, 라우팅을 담당합니다.
         </p>
         <div class="grid two">
@@ -603,7 +603,7 @@
             <h3>구현된 공통 기능</h3>
             <p>
               health check, request id 발급/전파, tenant id 추출, access log, JWT guard 기본 구조,
-              public/private route 구분, proxy routing, Redis rate limit, tenant status check, CORS 정책,
+              public/private route 구분, Auth/BFF proxy routing, Redis rate limit, CORS 정책,
               보안 헤더, 요청 크기 제한, 공통 에러 포맷을 구현했습니다.
             </p>
           </div>
@@ -618,7 +618,7 @@
           <tbody>
             <tr>
               <th>라우팅</th>
-              <td><code>/api/auth/**</code> → auth-iam-service, <code>/api/admin/**</code> → admin-bff-service, <code>/api/app/**</code> → user-bff-service</td>
+              <td><code>/api/auth/**</code> → auth-iam-service, <code>/api/admin/**</code> → admin-bff-service. <code>/api/app/**</code> → user-bff-service는 user-bff 구현 시 추가합니다.</td>
             </tr>
             <tr>
               <th>Tenant 식별</th>

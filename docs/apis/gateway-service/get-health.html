@@ -86,7 +86,7 @@
           <tbody>
             <tr><th>목적</th><td>ALB와 운영 모니터링에서 gateway-service 생존 상태를 확인합니다.</td></tr>
             <tr><th>인증</th><td>없음. Health check 대상이므로 public endpoint로 둡니다.</td></tr>
-            <tr><th>외부 의존성</th><td>확인하지 않습니다. DB, Redis, BFF, Auth/IAM 상태는 <code>/ready</code>에서 다룹니다.</td></tr>
+            <tr><th>외부 의존성</th><td>확인하지 않습니다. gateway 설정, JWT, proxy route URL, rate limit, security/CORS 준비 상태는 <code>/ready</code>에서 다룹니다.</td></tr>
             <tr><th>공통 Header</th><td><code>X-Request-Id</code>와 보안 header가 응답에 포함됩니다.</td></tr>
             <tr><th>성공 상태</th><td><code>200 OK</code></td></tr>
           </tbody>

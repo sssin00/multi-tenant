@@ -43,6 +43,8 @@
             <p><label><input type="checkbox" checked disabled /> 서비스별 수동 배포와 공유 CDK 스택 보호 규칙</label></p>
             <p><label><input type="checkbox" checked disabled /> 상세 커밋 메시지 작성 규칙</label></p>
             <p><label><input type="checkbox" checked disabled /> Docker Redis host 접속 포트 규칙</label></p>
+            <p><label><input type="checkbox" checked disabled /> 모든 외부 업무/관리/API 요청은 BFF 경유, tenant status check도 BFF 책임</label></p>
+            <p><label><input type="checkbox" checked disabled /> API 추가/수정/삭제 시 Postman collection 동시 갱신 규칙</label></p>
           </div>
           <div class="card">
             <h3>초안 확정 규칙</h3>
@@ -53,7 +55,7 @@
             <p><label><input type="checkbox" disabled /> Auth/IAM 운영 규칙: 로컬 HS256은 정했지만 운영 RS256, key rotation, JWKS는 미확정</label></p>
             <p><label><input type="checkbox" disabled /> 권한 scope 규칙: tenant/admin 기본 경계는 정했지만 warehouse-scoped permission 적용 범위는 미확정</label></p>
             <p><label><input type="checkbox" disabled /> Tenant 전략: shared DB + tenantId는 정했지만 schema/database 분리 전환 기준은 미확정</label></p>
-            <p><label><input type="checkbox" disabled /> BFF 규칙: 제작 순서와 책임은 정했지만 user-bff 화면별 조합 계약은 WMS API 이후 확정</label></p>
+            <p><label><input type="checkbox" disabled /> BFF 규칙: BFF 경유 원칙은 확정됐지만 user-bff 화면별 조합 계약은 WMS API 이후 확정</label></p>
             <p><label><input type="checkbox" disabled /> API 문서 규칙: gateway, auth, tenant, admin-bff는 작성됐지만 user-bff, WMS, outbox relay는 TODO</label></p>
           </div>
           <div class="card">

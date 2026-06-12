@@ -30,6 +30,7 @@
             <tr><th>List response</th><td>목록 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용합니다. page는 <code>1</code>부터 시작하고 기본 size는 <code>20</code>입니다.</td></tr>
             <tr><th>Authorization</th><td>중요 관리자 액션은 auth-iam-service의 permission check를 호출합니다. JWT에는 role이나 permission을 넣지 않습니다.</td></tr>
             <tr><th>Permission guard</th><td>Admin BFF controller는 <code>@AdminPermission("{domain}.{resource}.{action}")</code> decorator로 필요한 권한을 선언합니다. 화면 조합 API처럼 여러 권한이 필요한 route는 배열로 선언하고 모두 통과해야 합니다.</td></tr>
+            <tr><th>Tenant status guard</th><td>Admin BFF는 tenant-service의 <code>GET /internal/tenants/{tenantId}/status</code>를 호출해 <code>active</code> tenant만 관리자 API를 통과시킵니다.</td></tr>
             <tr><th>Data ownership</th><td>Admin BFF는 직접 DB에 접근하지 않습니다. tenant 관리는 tenant-service, 사용자/role/permission 관리는 auth-iam-service로 위임합니다.</td></tr>
           </tbody>
         </table>
@@ -50,15 +51,21 @@
             <tbody>
               <tr>
                 <td><code>tenant-service</code></td>
+                <td><code>GET /internal/tenants/{tenantId}/status</code></td>
+                <td>관리자 API 처리 전 tenant 상태 확인</td>
+                <td><span class="tag done">Ready</span></td>
+              </tr>
+              <tr>
+                <td><code>tenant-service</code></td>
                 <td><code>POST /internal/admin/tenants</code></td>
                 <td>tenant 생성과 <code>tenant.code</code> 자동 생성</td>
-                <td><span class="tag done">Client Ready</span></td>
+                <td><span class="tag done">Ready</span></td>
               </tr>
               <tr>
                 <td><code>tenant-service</code></td>
                 <td><code>GET /internal/tenants/{tenantId}/modules</code></td>
                 <td>tenant별 활성 module 조회</td>
-                <td><span class="tag done">Client Ready</span></td>
+                <td><span class="tag done">Ready</span></td>
               </tr>
               <tr>
                 <td><code>tenant-service</code></td>
@@ -331,7 +338,7 @@
             <tr><th>Purpose</th><td>관리자 요청을 검증한 뒤 tenant-service의 내부 tenant 생성 API로 위임합니다.</td></tr>
             <tr><th>Permission</th><td><code>tenant.tenants.create</code></td></tr>
             <tr><th>Headers</th><td><code>Idempotency-Key</code>가 필수입니다.</td></tr>
-            <tr><th>Request body</th><td><code>name</code>은 필수, <code>domain</code>은 선택입니다. 초기 <code>enabledModules</code>는 tenant-service module API가 준비된 뒤 지원합니다.</td></tr>
+            <tr><th>Request body</th><td><code>name</code>은 필수, <code>domain</code>은 선택입니다. 활성 module 변경은 생성 이후 <code>PUT /api/admin/tenants/{tenantId}/modules</code>에서 처리합니다.</td></tr>
             <tr><th>Downstream</th><td><code>POST /internal/admin/tenants</code></td></tr>
             <tr><th>Success status</th><td><code>201 Created</code></td></tr>
             <tr><th>Success data</th><td><code>tenantId</code>, <code>code</code>, <code>name</code>, <code>status</code>, <code>dbStrategy</code>, <code>createdAt</code>, <code>updatedAt</code></td></tr>

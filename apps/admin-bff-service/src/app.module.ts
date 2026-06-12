@@ -16,6 +16,7 @@ import { AdminAccessControlScreenController } from "./rbac/admin-access-control-
 import { AdminRbacController } from "./rbac/admin-rbac.controller.js";
 import { SecurityHeadersMiddleware } from "./security/security-headers.middleware.js";
 import { AdminTenantsController } from "./tenants/admin-tenants.controller.js";
+import { TenantStatusGuard } from "./tenants/tenant-status.guard.js";
 import { AdminUsersController } from "./users/admin-users.controller.js";
 
 @Module({
@@ -34,6 +35,10 @@ import { AdminUsersController } from "./users/admin-users.controller.js";
     AuthIamInternalClient,
     TenantInternalClient,
     InternalAuthSignerService,
+    {
+      provide: APP_GUARD,
+      useClass: TenantStatusGuard
+    },
     {
       provide: APP_GUARD,
       useClass: AdminPermissionGuard

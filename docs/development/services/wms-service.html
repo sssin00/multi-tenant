@@ -24,6 +24,19 @@
         </table>
       </section>
       <section>
+        <h2>기능 정의</h2>
+        <table>
+          <tbody>
+            <tr><th>기준정보</th><td>warehouse, location, item, partner, unit, barcode 등 WMS 운영 기준정보를 tenant 범위로 관리합니다.</td></tr>
+            <tr><th>재고 관리</th><td>현재고/가용재고 조회, 재고 이동, 재고 조정, lot/serial 정책과 관련 audit/outbox 기록을 담당합니다.</td></tr>
+            <tr><th>입고 관리</th><td>입고 예정, 검수, 적치 완료 흐름과 입고 확정 이벤트 저장을 담당합니다.</td></tr>
+            <tr><th>출고 관리</th><td>출고 요청, 재고 할당, 피킹, 출하 완료 흐름과 출고 이벤트 저장을 담당합니다.</td></tr>
+            <tr><th>권한/테넌트</th><td>중요 업무 action 실행 전 tenantId 조건과 필요한 permission/scope를 검증합니다.</td></tr>
+            <tr><th>제외 범위</th><td>화면 데이터 조합, 사용자 인증, tenant lifecycle 관리, 외부 ERP 재시도 orchestration은 직접 소유하지 않습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>

@@ -33,7 +33,6 @@ const gatewayAcmCertificateArn = readOptionalContextString("gatewayAcmCertificat
 const gatewayDomainName = readOptionalContextString("gatewayDomainName");
 const gatewayCorsAllowedOrigins = readOptionalContextString("gatewayCorsAllowedOrigins");
 const gatewayJwtSecretArn = readOptionalContextString("gatewayJwtSecretArn");
-const gatewayTenantStatusCheckEnabled = app.node.tryGetContext("gatewayTenantStatusCheckEnabled") === "true";
 const authImageTag = app.node.tryGetContext("authImageTag") ?? "latest";
 const authDesiredCount = readNonNegativeIntegerContext("authDesiredCount", 0);
 const authCorsAllowedOrigins = readOptionalContextString("authCorsAllowedOrigins");
@@ -57,7 +56,6 @@ const adminBffAuditInternalAuthSecretArn = readOptionalContextString("adminBffAu
 const auditLogServiceUrl = readOptionalContextString("auditLogServiceUrl");
 const authIamServiceUrl = readOptionalContextString("authIamServiceUrl");
 const adminBffServiceUrl = readOptionalContextString("adminBffServiceUrl");
-const userBffServiceUrl = readOptionalContextString("userBffServiceUrl");
 const tenantServiceUrl = readOptionalContextString("tenantServiceUrl");
 
 new GatewayServiceStack(app, `${project}-${envName}-gateway-service-stack`, {
@@ -75,7 +73,6 @@ new GatewayServiceStack(app, `${project}-${envName}-gateway-service-stack`, {
   gatewayDomainName,
   gatewayCorsAllowedOrigins,
   gatewayJwtSecretArn,
-  gatewayTenantStatusCheckEnabled,
   authImageTag,
   authDesiredCount,
   authCorsAllowedOrigins,
@@ -99,6 +96,5 @@ new GatewayServiceStack(app, `${project}-${envName}-gateway-service-stack`, {
   auditLogServiceUrl,
   authIamServiceUrl,
   adminBffServiceUrl,
-  userBffServiceUrl,
   tenantServiceUrl
 });

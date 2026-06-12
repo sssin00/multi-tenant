@@ -450,7 +450,7 @@
             </tr>
             <tr>
               <th>내부 연결</th>
-              <td><code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>는 ALB에 직접 노출하지 않고 ECS Cloud Map private DNS로 gateway-service가 호출합니다. Auth/IAM URL은 auth base path를 포함한 <code>auth-iam-service.{env}.multi-tenant.local:3000/api/auth</code>를 사용합니다.</td>
+              <td><code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>는 ALB에 직접 노출하지 않습니다. gateway-service는 Auth/IAM, Admin BFF, User BFF만 upstream으로 호출합니다. tenant-service와 이후 추가되는 domain/platform service는 gateway-service가 직접 호출하지 않고, BFF를 통해서만 외부 요청을 처리합니다. tenant status check와 tenant 관리 API는 <code>/api/admin/**</code> → Admin BFF → tenant-service 내부 API 경로를 사용합니다. Auth/IAM URL은 auth base path를 포함한 <code>auth-iam-service.{env}.multi-tenant.local:3000/api/auth</code>를 사용합니다.</td>
             </tr>
             <tr>
               <th>Redis</th>
@@ -466,7 +466,7 @@
             </tr>
             <tr>
               <th>기준 문서</th>
-              <td>상세 리소스와 context는 <a href="../infra/2026-06-10/index.html">2026-06-10 CDK 인프라 코드 분석</a>을 기준으로 합니다.</td>
+              <td>상세 리소스와 context는 <a href="../infra/2026-06-12/index.html">2026-06-12 CDK 인프라 코드 분석</a>을 기준으로 합니다.</td>
             </tr>
           </tbody>
         </table>

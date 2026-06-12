@@ -137,22 +137,24 @@ commit body:
                 <tbody>
                   <tr><th>허용</th><td><code>apps/wms-service</code>가 <code>packages/events</code>, <code>packages/logger</code> 같은 공통 패키지를 import</td></tr>
                   <tr><th>허용</th><td>서비스 간 통신을 REST/gRPC API client 또는 이벤트로 처리</td></tr>
+                  <tr><th>허용</th><td>외부 업무/관리/앱 API를 <code>gateway-service</code> → BFF → domain/platform service 순서로 처리</td></tr>
                   <tr><th>금지</th><td><code>apps/wms-service</code>가 <code>apps/auth-iam-service/src</code> 내부 파일을 직접 import</td></tr>
                   <tr><th>금지</th><td>공통 패키지에 특정 서비스의 업무 규칙을 넣는 것</td></tr>
+                  <tr><th>금지</th><td><code>gateway-service</code>가 tenant status check나 업무 API 처리를 위해 <code>tenant-service</code>, <code>wms-service</code>, <code>audit-log-service</code> 또는 이후 추가되는 domain/platform service를 직접 호출하는 것</td></tr>
                 </tbody>
               </table>
               <div class="grid">
                 <div class="card">
                   <strong>Gateway</strong>
-                  <p>공통 출입구 역할만 담당합니다. 도메인 업무 로직과 DB 직접 접근을 넣지 않습니다.</p>
+                  <p>공통 출입구 역할만 담당합니다. upstream은 Auth/IAM, Admin BFF, User BFF로 제한하고 도메인 업무 로직과 DB 직접 접근을 넣지 않습니다.</p>
                 </div>
                 <div class="card">
                   <strong>BFF</strong>
-                  <p>화면 데이터 조합만 담당합니다. 재고 차감, 출고 할당 같은 업무 규칙을 넣지 않습니다.</p>
+                  <p>화면 데이터 조합과 tenant status check를 담당합니다. 재고 차감, 출고 할당 같은 업무 규칙을 넣지 않습니다.</p>
                 </div>
                 <div class="card">
                   <strong>Domain Service</strong>
-                  <p>각 도메인의 업무 규칙과 데이터 소유권을 갖습니다.</p>
+                  <p>각 도메인의 업무 규칙과 데이터 소유권을 갖습니다. 외부 요청은 BFF를 통해서만 받습니다.</p>
                 </div>
               </div>
             </section>

@@ -48,6 +48,8 @@ Admin BFF가 auth-iam-service와 tenant-service의 internal API를 호출할 때
 
 `TenantInternalClient`는 tenant-service 내부 API 호출을 담당합니다.
 
+Admin BFF는 요청 tenant의 상태를 `GET /internal/tenants/{tenantId}/status`로 확인하고, `active` tenant만 관리자 API를 통과시킵니다.
+
 Tenant 목록, 생성, 상세, 기본 정보 수정, 상태 변경, module 교체, domain 조회/추가/비활성화는 controller에서 연결되어 있습니다.
 
 현재 외부 tenant 관리 API는 `GET/POST /api/admin/tenants`, `GET/PATCH /api/admin/tenants/{tenantId}`, `PATCH /api/admin/tenants/{tenantId}/status`, `PUT /api/admin/tenants/{tenantId}/modules`, `GET/POST /api/admin/tenants/{tenantId}/domains`, `DELETE /api/admin/tenants/{tenantId}/domains/{domainId}`를 제공합니다. 각 API는 `@AdminPermission`으로 Auth/IAM permission check를 수행한 뒤 tenant-service 내부 API로 위임합니다.

@@ -25,6 +25,19 @@
         </table>
       </section>
       <section>
+        <h2>기능 정의</h2>
+        <table>
+          <tbody>
+            <tr><th>인증</th><td>사용자 로그인, password 검증, JWT access token 발급, opaque refresh token 발급과 rotation을 담당합니다.</td></tr>
+            <tr><th>세션 관리</th><td>refresh token hash 저장, refresh token revoke, logout, token 만료 정책을 관리합니다.</td></tr>
+            <tr><th>사용자 관리</th><td>tenant-scoped 사용자 생성, 조회, 상태 변경, 기본 프로필 관리를 제공합니다.</td></tr>
+            <tr><th>권한 관리</th><td>role, permission, user-role assignment, permission summary/check API를 제공합니다.</td></tr>
+            <tr><th>연동 이벤트</th><td>사용자/권한 변경 시 audit 저장 요청과 outbox event 저장을 수행합니다.</td></tr>
+            <tr><th>제외 범위</th><td>tenant 생성 정책, WMS 업무 규칙, 화면별 데이터 조합은 소유하지 않습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag done">1차 구현</span></td></tr>
@@ -819,6 +832,7 @@
           <h3>2026-06-11 로컬 API 테스트 Seed 추가</h3>
           <ul>
             <li><code>apps/auth-iam-service/prisma/seed.ts</code>를 추가해 로그인 가능한 <code>admin@demo.local</code> 사용자, <code>tenant_admin</code> role, auth/tenant/wms permission catalog와 role mapping을 생성합니다.</li>
+            <li>Auth/IAM 기준 데이터는 고정 user/role id와 camelCase permission code를 유지해야 하므로 현재는 DB seed로 유지합니다. Auth/IAM API는 permission code를 소문자로 정규화하므로 이 항목은 API seed 대상에서 제외했습니다.</li>
             <li><code>pnpm --filter auth-iam-service prisma:seed</code>와 루트 <code>pnpm seed:local</code>로 재실행할 수 있습니다.</li>
             <li><code>pnpm db:reset:local</code>은 auth_iam DB를 초기화한 뒤 schema push와 seed를 다시 실행하므로 Postman 직접 호출 전 기준 데이터를 재생성할 때 사용합니다.</li>
             <li><code>postman/multi-tenant-local.postman_collection.json</code>에는 gateway 경유 login/me/refresh와 Auth/IAM 직접 호출 요청을 함께 유지합니다.</li>

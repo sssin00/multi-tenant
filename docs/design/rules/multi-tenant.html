@@ -31,7 +31,9 @@
                   <tr><th>Header 검증</th><td><code>X-Tenant-Id</code>가 있으면 JWT의 <code>tenantId</code>와 반드시 일치해야 합니다.</td></tr>
                   <tr><th>Mismatch</th><td>JWT와 header의 tenant가 다르면 <code>403 TENANT_MISMATCH</code>로 거부합니다.</td></tr>
                   <tr><th>Tenant 상태</th><td><code>active</code> 상태만 업무 API를 허용합니다. <code>suspended</code>, <code>deleted</code>, <code>provisioning</code>은 거부합니다.</td></tr>
-                  <tr><th>Gateway 책임</th><td><code>gateway-service</code>가 tenant context를 확정하고 내부 서비스로 전파합니다.</td></tr>
+                  <tr><th>Gateway 책임</th><td><code>gateway-service</code>가 tenant context를 확정하고 BFF 서비스로 전파합니다. gateway는 <code>auth-iam-service</code>, <code>admin-bff-service</code>, <code>user-bff-service</code>만 upstream으로 호출합니다.</td></tr>
+                  <tr><th>BFF 책임</th><td>Admin/User 및 이후 추가되는 모든 BFF는 tenant-service 내부 API로 tenant status를 확인하고 <code>active</code> tenant만 업무/관리/API 처리를 계속합니다.</td></tr>
+                  <tr><th>직접 호출 금지</th><td><code>gateway-service</code>는 tenant status check를 포함해 <code>tenant-service</code>, <code>wms-service</code>, <code>audit-log-service</code> 같은 domain/platform service를 직접 호출하지 않습니다.</td></tr>
                   <tr><th>내부 서비스 책임</th><td>전파된 tenant context를 사용하되, 중요한 업무 처리 전 필요한 권한과 scope를 다시 검증합니다.</td></tr>
                   <tr><th>데이터 접근</th><td>테넌트 소유 데이터 조회와 변경은 반드시 <code>tenantId</code> 기준으로 제한합니다.</td></tr>
                   <tr><th>로그/이벤트/감사</th><td>로그, 도메인 이벤트, 감사 로그에는 <code>tenantId</code>와 <code>requestId</code>를 포함합니다.</td></tr>

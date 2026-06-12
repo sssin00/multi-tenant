@@ -40,7 +40,6 @@ jobs:
       AUDIT_LOG_SERVICE_URL_INPUT: ${{ vars.AUDIT_LOG_SERVICE_URL }}
       AUTH_IAM_SERVICE_URL_INPUT: ${{ vars.AUTH_IAM_SERVICE_URL }}
       ADMIN_BFF_SERVICE_URL_INPUT: ${{ vars.ADMIN_BFF_SERVICE_URL }}
-      USER_BFF_SERVICE_URL_INPUT: ${{ vars.USER_BFF_SERVICE_URL }}
       TENANT_SERVICE_URL_INPUT: ${{ vars.TENANT_SERVICE_URL }}
       GATEWAY_JWT_SECRET_ARN_INPUT: ${{ secrets.GATEWAY_JWT_SECRET_ARN }}
       AUTH_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.AUTH_DATABASE_URL_SECRET_ARN }}
@@ -276,7 +275,6 @@ jobs:
           append_context "auditLogServiceUrl" "${AUDIT_LOG_SERVICE_URL_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
-          append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
           append_context "tenantServiceUrl" "${TENANT_SERVICE_URL_INPUT}"
 
           pnpm --filter @multi-tenant/infra-cdk exec cdk deploy \
@@ -364,7 +362,6 @@ jobs:
           append_context "auditLogServiceUrl" "${AUDIT_LOG_SERVICE_URL_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
-          append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
           append_context "tenantServiceUrl" "${TENANT_SERVICE_URL_INPUT}"
 
           pnpm --filter @multi-tenant/infra-cdk exec cdk deploy \
