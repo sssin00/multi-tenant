@@ -127,7 +127,7 @@
                 <tr><th>auth-iam-service</th><td><code>/api/auth/login</code>, <code>/api/auth/token/refresh</code>, <code>/api/auth/me</code>를 gateway proxy로 호출합니다.</td></tr>
                 <tr><th>admin-bff-service</th><td><code>/api/admin/**</code> 요청을 전달하며, admin-bff-service가 auth-iam-service와 tenant-service를 내부 호출합니다. tenant status check도 admin-bff-service가 tenant-service 내부 API로 수행합니다.</td></tr>
                 <tr><th>tenant-service</th><td>gateway-service는 tenant-service를 직접 호출하지 않습니다.</td></tr>
-                <tr><th>미구현 서비스</th><td><code>user-bff-service</code>, <code>wms-service</code>, <code>outbox-relay-service</code>는 실행 가능한 NestJS 구현 추가 후 gateway route/env를 별도 작업으로 추가합니다.</td></tr>
+                <tr><th>Gateway 비대상 서비스</th><td><code>user-bff-service</code>는 구현 후 <code>/api/app/**</code> route만 추가합니다. <code>wms-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code> 같은 domain/platform/worker service는 구현 여부와 관계없이 gateway upstream으로 추가하지 않습니다.</td></tr>
               </tbody>
             </table>
           </div>

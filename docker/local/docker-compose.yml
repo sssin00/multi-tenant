@@ -31,6 +31,73 @@ services:
       postgres:
         condition: service_healthy
 
+  audit-log-service-db-push:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      target: deps
+    container_name: multi-tenant-audit-log-db-push
+    env_file:
+      - ../env/audit-log-service/.env.local
+    command: pnpm --filter audit-log-service prisma:push
+    depends_on:
+      service-databases-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  audit-log-service:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      args:
+        APP_NAME: audit-log-service
+        APP_PORT: 3000
+    container_name: multi-tenant-audit-log-service
+    env_file:
+      - ../env/audit-log-service/.env.local
+    ports:
+      - "3006:3000"
+    depends_on:
+      audit-log-service-db-push:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  outbox-relay-service:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.nest
+      args:
+        APP_NAME: outbox-relay-service
+        APP_PORT: 3000
+    container_name: multi-tenant-outbox-relay-service
+    env_file:
+      - ../env/outbox-relay-service/.env.local
+    ports:
+      - "3007:3000"
+    depends_on:
+      auth-iam-db-push:
+        condition: service_completed_successfully
+      tenant-service-db-push:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
   auth-iam-service:
     build:
       context: ../..
@@ -131,6 +198,8 @@ services:
       auth-iam-service:
         condition: service_healthy
       tenant-service:
+        condition: service_healthy
+      audit-log-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]

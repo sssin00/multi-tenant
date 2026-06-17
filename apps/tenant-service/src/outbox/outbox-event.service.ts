@@ -43,6 +43,8 @@ export class OutboxEventService {
           requestId: command.context.requestId ?? "unknown",
           occurredAt,
           source: "tenant-service",
+          aggregateType: command.aggregateType,
+          aggregateId: command.aggregateId,
           actor: {
             type: command.context.userId ? "user" : "system",
             userId: command.context.userId ?? null

@@ -89,7 +89,7 @@
                 <td><code>audit-log-service</code></td>
                 <td><code>GET /api/internal/audit/logs</code></td>
                 <td>감사 로그 목록 조회</td>
-                <td><span class="tag done">Contract Ready</span></td>
+                <td><span class="tag done">Ready</span></td>
               </tr>
             </tbody>
           </table>
@@ -241,7 +241,7 @@
                 <td>Bearer + permission</td>
                 <td>감사 로그 목록을 조회합니다.</td>
                 <td>audit-log-service</td>
-                <td><span class="tag done">Prepared</span></td>
+                <td><span class="tag done">Implemented</span></td>
               </tr>
             </tbody>
           </table>
@@ -511,11 +511,12 @@
           <tbody>
             <tr><th>Purpose</th><td>운영자가 tenant 설정, 사용자, 권한, WMS 중요 변경 이력을 조회합니다.</td></tr>
             <tr><th>Permission</th><td><code>audit.logs.read</code></td></tr>
-            <tr><th>Query</th><td><code>page</code>, <code>size</code>, optional <code>tenantId</code>, <code>actorId</code>, <code>action</code>, <code>resourceType</code>, <code>from</code>, <code>to</code></td></tr>
-            <tr><th>Downstream</th><td><code>GET /api/internal/audit/logs</code>. <code>AUDIT_LOG_SERVICE_URL</code>과 <code>AUDIT_INTERNAL_AUTH_SECRET</code>이 설정되면 내부 호출을 수행합니다.</td></tr>
+            <tr><th>Query</th><td><code>page</code>, <code>size</code>, optional <code>tenantId</code>, <code>actorType</code>, <code>actorId</code>, <code>action</code>, <code>resourceType</code>, <code>resourceId</code>, <code>result</code>, <code>requestId</code>, <code>from</code>, <code>to</code></td></tr>
+            <tr><th>Downstream</th><td><code>GET /api/internal/audit/logs</code>. Admin BFF가 query, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>, internal auth header를 전파합니다.</td></tr>
             <tr><th>Success data</th><td><code>items</code>, <code>page</code>, <code>size</code>, <code>total</code></td></tr>
             <tr><th>Secret</th><td>응답은 password, token, Authorization, cookie, secret, SQL, stack trace를 포함하지 않습니다.</td></tr>
-            <tr><th>Status</th><td>Admin BFF route와 internal client는 준비되었습니다. audit-log-service 저장소가 아직 없거나 URL이 없으면 <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>를 반환합니다.</td></tr>
+            <tr><th>Status</th><td>구현 완료. 로컬 compose 기준 <code>AUDIT_LOG_SERVICE_URL=http://audit-log-service:3000</code>과 <code>AUDIT_INTERNAL_AUTH_SECRET</code>로 실제 audit-log-service 조회 API에 연결됩니다. URL이 비어 있는 선택 환경에서는 <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>를 반환합니다.</td></tr>
+            <tr><th>Local verification</th><td>2026-06-15 로컬 compose에서 <code>requestId=req-admin-audit-list-compose-1781481700000</code> 조회가 <code>200</code>으로 성공했고, 권한 없는 사용자의 <code>requestId=req-admin-audit-list-compose-denied-1781481700000</code> 조회는 <code>403 FORBIDDEN</code>으로 차단됐습니다.</td></tr>
             <tr><th>Errors</th><td><code>403 FORBIDDEN</code>, <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>, <code>503 AUDIT_LOG_INTERNAL_AUTH_NOT_READY</code>, upstream error codes</td></tr>
           </tbody>
         </table>
@@ -586,8 +587,8 @@
               <tr><td><code>ADBFF-AUTH-001</code></td><td>사용자 목록은 tenant scope로 제한된다</td><td><code>P0</code></td><td><code>GET /api/admin/users</code>가 <code>X-Tenant-Id</code>를 auth-iam-service로 전달하고 다른 tenant 사용자를 반환하지 않는다.</td><td>response JSON, auth-iam query evidence</td></tr>
               <tr><td><code>ADBFF-AUTH-002</code></td><td>사용자 관리 화면 데이터는 다중 권한을 모두 확인한다</td><td><code>P0</code></td><td><code>GET /api/admin/access-control/screen-data</code>가 users, roles, permissions read permission을 모두 확인한 뒤 Auth/IAM 세 목록 API를 호출한다.</td><td>permission check 응답, response JSON, downstream 호출 로그</td></tr>
               <tr><td><code>ADBFF-RBAC-001</code></td><td>Role permission 교체가 Auth/IAM에 위임된다</td><td><code>P1</code></td><td><code>PUT /api/admin/roles/{roleId}/permissions</code>가 permission check 후 auth-iam-service role permission 교체 API를 호출한다.</td><td>response JSON, auth-iam outbox/audit evidence</td></tr>
-              <tr><td><code>ADBFF-AUDIT-001</code></td><td>Audit log 조회 API가 저장소 준비 전에도 안전하게 대기한다</td><td><code>P1</code></td><td><code>AUDIT_LOG_SERVICE_URL</code>이 없으면 permission check 후 audit-log-service를 호출하지 않고 <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>로 응답한다.</td><td>response JSON, Admin BFF access log</td></tr>
-              <tr><td><code>ADBFF-AUDIT-002</code></td><td>Audit log 조회를 내부 서비스로 위임한다</td><td><code>P1</code></td><td><code>AUDIT_LOG_SERVICE_URL</code>이 있으면 <code>GET /api/internal/audit/logs</code>로 query와 request context, internal auth header를 전파한다.</td><td>downstream 수신 header, response JSON, requestId</td></tr>
+              <tr><td><code>ADBFF-AUDIT-001</code></td><td>Audit log 조회를 내부 서비스로 위임한다</td><td><code>P1</code></td><td><code>AUDIT_LOG_SERVICE_URL</code>이 있으면 <code>GET /api/internal/audit/logs</code>로 query와 request context, internal auth header를 전파하고 목록 envelope를 반환한다.</td><td>downstream 수신 header, response JSON, requestId</td></tr>
+              <tr><td><code>ADBFF-AUDIT-002</code></td><td>Audit log 조회 설정 누락을 표준 오류로 반환한다</td><td><code>P2</code></td><td><code>AUDIT_LOG_SERVICE_URL</code>이 없는 선택 환경에서는 permission check 후 audit-log-service를 호출하지 않고 <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>로 응답한다.</td><td>response JSON, Admin BFF access log</td></tr>
             </tbody>
           </table>
         </div>

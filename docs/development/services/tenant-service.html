@@ -80,7 +80,7 @@
           </div>
           <div class="card">
             <strong>Outbox</strong>
-            <p>tenant 생성, 상태 변경, module 변경은 outbox event로 남겨 이후 outbox-relay-service와 연결합니다.</p>
+            <p>tenant 생성, 상태 변경, module 변경은 outbox event로 남기고 outbox-relay-service가 source DB에서 발행합니다.</p>
           </div>
         </div>
       </section>
@@ -120,7 +120,7 @@
             <span class="step-number">5</span>
             <div>
               <strong>Event와 Outbox 추가</strong>
-              <p>tenant 관련 상태 변경을 outbox event로 저장하고, 이후 outbox-relay-service에서 발행할 수 있게 준비합니다.</p>
+              <p>tenant 관련 상태 변경을 outbox event로 저장하고, outbox-relay-service의 tenant source adapter가 발행할 수 있게 준비합니다.</p>
             </div>
           </div>
           <div class="flow-item">
@@ -257,7 +257,7 @@
           </div>
           <div class="card">
             <strong>Event Payload</strong>
-            <p>event에는 <code>eventId</code>, <code>eventType</code>, <code>schemaVersion</code>, <code>tenantId</code>, <code>requestId</code>, <code>occurredAt</code>, <code>source</code>, <code>data</code>를 포함합니다.</p>
+            <p>event에는 <code>eventId</code>, <code>eventType</code>, <code>schemaVersion</code>, <code>tenantId</code>, <code>requestId</code>, <code>occurredAt</code>, <code>source</code>, <code>aggregateType</code>, <code>aggregateId</code>, <code>actor</code>, <code>data</code>를 포함합니다.</p>
           </div>
         </div>
       </section>

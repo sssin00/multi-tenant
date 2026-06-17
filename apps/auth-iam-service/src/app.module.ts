@@ -5,7 +5,6 @@ import { AuthController } from "./auth/auth.controller.js";
 import { AuthService } from "./auth/auth.service.js";
 import { JwtSigner } from "./auth/jwt-signer.js";
 import { PasswordHasher } from "./auth/password-hasher.js";
-import { AuditLogClientService } from "./audit/audit-log-client.service.js";
 import { RedisService } from "./cache/redis.service.js";
 import { RequestContextMiddleware } from "./context/request-context.middleware.js";
 import { PrismaService } from "./database/prisma.service.js";
@@ -36,7 +35,6 @@ import { UsersService } from "./users/users.service.js";
     AuthService,
     PasswordHasher,
     JwtSigner,
-    AuditLogClientService,
     OutboxEventService,
     UsersService,
     PermissionsService,

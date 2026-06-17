@@ -7,6 +7,7 @@ export interface AppConfig {
   cors: CorsConfig;
   securityHeaders: SecurityHeadersConfig;
   internalAuth: InternalAuthConfig;
+  eventConsumer: AuditEventConsumerConfig;
 }
 
 export type AppEnvironment = "local" | "dev" | "staging" | "prod";
@@ -31,6 +32,16 @@ export interface SecurityHeadersConfig {
   enabled: boolean;
 }
 
+export interface AuditEventConsumerConfig {
+  enabled: boolean;
+  queueUrl?: string;
+  sqsEndpoint?: string;
+  pollIntervalMs: number;
+  waitTimeSeconds: number;
+  visibilityTimeoutSeconds: number;
+  batchSize: number;
+}
+
 const DEFAULT_AUDIT_PORT = 3006;
 
 export function getAppConfig(): AppConfig {
@@ -42,7 +53,7 @@ export function getAppConfig(): AppConfig {
     tenantHeader: readString("TENANT_HEADER", "x-tenant-id"),
     cors: {
       allowedOrigins: readStringList("AUDIT_CORS_ALLOWED_ORIGINS", defaultCorsOrigins()),
-      allowedMethods: readStringList("AUDIT_CORS_ALLOWED_METHODS", ["GET", "POST", "OPTIONS"]),
+      allowedMethods: readStringList("AUDIT_CORS_ALLOWED_METHODS", ["GET", "OPTIONS"]),
       allowedHeaders: readStringList("AUDIT_CORS_ALLOWED_HEADERS", [
         "Authorization",
         "Content-Type",
@@ -65,13 +76,17 @@ export function getAppConfig(): AppConfig {
     internalAuth: {
       enabled: readBoolean("AUDIT_INTERNAL_AUTH_ENABLED", true),
       secret: readOptionalString("AUDIT_INTERNAL_AUTH_SECRET"),
-      allowedServices: readStringList("AUDIT_INTERNAL_AUTH_ALLOWED_SERVICES", [
-        "admin-bff-service",
-        "auth-iam-service",
-        "tenant-service",
-        "wms-service"
-      ]),
+      allowedServices: readStringList("AUDIT_INTERNAL_AUTH_ALLOWED_SERVICES", ["admin-bff-service"]),
       timestampSkewSeconds: readNumber("AUDIT_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS", 300)
+    },
+    eventConsumer: {
+      enabled: readBoolean("AUDIT_EVENT_CONSUMER_ENABLED", false),
+      queueUrl: readOptionalString("AUDIT_EVENT_QUEUE_URL"),
+      sqsEndpoint: readOptionalString("AUDIT_EVENT_SQS_ENDPOINT"),
+      pollIntervalMs: readNumber("AUDIT_EVENT_POLL_INTERVAL_MS", 5000),
+      waitTimeSeconds: readNumber("AUDIT_EVENT_WAIT_TIME_SECONDS", 10),
+      visibilityTimeoutSeconds: readNumber("AUDIT_EVENT_VISIBILITY_TIMEOUT_SECONDS", 60),
+      batchSize: readNumber("AUDIT_EVENT_BATCH_SIZE", 10)
     }
   };
 }

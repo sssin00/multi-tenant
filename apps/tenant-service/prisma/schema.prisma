@@ -88,22 +88,29 @@ model TenantSetting {
 }
 
 model OutboxEvent {
-  id            String       @id @default(uuid()) @map("outbox_id") @db.Uuid
-  eventId       String       @unique @map("event_id") @db.Uuid
-  eventType     String       @map("event_type")
-  schemaVersion Int          @map("schema_version")
-  tenantId      String       @map("tenant_id") @db.Uuid
-  requestId     String       @map("request_id")
-  source        String
-  aggregateType String       @map("aggregate_type")
-  aggregateId   String       @map("aggregate_id") @db.Uuid
-  payload       Json
-  status        OutboxStatus @default(pending)
-  retryCount    Int          @default(0) @map("retry_count")
-  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  publishedAt   DateTime?    @map("published_at") @db.Timestamptz(6)
+  id              String       @id @default(uuid()) @map("outbox_id") @db.Uuid
+  eventId         String       @unique @map("event_id") @db.Uuid
+  eventType       String       @map("event_type")
+  schemaVersion   Int          @map("schema_version")
+  tenantId        String       @map("tenant_id") @db.Uuid
+  requestId       String       @map("request_id")
+  source          String
+  aggregateType   String       @map("aggregate_type")
+  aggregateId     String       @map("aggregate_id")
+  payload         Json
+  status          OutboxStatus @default(pending)
+  retryCount      Int          @default(0) @map("retry_count")
+  lockedAt        DateTime?    @map("locked_at") @db.Timestamptz(6)
+  lockedBy        String?      @map("locked_by")
+  nextRetryAt     DateTime?    @map("next_retry_at") @db.Timestamptz(6)
+  lastError       String?      @map("last_error")
+  publishedTarget String?      @map("published_target")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  publishedAt     DateTime?    @map("published_at") @db.Timestamptz(6)
 
   @@index([status, createdAt])
+  @@index([status, nextRetryAt, createdAt])
+  @@index([lockedAt])
   @@index([tenantId, eventType])
   @@index([aggregateType, aggregateId])
   @@map("outbox_events")

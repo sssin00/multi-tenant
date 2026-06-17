@@ -559,12 +559,12 @@
                 <h3>감사 로그와 이벤트 기반</h3>
                 <span class="status progress">다음 구현 후보</span>
               </div>
-              <p>WMS 업무 API를 만들기 전에 변경 이력과 outbox 발행 기반을 먼저 안정화합니다.</p>
+              <p>WMS 업무 API를 만들기 전에 변경 이력과 outbox 발행 기반을 먼저 안정화합니다. 1차 relay engine, 감사 저장 consumer, CDK 관리형 audit SQS queue/DLQ 연결은 구현됐고, dev AWS end-to-end 증적과 운영 재처리 정책을 남겨둡니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>Audit Log Service</strong><span><code>POST /api/internal/audit/logs</code>와 <code>GET /api/internal/audit/logs</code>를 구현합니다.</span></div>
-                <div class="task"><strong>Audit 저장소</strong><span>append-only 저장, 보존 기간, 장애 처리, Admin BFF 조회 계약을 확정합니다.</span></div>
-                <div class="task"><strong>Outbox Relay</strong><span>Auth/IAM과 tenant-service의 pending outbox event를 EventBridge 또는 SQS로 발행합니다.</span></div>
-                <div class="task"><strong>Retry/DLQ</strong><span>retry count, failed 상태, DLQ, 수동 replay 기준을 정합니다.</span></div>
+                <div class="task"><strong>Audit Log Service</strong><span>outbox 이벤트 기반 저장 consumer, SQS polling worker, <code>GET /api/internal/audit/logs</code> 조회 API 1차 구현을 완료했습니다.</span></div>
+                <div class="task"><strong>Audit 저장소</strong><span>append-only 저장과 Admin BFF 조회 계약은 구현했고, 보존 기간과 archive 기준을 후속으로 확정합니다.</span></div>
+                <div class="task"><strong>Outbox Relay</strong><span>Auth/IAM과 tenant-service pending outbox event polling, lock/retry, mock/EventBridge/SQS publisher, 감사 SQS 기본 발행을 구현했습니다.</span></div>
+                <div class="task"><strong>Retry/DLQ</strong><span>outbox retry/failed와 감사 SQS DLQ는 연결했고, 수동 replay 승인, custom metric/alarm 기준을 정합니다.</span></div>
               </div>
             </div>
           </article>
@@ -700,8 +700,9 @@
           <li>완료: auth-iam-service 1차 구현과 user/role/permission, outbox 저장</li>
           <li>완료: tenant-service 1차 구현과 tenant status/module/domain/admin 내부 API</li>
           <li>완료: admin-bff-service 1차 구현과 tenant/user/role/permission/audit surface</li>
-          <li>다음: audit-log-service 저장소와 내부 저장/조회 API 구현</li>
-          <li>다음: outbox-relay-service polling, publish, retry, DLQ 기준 구현</li>
+          <li>완료: audit-log-service 저장소, 이벤트 consumer, 내부 조회 API 구현</li>
+          <li>완료: outbox-relay-service polling, publish, retry/failed 상태, Docker/CDK/workflow 배포 준비</li>
+          <li>다음: dev AWS Outbox Relay → SQS → audit-log-service end-to-end 증적 확보와 replay 운영 기준 확정</li>
           <li>다음: DB 규칙과 WMS 도메인 모델 확정</li>
           <li>다음: wms-service 기본 구조와 기준정보 조회 API 구현</li>
           <li>다음: WMS 재고 조회와 inventory summary API 구현</li>

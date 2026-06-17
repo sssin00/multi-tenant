@@ -1,6 +1,5 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 
-import { AuditLogClientService } from "../audit/audit-log-client.service.js";
 import { PrismaService } from "../database/prisma.service.js";
 import { UserStatus } from "../generated/prisma/enums.js";
 import { OutboxEventService } from "../outbox/outbox-event.service.js";
@@ -43,8 +42,6 @@ export class RbacService {
   constructor(
     @Inject(PrismaService)
     private readonly prismaService: PrismaService,
-    @Inject(AuditLogClientService)
-    private readonly auditLogClientService: AuditLogClientService,
     @Inject(OutboxEventService)
     private readonly outboxEventService: OutboxEventService
   ) {}
@@ -105,16 +102,6 @@ export class RbacService {
 
       return createdRole;
     });
-    await this.auditLogClientService.record({
-      context,
-      action: "auth.role.created",
-      resourceType: "role",
-      resourceId: role.id,
-      details: {
-        code: role.code
-      }
-    });
-
     return this.toRoleResponse(role);
   }
 
@@ -240,16 +227,6 @@ export class RbacService {
 
       return updatedRole;
     });
-    await this.auditLogClientService.record({
-      context,
-      action: "auth.role.updated",
-      resourceType: "role",
-      resourceId: role.id,
-      details: {
-        changedFields
-      }
-    });
-
     return this.toRoleResponse(role);
   }
 
@@ -328,16 +305,6 @@ export class RbacService {
 
       return updatedRole;
     });
-    await this.auditLogClientService.record({
-      context,
-      action: "auth.role.permissionsReplaced",
-      resourceType: "role",
-      resourceId: role.id,
-      details: {
-        permissionCodes
-      }
-    });
-
     return this.toRoleResponse(role);
   }
 
@@ -417,19 +384,6 @@ export class RbacService {
 
       return createdAssignment;
     });
-    await this.auditLogClientService.record({
-      context,
-      action: "auth.userRole.assigned",
-      resourceType: "user_role",
-      resourceId: assignment.id,
-      details: {
-        targetUserId: userId,
-        roleId,
-        roleCode: assignment.role.code,
-        warehouseId: warehouseId ?? null
-      }
-    });
-
     return this.toUserRoleResponse(assignment);
   }
 
@@ -502,13 +456,6 @@ export class RbacService {
         }
       });
     });
-    await this.auditLogClientService.record({
-      context,
-      action: "auth.userRole.removed",
-      resourceType: "user_role",
-      resourceId: userRoleId
-    });
-
     return { removed: true };
   }
 

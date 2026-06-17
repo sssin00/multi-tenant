@@ -21,9 +21,9 @@
         <h2>점검 결과</h2>
         <table>
           <tbody>
-            <tr><th>점검일</th><td>2026-06-12</td></tr>
+            <tr><th>점검일</th><td>2026-06-17</td></tr>
             <tr><th>분류 기준</th><td>플랫폼 기반, 인증/권한, 감사/이벤트, WMS 도메인, BFF/프론트엔드, 운영 보안/인프라, 검증/문서로 나눕니다.</td></tr>
-            <tr><th>우선 흐름</th><td>audit-log/outbox 기반 → WMS 1차 API → user-bff/web-wms 연결 순서가 자연스럽습니다. tenant 상세/module/domain API와 Admin BFF blocked API 연결은 완료되었습니다.</td></tr>
+            <tr><th>우선 흐름</th><td>audit-log/outbox 1차 구현, CDK audit SQS queue/DLQ 연결, 수동 배포 준비가 완료되었으므로, dev AWS end-to-end 증적 확보와 WMS 1차 API → user-bff/web-wms 연결 순서가 자연스럽습니다. tenant 상세/module/domain API와 Admin BFF blocked API 연결은 완료되었습니다.</td></tr>
             <tr><th>상태 기준</th><td><code>P0</code>는 다음 구현 후보, <code>P1</code>은 통합 확장, <code>P2</code>는 운영 보강입니다.</td></tr>
           </tbody>
         </table>
@@ -39,7 +39,7 @@
             <tbody>
               <tr><td>Tenant 운영 기반</td><td>tenant context와 운영 정책을 보강합니다.</td><td>tenant context API, tenant error code, proxy access 정책</td><td><code>P1</code>-<code>P2</code></td></tr>
               <tr><td>인증과 권한</td><td>tenant bootstrap, 운영 JWT, permission 성능과 정확성을 보강합니다.</td><td>최초 admin, RS256, permission cache, idempotency</td><td><code>P0</code>-<code>P2</code></td></tr>
-              <tr><td>감사와 이벤트</td><td>변경 이력과 outbox event 발행을 실제 운영 가능한 형태로 만듭니다.</td><td>audit-log-service, outbox-relay-service, DLQ</td><td><code>P0</code></td></tr>
+              <tr><td>감사와 이벤트</td><td>변경 이력과 outbox event 발행을 dev AWS와 운영 재처리 기준까지 연결합니다.</td><td>Outbox Relay → SQS → audit 저장 증적, replay, metric</td><td><code>P1</code>-<code>P2</code></td></tr>
               <tr><td>WMS 도메인</td><td>첫 메인 도메인인 WMS의 조회와 업무 API를 시작합니다.</td><td>warehouse, location, item, inventory, inbound/outbound</td><td><code>P0</code>-<code>P1</code></td></tr>
               <tr><td>BFF와 프론트엔드</td><td>관리자 화면과 WMS 사용자 화면을 BFF 계약에 연결합니다.</td><td>admin tenant 확장, user-bff, web-admin, web-wms</td><td><code>P0</code>-<code>P1</code></td></tr>
               <tr><td>운영 보안과 인프라</td><td>운영 배포와 secret, 내부 인증, AWS 리소스 기준을 강화합니다.</td><td>Secrets Manager, internal auth allowlist, 배포 입력 검증</td><td><code>P1</code>-<code>P2</code></td></tr>
@@ -147,46 +147,18 @@
             </thead>
             <tbody>
               <tr>
-                <td><code>P0</code></td>
-                <td><code>audit-log-service</code></td>
-                <td>감사 로그 저장소와 <code>POST /api/internal/audit/logs</code> 구현</td>
-                <td>actor, action, resource, result, tenantId, requestId가 append-only record로 저장됩니다.</td>
-                <td>audit-log-service 개발 문서, logging/audit 규칙, <a href="./services/auth-iam-service.html">auth-iam-service</a></td>
-              </tr>
-              <tr>
-                <td><code>P0</code></td>
-                <td><code>audit-log-service</code></td>
-                <td><code>GET /api/internal/audit/logs</code> 조회 API 구현</td>
-                <td>Admin BFF가 page, size, tenantId, actorId, action, resourceType, from, to query로 조회할 수 있습니다.</td>
-                <td><a href="./services/admin-bff-service.html">admin-bff-service</a>, admin-bff API</td>
-              </tr>
-              <tr>
-                <td><code>P0</code></td>
+                <td><code>P1</code></td>
                 <td><code>outbox-relay-service</code></td>
-                <td>Outbox polling과 publish 구현</td>
-                <td>pending event를 안전하게 lock하고 EventBridge 또는 SQS로 발행합니다.</td>
+                <td>dev AWS Outbox Relay → SQS → audit-log-service 저장 증적 확보</td>
+                <td>CDK 관리형 audit event queue로 발행되고, IAM 권한, event envelope, SQS 소비, audit_logs 저장 결과가 requestId와 eventId로 추적됩니다.</td>
                 <td><a href="./services/outbox-relay-service.html">outbox-relay-service</a>, event/outbox 규칙, AWS ECS 기술 문서</td>
               </tr>
               <tr>
-                <td><code>P0</code></td>
-                <td><code>outbox-relay-service</code></td>
-                <td>retry, failed 상태, DLQ, replay 기준 구현</td>
-                <td>발행 실패가 retryCount와 failed reason으로 추적되고 수동 replay 기준이 문서화됩니다.</td>
-                <td><a href="./services/outbox-relay-service.html">outbox-relay-service</a>, 운영 Runbook</td>
-              </tr>
-              <tr>
-                <td><code>P1</code></td>
-                <td><code>auth-iam-service</code>, <code>tenant-service</code></td>
-                <td>event schema 정리와 outbox relay 연동 증거 보강</td>
-                <td>auth/tenant 변경 이벤트의 payload, schemaVersion, aggregateId, idempotency 기준이 문서화됩니다.</td>
-                <td>Auth/IAM API, tenant API, event/outbox 규칙</td>
-              </tr>
-              <tr>
                 <td><code>P2</code></td>
-                <td><code>audit-log-service</code></td>
-                <td>audit 장애 처리 정책 확정</td>
-                <td>audit 저장 실패 시 원 API를 실패시킬지, 보완 큐로 넘길지 서비스별 기준이 명확합니다.</td>
-                <td>logging/audit 규칙, 각 서비스 개발 문서</td>
+                <td><code>outbox-relay-service</code>, <code>audit-log-service</code></td>
+                <td>replay, metric/alarm 운영 기준 확정</td>
+                <td>failed event 재처리 승인, 감사 기록, DLQ 조회/처리 절차, CloudWatch custom metric/alarm 기준이 문서화됩니다.</td>
+                <td><a href="./services/outbox-relay-service.html">outbox-relay-service</a>, logging/audit 규칙, 운영 Runbook</td>
               </tr>
             </tbody>
           </table>
@@ -394,13 +366,13 @@
             </thead>
             <tbody>
               <tr><td><code>gateway-service</code></td><td>1차 TODO 없음</td><td>운영 JWT key rotation, 내부 인증 확장, 배포 입력 검증 시 재점검합니다.</td></tr>
-              <tr><td><code>admin-bff-service</code></td><td>audit-log-service 통합 검증, <code>/api/admin/me</code></td><td>audit-log-service와 tenant context API가 준비되면 완성도가 올라갑니다.</td></tr>
+              <tr><td><code>admin-bff-service</code></td><td><code>/api/admin/me</code>, audit-log-service 장애 처리 정책 보강</td><td>감사 로그 조회 연동은 완료되었고, 운영 실패 정책과 현재 사용자 화면 조합이 남았습니다.</td></tr>
               <tr><td><code>tenant-service</code></td><td>tenant context, tenant error code, proxy access 정책</td><td>관리자 tenant 상세/module/domain API는 구현 완료되었습니다.</td></tr>
-              <tr><td><code>auth-iam-service</code></td><td>outbox relay, bootstrap, audit 계약, JWT 운영 key, cache, 검증 증거, throttling, idempotency</td><td>기능 구현은 1차 완료, 운영/통합 보강 중심입니다.</td></tr>
+              <tr><td><code>auth-iam-service</code></td><td>dev AWS outbox relay 감사 저장 증적, bootstrap, JWT 운영 key, cache, 검증 증거, throttling, idempotency</td><td>기능 구현은 1차 완료, 운영/통합 보강 중심입니다.</td></tr>
               <tr><td><code>user-bff-service</code></td><td>WMS 조회 API와 web-wms 데이터 형태 확정 후 전체 구현</td><td>Auth/IAM, tenant-service, gateway 착수 조건은 충족되었습니다.</td></tr>
               <tr><td><code>wms-service</code></td><td>기본 구조, 기준정보, 재고, 입출고 1차 구현</td><td>user-bff-service와 web-wms의 선행 작업입니다.</td></tr>
-              <tr><td><code>outbox-relay-service</code></td><td>polling, publish, retry, DLQ 구현</td><td>Auth/IAM과 tenant-service outbox event 발행 후 우선순위가 높습니다.</td></tr>
-              <tr><td><code>audit-log-service</code></td><td>저장소, 내부 저장 API, 내부 조회 API, 장애 정책</td><td>Auth/IAM audit 전송과 Admin BFF audit 조회의 선행 작업입니다.</td></tr>
+              <tr><td><code>outbox-relay-service</code></td><td>dev AWS SQS 감사 저장 증적, replay 승인, custom metric/alarm</td><td>Relay engine, SQS publisher, CDK audit queue/DLQ, Docker/workflow 배포 준비는 완료되었고 운영 검증이 남았습니다.</td></tr>
+              <tr><td><code>audit-log-service</code></td><td>보관/마스킹/검색 성능, 운영 검증 증거</td><td>저장소, SQS consumer, 내부 조회 API는 구현되었고 운영 품질 보강이 남았습니다.</td></tr>
               <tr><td><code>web-admin</code></td><td>관리자 화면 전체 구현</td><td>Admin BFF API 안정화 후 연결합니다.</td></tr>
               <tr><td><code>web-wms</code></td><td>WMS 화면 데이터 형태와 초기 화면 구현</td><td>WMS 1차 API와 user-bff-service 이후 진행합니다.</td></tr>
             </tbody>

@@ -60,7 +60,7 @@
                   <tr><th>이름 형식</th><td><code>{project}-{env}-{resource}</code> 형식을 사용합니다.</td></tr>
                   <tr><th>환경</th><td><code>dev</code>, <code>staging</code>, <code>prod</code> 환경을 분리합니다.</td></tr>
                   <tr><th>ECS Service</th><td><code>{project}-{env}-{service}</code> 형식을 사용합니다. 예: <code>multi-tenant-dev-wms-service</code></td></tr>
-                  <tr><th>SQS Queue</th><td><code>{project}-{env}-{purpose}-queue</code> 형식을 사용합니다. 예: <code>multi-tenant-dev-outbox-queue</code></td></tr>
+                  <tr><th>SQS Queue</th><td><code>{project}-{env}-{purpose}-queue</code> 형식을 사용합니다. 예: <code>multi-tenant-dev-audit-events-queue</code></td></tr>
                   <tr><th>EventBridge</th><td><code>{project}-{env}-event-bus</code> 형식을 사용합니다. 예: <code>multi-tenant-dev-event-bus</code></td></tr>
                   <tr><th>S3 Bucket</th><td>전역 unique가 필요하므로 <code>{project}-{env}-{purpose}-{accountOrRegion}</code> 형식을 사용합니다.</td></tr>
                   <tr><th>CloudWatch Logs</th><td>서비스별 log group으로 분리합니다. 예: <code>/multi-tenant/dev/wms-service</code></td></tr>
@@ -102,7 +102,7 @@ multi-tenant-dev-files-ap-northeast-2
       <section>
               <h2>배포 Workflow 규칙</h2>
               <p>
-                gateway-service, auth-iam-service, tenant-service, admin-bff-service 배포 workflow는 모두 같은 CDK 스택을 갱신합니다.
+                gateway-service, auth-iam-service, tenant-service, admin-bff-service, audit-log-service, outbox-relay-service 배포 workflow는 모두 같은 CDK 스택을 갱신합니다.
                 한 서비스 배포가 다른 서비스를 암묵적으로 중지하지 않도록 비대상 서비스 값은 명시적으로 관리합니다.
               </p>
               <table>
@@ -111,8 +111,8 @@ multi-tenant-dev-files-ap-northeast-2
                   <tr><th>환경 매핑</th><td>자동 배포를 다시 켜면 <code>dev</code>는 dev, <code>staging</code>은 staging, <code>main</code>은 prod로 배포합니다.</td></tr>
                   <tr><th>인증</th><td>GitHub Actions는 OIDC로 AWS role을 assume하며, 환경별 secret <code>AWS_ROLE_ARN</code>을 사용합니다.</td></tr>
                   <tr><th>비대상 서비스</th><td>서비스별 workflow는 비대상 서비스 desired count와 image tag를 필수 입력으로 요구합니다. 값이 비어 있으면 실패해야 하며, 다른 서비스를 <code>0</code> 또는 <code>latest</code>로 조용히 덮어쓰지 않습니다.</td></tr>
-                  <tr><th>Desired Count</th><td><code>gatewayDesiredCount</code>, <code>authDesiredCount</code>, <code>tenantDesiredCount</code>, <code>adminBffDesiredCount</code>는 0 이상의 정수만 허용합니다.</td></tr>
-                  <tr><th>Secret</th><td>desired count가 0보다 큰 서비스는 필요한 Secrets Manager 또는 SSM Parameter Store ARN이 함께 제공되어야 합니다.</td></tr>
+                  <tr><th>Desired Count</th><td><code>gatewayDesiredCount</code>, <code>authDesiredCount</code>, <code>tenantDesiredCount</code>, <code>adminBffDesiredCount</code>, <code>auditDesiredCount</code>, <code>outboxDesiredCount</code>는 0 이상의 정수만 허용합니다.</td></tr>
+                  <tr><th>Secret</th><td>desired count가 0보다 큰 서비스는 필요한 Secrets Manager 또는 SSM Parameter Store ARN이 함께 제공되어야 합니다. <code>outbox-relay-service</code>는 worker가 켜져 있으면 <code>OUTBOX_SOURCES</code>에 포함된 source별 DB URL secret ARN이 필요합니다. 감사 이벤트 SQS queue URL은 기본적으로 CDK 관리형 queue를 사용하므로 외부 queue를 사용할 때만 override합니다.</td></tr>
                   <tr><th>Image Tag</th><td>gateway-service image tag는 <code>{env}-{gitSha12}</code> 형식을 사용하며, 다른 서비스도 동일한 형식을 우선합니다.</td></tr>
                 </tbody>
               </table>

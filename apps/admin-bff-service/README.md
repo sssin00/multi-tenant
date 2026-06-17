@@ -38,7 +38,7 @@ TENANT_SERVICE_URL=http://localhost:3002
 ADMIN_BFF_INTERNAL_AUTH_ENABLED=true
 AUTH_INTERNAL_AUTH_SECRET=replace-with-local-internal-secret-32chars
 TENANT_INTERNAL_AUTH_SECRET=replace-with-local-internal-secret-32chars
-AUDIT_LOG_SERVICE_URL=
+AUDIT_LOG_SERVICE_URL=http://audit-log-service:3000
 AUDIT_INTERNAL_AUTH_SECRET=replace-with-local-internal-secret-32chars
 ```
 
@@ -70,7 +70,7 @@ Admin BFF는 사용자, role, permission 화면 API를 `auth-iam-service`로 위
 
 ## Audit log API
 
-`GET /api/admin/audit-logs`는 `audit.logs.read` permission check 후 audit-log-service의 `GET /api/internal/audit/logs`로 위임하도록 준비되어 있습니다. `AUDIT_LOG_SERVICE_URL`이 비어 있으면 저장소 미준비 상태로 보고 `503 AUDIT_LOG_SERVICE_NOT_CONFIGURED`를 반환합니다.
+`GET /api/admin/audit-logs`는 `audit.logs.read` permission check 후 audit-log-service의 `GET /api/internal/audit/logs`로 위임합니다. 로컬 compose 기준 `AUDIT_LOG_SERVICE_URL=http://audit-log-service:3000`로 실제 조회 API에 연결됩니다. URL이 비어 있는 선택 환경에서는 `503 AUDIT_LOG_SERVICE_NOT_CONFIGURED`를 반환합니다.
 
 `AUDIT_LOG_SERVICE_URL`을 설정하는 환경에서는 `AUDIT_INTERNAL_AUTH_SECRET`도 함께 설정해야 readiness가 통과합니다.
 

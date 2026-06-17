@@ -11,7 +11,6 @@ import { PrismaService } from "../database/prisma.service.js";
 import { UserStatus } from "../generated/prisma/enums.js";
 import { OutboxEventService } from "../outbox/outbox-event.service.js";
 import { PasswordHasher } from "../auth/password-hasher.js";
-import { AuditLogClientService } from "../audit/audit-log-client.service.js";
 
 export interface UserCommandContext {
   tenantId?: string;
@@ -66,8 +65,6 @@ export class UsersService {
     private readonly prismaService: PrismaService,
     @Inject(PasswordHasher)
     private readonly passwordHasher: PasswordHasher,
-    @Inject(AuditLogClientService)
-    private readonly auditLogClientService: AuditLogClientService,
     @Inject(OutboxEventService)
     private readonly outboxEventService: OutboxEventService
   ) {}
@@ -122,16 +119,6 @@ export class UsersService {
 
       return createdUser;
     });
-    await this.auditLogClientService.record({
-      context: command,
-      action: "auth.user.created",
-      resourceType: "auth_user",
-      resourceId: user.id,
-      details: {
-        status: user.status
-      }
-    });
-
     return this.toResponse(user);
   }
 
@@ -236,16 +223,6 @@ export class UsersService {
 
       return updatedUser;
     });
-    await this.auditLogClientService.record({
-      context: command,
-      action: "auth.user.updated",
-      resourceType: "auth_user",
-      resourceId: user.id,
-      details: {
-        changedFields
-      }
-    });
-
     return this.toResponse(user);
   }
 
@@ -306,16 +283,6 @@ export class UsersService {
 
       return updatedUser;
     });
-    await this.auditLogClientService.record({
-      context: command,
-      action: "auth.user.statusChanged",
-      resourceType: "auth_user",
-      resourceId: user.id,
-      details: {
-        status
-      }
-    });
-
     return this.toResponse(user);
   }
 

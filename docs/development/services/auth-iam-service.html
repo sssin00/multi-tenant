@@ -32,7 +32,7 @@
             <tr><th>세션 관리</th><td>refresh token hash 저장, refresh token revoke, logout, token 만료 정책을 관리합니다.</td></tr>
             <tr><th>사용자 관리</th><td>tenant-scoped 사용자 생성, 조회, 상태 변경, 기본 프로필 관리를 제공합니다.</td></tr>
             <tr><th>권한 관리</th><td>role, permission, user-role assignment, permission summary/check API를 제공합니다.</td></tr>
-            <tr><th>연동 이벤트</th><td>사용자/권한 변경 시 audit 저장 요청과 outbox event 저장을 수행합니다.</td></tr>
+            <tr><th>연동 이벤트</th><td>사용자/권한 변경 시 audit 저장 대상 outbox event를 같은 transaction 안에서 저장합니다.</td></tr>
             <tr><th>제외 범위</th><td>tenant 생성 정책, WMS 업무 규칙, 화면별 데이터 조합은 소유하지 않습니다.</td></tr>
           </tbody>
         </table>
@@ -41,8 +41,8 @@
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag done">1차 구현</span></td></tr>
-          <tr><th>완료 범위</th><td>login/refresh/logout, JWT 발급, user/role/permission 관리, permission summary/check, audit 저장 호출, outbox event 저장, 내부 인증</td></tr>
-          <tr><th>남은 범위</th><td>tenant bootstrap, outbox-relay-service 연동, 운영 key rotation, permission cache, idempotency 고도화</td></tr>
+          <tr><th>완료 범위</th><td>login/refresh/logout, JWT 발급, user/role/permission 관리, permission summary/check, audit 저장 대상 outbox event 저장, 내부 인증</td></tr>
+          <tr><th>남은 범위</th><td>tenant bootstrap, dev AWS outbox relay 발행 검증, 운영 key rotation, permission cache, idempotency 고도화</td></tr>
           <tr><th>API 문서</th><td><code>docs/apis/auth-iam-service/index.html</code></td></tr>
         </table>
       </section>
@@ -55,7 +55,7 @@
           <div class="card"><strong>Auth</strong><p>login, refresh, logout, JWT access token 발급</p></div>
           <div class="card"><strong>User</strong><p>tenant-scoped 사용자 생성, 조회, 상태 관리</p></div>
           <div class="card"><strong>Permission</strong><p>role, permission, warehouse scope, permission check</p></div>
-          <div class="card"><strong>Later</strong><p>key rotation, outbox relay 연동, tenant bootstrap</p></div>
+          <div class="card"><strong>Later</strong><p>key rotation, dev AWS relay 검증, tenant bootstrap</p></div>
         </div>
       </section>
 
@@ -86,7 +86,10 @@
               <p><label><input type="checkbox" checked disabled /> tenant-scoped user CRUD와 사용자 상태 관리</label></p>
               <p><label><input type="checkbox" checked disabled /> role, permission, user-role assignment와 permission summary/check API 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> system_admin과 tenant_admin scope 분리</label></p>
-              <p><label><input type="checkbox" checked disabled /> permission/user 변경 audit-log-service 저장 연동</label></p>
+              <p><label><input type="checkbox" checked disabled /> permission/user 변경 audit 대상 outbox event 저장</label></p>
+              <p><label><input type="checkbox" checked disabled /> audit-log-service 직접 REST 저장 client 제거와 이벤트 기반 저장 전환</label></p>
+              <p><label><input type="checkbox" checked disabled /> 사용자 생성/수정/상태 변경 audit 저장 시나리오 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> role/permission 변경 audit 저장 시나리오 확인</label></p>
               <p><label><input type="checkbox" checked disabled /> auth/user/permission 변경 outbox event 저장</label></p>
               <p><label><input type="checkbox" checked disabled /> 내부 서비스 호출 인증 기준 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> Auth/IAM API 상세 문서 추가</label></p>
@@ -96,10 +99,10 @@
           <div class="card">
             <h3>남은 작업</h3>
             <div class="task-list">
-              <p><label><input type="checkbox" disabled /> outbox-relay-service 연동 후 발행 상태 문서화</label></p>
+              <p><label><input type="checkbox" disabled /> dev AWS outbox relay 발행 결과와 published/failed 상태 검증 증거 보강</label></p>
               <p><label><input type="checkbox" disabled /> 운영 JWT <code>RS256</code> key rotation 기준 적용</label></p>
               <p><label><input type="checkbox" disabled /> tenant bootstrap과 최초 tenant admin 생성 API 경계 확정</label></p>
-              <p><label><input type="checkbox" disabled /> audit-log-service 실제 계약 확정과 장애 처리 보강</label></p>
+              <p><label><input type="checkbox" disabled /> audit-log-service 장애 처리 정책 보강</label></p>
               <p><label><input type="checkbox" disabled /> service-to-service 인증 적용 범위 확대 검토</label></p>
               <p><label><input type="checkbox" disabled /> tenant isolation과 permission scenario 검증 증거 보강</label></p>
             </div>
@@ -131,16 +134,16 @@
               </tr>
               <tr>
                 <td><code>P0</code></td>
-                <td>outbox-relay-service 연동</td>
-                <td><code>outbox_events</code>의 <code>pending</code> row를 EventBridge 또는 SQS로 발행하고 <code>published</code>/<code>failed</code> 상태와 retry를 기록합니다.</td>
-                <td>Auth/IAM 변경 이벤트가 relay를 통해 발행되고, 실패 시 retryCount와 실패 상태가 추적됩니다.</td>
+                <td>dev AWS outbox relay 발행 검증</td>
+                <td><code>outbox_events</code>의 <code>pending</code> row가 outbox-relay-service를 통해 EventBridge 또는 SQS로 발행되고 <code>published</code>/<code>failed</code> 상태와 retry가 기록되는지 검증합니다.</td>
+                <td>Auth/IAM 변경 이벤트가 dev AWS relay target으로 발행되고, 실패 시 retryCount와 실패 상태가 추적됩니다.</td>
                 <td>outbox-relay-service 개발 문서, events/outbox 규칙, AWS ECS 기술 문서</td>
               </tr>
               <tr>
                 <td><code>P0</code></td>
-                <td>audit-log-service 실제 계약 확정</td>
-                <td>현재는 <code>AUDIT_LOG_SERVICE_URL</code>로 내부 저장 API를 호출합니다. 실제 audit-log-service의 인증 header, endpoint, 실패 시 처리 기준을 확정합니다.</td>
-                <td>audit record 저장 성공/실패가 명확히 관측되고, 장애 시 API 실패 또는 비동기 보완 중 선택한 정책이 문서화됩니다.</td>
+                <td>audit-log-service 장애 처리 정책 보강</td>
+                <td>감사 저장은 REST 직접 호출이 아니라 <code>outbox_events</code> 발행 이벤트 기반입니다. 남은 범위는 DLQ, replay 승인, 재처리 감사 기록, 운영 metric/alarm 기준을 확정하는 것입니다.</td>
+                <td>audit event 발행/소비 실패 시 운영 재처리 기준이 문서화됩니다.</td>
                 <td>audit-log-service 개발 문서, logging/audit 규칙, Auth/IAM API 문서</td>
               </tr>
               <tr>
@@ -153,7 +156,7 @@
               <tr>
                 <td><code>P1</code></td>
                 <td>내부 서비스 인증 적용 범위 확대</td>
-                <td>현재는 permission summary/check에 적용했습니다. audit-log-service 호출, outbox relay, tenant-service 연동 등 내부 호출 전반에 같은 기준을 적용할지 검토합니다.</td>
+                <td>현재는 permission summary/check에 적용했습니다. tenant-service 연동, admin-bff 조회 위임, 운영성 내부 API 전반에 같은 기준을 적용할지 검토합니다.</td>
                 <td>서비스별 caller allowlist와 HMAC secret 관리 방식이 문서화되고, 민감 내부 API가 사용자 token만으로 호출되지 않습니다.</td>
                 <td>security/AWS 규칙, environment 규칙, 각 서비스 개발 문서</td>
               </tr>
@@ -340,7 +343,7 @@
                 <div class="card"><strong>범위</strong><p><code>docs/apis/auth-iam-service/index.html</code>에 Health, Ready, Login, Refresh, Logout, User CRUD, RBAC, Permission Summary/Check, side effect, error code를 정리했습니다.</p></div>
                 <div class="card"><strong>Internal</strong><p>내부 API는 HMAC header와 caller allowlist를 문서화했습니다. <code>summary</code>는 BFF 전용, <code>check</code>는 BFF와 <code>wms-service</code>를 허용합니다.</p></div>
                 <div class="card"><strong>Me</strong><p><code>GET /api/auth/me</code>를 구현했고 endpoint 목록에서 <code>Implemented</code>로 전환했습니다.</p></div>
-                <div class="card"><strong>Side effects</strong><p>Audit-log-service 호출과 <code>outbox_events</code> 저장 대상 API를 별도 섹션으로 분리했습니다.</p></div>
+                <div class="card"><strong>Side effects</strong><p>Audit 저장 대상 <code>outbox_events</code>와 relay 후속 연동 API를 별도 섹션으로 분리했습니다.</p></div>
               </div>
               <div class="doc-chip-list">
                 <div class="doc-chip-label">관련 문서</div>
@@ -400,15 +403,15 @@
             <div class="detail-body">
               <div class="compact-grid">
                 <div class="card"><strong>Error</strong><p>실패 응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>, <code>error.code</code>, <code>error.message</code> 구조로 통일했습니다.</p></div>
-                <div class="card"><strong>Audit</strong><p><code>auth-iam-service</code>는 <code>audit_logs</code> 테이블을 소유하지 않습니다. 사용자/역할/권한 변경은 별도 <code>audit-log-service</code>에 저장 요청을 보냅니다.</p></div>
-                <div class="card"><strong>Outbox</strong><p>사용자/permission/role 변경과 <code>outbox_events</code> 저장을 같은 DB transaction 안에서 처리합니다. Relay 발행은 이후 <code>outbox-relay-service</code>가 담당합니다.</p></div>
+                <div class="card"><strong>Audit</strong><p><code>auth-iam-service</code>는 <code>audit_logs</code> 테이블을 소유하지 않습니다. 사용자/역할/권한 변경은 outbox event로 남기고 audit-log-service가 이벤트를 소비해 저장합니다.</p></div>
+                <div class="card"><strong>Outbox</strong><p>사용자/permission/role 변경과 <code>outbox_events</code> 저장을 같은 DB transaction 안에서 처리합니다. Relay 발행은 <code>outbox-relay-service</code>가 담당합니다.</p></div>
                 <div class="card"><strong>Secret</strong><p>password, token, Authorization, private key, SQL, stack trace는 응답과 로그에 남기지 않습니다.</p></div>
               </div>
               <div class="doc-chip-list">
                 <div class="doc-chip-label">관련 코드</div>
                 <div class="doc-chip-items">
                   <code>src/errors/global-exception.filter.ts</code>
-                  <code>src/audit/audit-log-client.service.ts</code>
+                  <code>src/outbox/outbox-event.service.ts</code>
                   <code>src/outbox/outbox-event.service.ts</code>
                 </div>
                 <div class="doc-chip-label">Outbox event</div>
@@ -544,8 +547,8 @@
                 <td><code>AIS-AUDIT-001</code></td>
                 <td>역할/권한 변경이 audit log에 기록된다</td>
                 <td><code>P1</code></td>
-                <td>권한 변경 성공 시 actor, action, resource, result, tenantId, requestId가 audit-log-service에 전달된다.</td>
-                <td>audit-log-service 수신 record, requestId, response JSON</td>
+                <td>권한 변경 성공 시 actor, action, resource, result, tenantId, requestId가 outbox event payload에 포함되고 audit-log-service consumer가 저장할 수 있다.</td>
+                <td><code>outbox_events</code> row, eventId, requestId, audit-log-service consumer 저장 결과</td>
               </tr>
               <tr>
                 <td><code>AIS-OUTBOX-001</code></td>
@@ -563,7 +566,7 @@
           <tbody>
             <tr><th>preconditions</th><td>로컬 또는 dev 환경에서 auth-iam-service, DB, Redis, gateway-service를 준비합니다. JWT 설정은 gateway-service와 같은 <code>JWT_ISSUER</code>, <code>JWT_AUDIENCE</code>, signing key 계약을 사용합니다.</td></tr>
             <tr><th>steps</th><td>시나리오별 요청을 gateway proxy와 서비스 직접 호출 양쪽에서 확인하고, response JSON, headers, logs, DB rows를 수집합니다.</td></tr>
-            <tr><th>expectedResult</th><td>API envelope, error code, JWT claim, refresh rotation, tenant 차단, permission scope, audit-log-service 연동, outbox 저장이 위 표의 기대 결과와 일치해야 합니다.</td></tr>
+            <tr><th>expectedResult</th><td>API envelope, error code, JWT claim, refresh rotation, tenant 차단, permission scope, audit 대상 outbox event 저장이 위 표의 기대 결과와 일치해야 합니다.</td></tr>
             <tr><th>evidence</th><td>성공 판정에는 <code>requestId</code>가 포함된 응답/로그와 JWT 또는 DB 확인 증거를 남깁니다. token 원문, password, Authorization header는 증거에 남기지 않습니다.</td></tr>
           </tbody>
         </table>
@@ -758,10 +761,40 @@
           <h3>2026-06-09 Audit-log-service 연동</h3>
           <ul>
             <li><code>auth-iam-service</code> 내부 Prisma schema에서 <code>audit_logs</code> 테이블을 두지 않는 기준으로 정리했습니다.</li>
-            <li><code>AUDIT_LOG_SERVICE_URL</code>이 설정되면 사용자, permission, role, role-permission, user-role 변경 성공 후 <code>audit-log-service</code> 내부 API로 audit record 저장을 요청합니다.</li>
-            <li>전송 payload에는 <code>occurredAt</code>, <code>tenantId</code>, <code>actor</code>, <code>action</code>, <code>resource</code>, <code>result</code>, <code>requestId</code>, <code>details</code>를 포함합니다.</li>
-            <li>로컬 개발에서 <code>AUDIT_LOG_SERVICE_URL</code>이 비어 있으면 audit 전송을 건너뜁니다. 운영에서는 별도 audit-log-service URL을 ECS secret 또는 environment로 주입해야 합니다.</li>
-            <li>mock audit-log-service로 사용자 생성, permission 생성, role 생성, role-permission 교체, user-role 부여의 audit record 수신을 확인했습니다.</li>
+            <li>사용자, permission, role, role-permission, user-role 변경 성공 후 감사 저장 대상 <code>outbox_events</code>를 같은 DB transaction 안에 저장합니다.</li>
+            <li>이벤트 payload에는 <code>tenantId</code>, <code>requestId</code>, <code>actor</code>, <code>aggregateType</code>, <code>aggregateId</code>, 변경 요약 <code>data</code>를 포함합니다.</li>
+            <li>audit-log-service 직접 REST 호출 경로와 <code>AUDIT_LOG_SERVICE_URL</code>/<code>AUDIT_INTERNAL_AUTH_SECRET</code> 저장 의존성은 이벤트 기반 저장 구조로 전환하면서 제거했습니다.</li>
+            <li>로컬 compose 기준으로 <code>audit-log-service</code>는 별도 서비스로 존재하지만, <code>auth-iam-service</code>는 audit-log-service HTTP health에 의존하지 않습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 Audit-log-service 이벤트 저장 구조 전환</h3>
+          <ul>
+            <li><code>AuditLogClientService</code>와 직접 REST 저장 호출을 제거하고, 사용자/권한 변경은 <code>outbox_events</code> 저장만 담당하도록 정리했습니다.</li>
+            <li><code>OutboxEventService.create</code> payload에 <code>aggregateType</code>과 <code>aggregateId</code>를 포함해 audit-log-service consumer가 resource를 구성할 수 있게 했습니다.</li>
+            <li><code>auth-iam-service</code> config/readiness/docker env/CDK task definition에서 audit 저장 URL/secret 의존성을 제거했습니다.</li>
+            <li><code>pnpm --filter auth-iam-service typecheck</code>가 통과했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 사용자 생성/수정/상태 변경 audit 저장 시나리오 확인</h3>
+          <ul>
+            <li><code>UsersService.create</code>, <code>UsersService.update</code>, <code>UsersService.updateStatus</code>를 실제 로컬 <code>auth_iam</code> DB와 <code>audit-log-service</code>에 연결해 실행했습니다.</li>
+            <li>검증 사용자 <code>eb2602f0-778e-42b9-9d7a-e1b988ac9e91</code>는 <code>audit-user-1781481233000@demo.local</code>로 생성됐고, 최종 표시명은 <code>Audit Scenario User Updated</code>, 상태는 <code>locked</code>입니다.</li>
+            <li><code>audit_log.audit_logs</code>에 <code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code> 감사 로그가 저장됐습니다.</li>
+            <li>검증 requestId는 <code>req-auth-user-create-audit-1781481233000</code>, <code>req-auth-user-update-audit-1781481233000</code>, <code>req-auth-user-status-audit-1781481233000</code>입니다.</li>
+            <li>동일 requestId로 <code>auth_iam.outbox_events</code>에도 <code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code> 이벤트가 저장된 것을 함께 확인했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 role/permission 변경 audit 저장 시나리오 확인</h3>
+          <ul>
+            <li><code>PermissionsService.create</code>, <code>RbacService.createRole</code>, <code>RbacService.updateRole</code>, <code>RbacService.replaceRolePermissions</code>, <code>RbacService.assignUserRole</code>, <code>RbacService.removeUserRole</code>를 실제 로컬 <code>auth_iam</code> DB와 <code>audit-log-service</code>에 연결해 실행했습니다.</li>
+            <li>검증 permission은 <code>scenario.audit.verify1781481478763</code>, role은 <code>audit_role_scenario_1781481478763</code>, 대상 사용자는 <code>06b814db-7586-47ef-a486-0c89373c227a</code>입니다.</li>
+            <li><code>audit_log.audit_logs</code>에 <code>auth.permission.created</code>, <code>auth.role.created</code>, <code>auth.role.updated</code>, <code>auth.role.permissionsReplaced</code>, <code>auth.userRole.assigned</code>, <code>auth.userRole.removed</code> 6건이 저장됐습니다.</li>
+            <li>검증 requestId는 <code>req-auth-permission-create-audit-1781481478763</code>, <code>req-auth-role-create-audit-1781481478763</code>, <code>req-auth-role-update-audit-1781481478763</code>, <code>req-auth-role-permissions-audit-1781481478763</code>, <code>req-auth-user-role-assign-audit-1781481478763</code>, <code>req-auth-user-role-remove-audit-1781481478763</code>입니다.</li>
+            <li>동일 requestId로 <code>auth_iam.outbox_events</code>에도 같은 6개 이벤트가 저장된 것을 확인했고, role-permission 최종 상태는 <code>auth.users.read</code>와 <code>scenario.audit.verify1781481478763</code>로 확인했습니다.</li>
+            <li>검증 user-role row <code>d3b2a60a-fa8c-4c8c-afa4-122689ebccc0</code>는 해제 후 삭제되어 <code>user_roles</code> 잔여 count가 <code>0</code>입니다.</li>
           </ul>
         </article>
         <article>
@@ -769,7 +802,7 @@
           <ul>
             <li><code>outbox_events</code> Prisma 모델과 <code>OutboxEventService</code>를 추가했습니다.</li>
             <li>사용자 생성/수정/상태 변경, permission 생성, role 생성/수정, role-permission 교체, user-role 부여/해제를 변경 transaction 안에서 outbox event로 저장합니다.</li>
-            <li>이벤트 envelope에는 <code>eventId</code>, <code>eventType</code>, <code>schemaVersion</code>, <code>tenantId</code>, <code>requestId</code>, <code>occurredAt</code>, <code>source</code>, <code>actor</code>, <code>data</code>를 포함합니다.</li>
+            <li>이벤트 envelope에는 <code>eventId</code>, <code>eventType</code>, <code>schemaVersion</code>, <code>tenantId</code>, <code>requestId</code>, <code>occurredAt</code>, <code>source</code>, <code>aggregateType</code>, <code>aggregateId</code>, <code>actor</code>, <code>data</code>를 포함합니다.</li>
             <li>Outbox row는 <code>pending</code> 상태와 <code>retryCount=0</code>으로 저장하며, 실제 발행과 retry 처리는 <code>outbox-relay-service</code> 단계에서 담당합니다.</li>
             <li>로컬 DB/Redis 연결 상태에서 10개 변경 API 호출 후 <code>outbox_events</code>에 <code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code>, <code>auth.permission.created</code>, <code>auth.role.created</code>, <code>auth.role.updated</code>, <code>auth.role.permissionsReplaced</code>, <code>auth.userRole.assigned</code>, <code>auth.userRole.removed</code>가 <code>pending</code>으로 저장되는 것을 확인했습니다.</li>
           </ul>
@@ -791,7 +824,7 @@
             <li><a href="../../apis/auth-iam-service/index.html">Auth/IAM API 문서</a>에 Health/Ready, Internal Service Auth, Login, Refresh/Logout, User CRUD, Role/Permission, Permission Summary/Check 상세 계약을 추가했습니다.</li>
             <li>Endpoint 목록에서 구현 완료 API는 <code>Implemented</code> 또는 <code>Detailed</code>로 표시하고, 미구현 API는 <code>Planned</code>로 분리했습니다.</li>
             <li>API별 주요 request body, query, response data, error code를 보강했습니다.</li>
-            <li>Audit-log-service 전송과 <code>outbox_events</code> 저장 side effect를 API 문서에 별도 섹션으로 정리했습니다.</li>
+            <li>Audit 저장 대상 <code>outbox_events</code> side effect와 relay 후속 연동 기준을 API 문서에 별도 섹션으로 정리했습니다.</li>
             <li>개발 문서 TODO를 갱신하고 후속 작업을 outbox relay 연동 중심으로 정리했습니다.</li>
           </ul>
         </article>

@@ -48,23 +48,23 @@
           </div>
           <div class="card">
             <h3>초안 확정 규칙</h3>
-            <p><label><input type="checkbox" disabled /> 감사 로그 규칙: 분리 원칙과 대상은 정했지만 저장소, 보존 기간, 장애 처리는 미확정</label></p>
-            <p><label><input type="checkbox" disabled /> Outbox Relay 규칙: 이벤트 envelope와 outbox 원칙은 정했지만 relay 대상 DB, retry, DLQ는 미확정</label></p>
+            <p><label><input type="checkbox" disabled /> 감사 로그 규칙: 분리 원칙, 대상, 이벤트 기반 저장은 정했지만 보존 기간, archive, replay 감사 흐름은 미확정</label></p>
+            <p><label><input type="checkbox" disabled /> Outbox Relay 규칙: 이벤트 envelope, source DB, lock/retry/failed 상태와 감사 SQS queue/DLQ는 정했지만 replay 승인, custom metric/alarm은 미확정</label></p>
             <p><label><input type="checkbox" disabled /> 배포/운영 규칙: 수동 workflow와 desired count 보호는 정했지만 rollback, alarm, 운영 runbook은 미확정</label></p>
-            <p><label><input type="checkbox" disabled /> AWS 인프라 규칙: ECS/CDK/Cloud Map은 정했지만 RDS, S3, EventBridge/SQS, Route53 CDK 구성은 후속</label></p>
+            <p><label><input type="checkbox" disabled /> AWS 인프라 규칙: ECS/CDK/Cloud Map과 감사 SQS queue/DLQ는 정했지만 RDS, S3, EventBridge bus, Route53 CDK 구성은 후속</label></p>
             <p><label><input type="checkbox" disabled /> Auth/IAM 운영 규칙: 로컬 HS256은 정했지만 운영 RS256, key rotation, JWKS는 미확정</label></p>
             <p><label><input type="checkbox" disabled /> 권한 scope 규칙: tenant/admin 기본 경계는 정했지만 warehouse-scoped permission 적용 범위는 미확정</label></p>
             <p><label><input type="checkbox" disabled /> Tenant 전략: shared DB + tenantId는 정했지만 schema/database 분리 전환 기준은 미확정</label></p>
             <p><label><input type="checkbox" disabled /> BFF 규칙: BFF 경유 원칙은 확정됐지만 user-bff 화면별 조합 계약은 WMS API 이후 확정</label></p>
-            <p><label><input type="checkbox" disabled /> API 문서 규칙: gateway, auth, tenant, admin-bff는 작성됐지만 user-bff, WMS, outbox relay는 TODO</label></p>
+            <p><label><input type="checkbox" disabled /> API 문서 규칙: gateway, auth, tenant, admin-bff, audit-log, outbox-relay는 작성됐지만 user-bff와 WMS는 TODO</label></p>
           </div>
           <div class="card">
             <h3>결정 필요 규칙</h3>
             <p><label><input type="checkbox" disabled /> DB naming, schema, migration, index, soft delete, audit field 규칙</label></p>
             <p><label><input type="checkbox" disabled /> WMS 도메인 모델과 재고 계산 규칙</label></p>
             <p><label><input type="checkbox" disabled /> Idempotency-Key 저장 전략, TTL, 중복 응답 재사용 규칙</label></p>
-            <p><label><input type="checkbox" disabled /> Audit-log-service 저장 API, 조회 API, 장애 처리, 보존 기간 규칙</label></p>
-            <p><label><input type="checkbox" disabled /> Outbox Relay 대상 DB 연결, batch, retry, DLQ, 실패 상태 전환 규칙</label></p>
+            <p><label><input type="checkbox" disabled /> Audit-log-service 보존 기간, archive, replay 감사 기록, 운영 장애 처리 규칙</label></p>
+            <p><label><input type="checkbox" disabled /> Outbox Relay replay 승인, custom metric/alarm, dev AWS end-to-end 증적 운영 규칙</label></p>
             <p><label><input type="checkbox" disabled /> Git 브랜치 보호, PR 크기, 리뷰, merge 전략</label></p>
             <p><label><input type="checkbox" disabled /> 운영 알람, 장애 대응, rollback, 비용 절감 운영 규칙</label></p>
             <p><label><input type="checkbox" disabled /> 파일 업로드 상세 정책과 S3 object key 세부 규칙</label></p>
@@ -81,8 +81,8 @@
             <tr><th>1</th><td>DB 규칙 - WMS 데이터 모델 설계 전에 table, column, migration, index, audit field 기준을 정합니다.</td></tr>
             <tr><th>2</th><td>WMS 도메인 규칙 - warehouse, location, item, inventory, lot/serial, 가용 재고 계산 기준을 정합니다.</td></tr>
             <tr><th>3</th><td>Idempotency 규칙 - 변경성 POST/PATCH 요청의 중복 처리 저장소와 TTL을 정합니다.</td></tr>
-            <tr><th>4</th><td>Audit-log-service 규칙 - 저장/조회 계약, 장애 처리, 보존 기간을 정합니다.</td></tr>
-            <tr><th>5</th><td>Outbox Relay 규칙 - relay 대상 DB, retry, DLQ, 상태 전환 기준을 정합니다.</td></tr>
+            <tr><th>4</th><td>Audit-log-service 규칙 - 보존 기간, archive, replay 감사 기록, 운영 장애 처리 기준을 정합니다.</td></tr>
+            <tr><th>5</th><td>Outbox Relay 규칙 - replay 승인, custom metric/alarm, dev AWS end-to-end 운영 기준을 정합니다.</td></tr>
             <tr><th>6</th><td>운영 JWT 규칙 - RS256, key rotation, JWKS 또는 public key 배포 방식을 정합니다.</td></tr>
             <tr><th>7</th><td>Git/PR 운영 규칙 - 브랜치 보호, 리뷰, merge 전략, PR 크기 기준을 정합니다.</td></tr>
             <tr><th>8</th><td>배포/운영 상세 규칙 - rollback, alarm, runbook, 비용 절감용 desired count 운영을 정합니다.</td></tr>

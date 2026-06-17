@@ -627,15 +627,15 @@
             <li><code>/api/admin/**</code>는 <code>ADMIN_BFF_SERVICE_URL</code>로 전달하며, admin-bff가 auth-iam 권한 확인과 tenant-service 내부 조회를 수행합니다.</li>
             <li>tenant 관리 API는 gateway가 tenant-service로 직접 proxy하지 않고 <code>/api/admin/tenants/**</code> → admin-bff-service → tenant-service 내부 API 경로를 사용합니다.</li>
             <li>tenant status check도 BFF가 tenant-service 내부 API로 수행합니다. gateway-service에는 tenant-service URL이나 tenant internal auth secret을 두지 않습니다.</li>
-            <li><code>user-bff-service</code>, <code>wms-service</code>, <code>outbox-relay-service</code>는 아직 실행 가능한 NestJS 구현이 없으므로 gateway route/env에서는 제거하고, 해당 서비스 구현 시 별도 작업으로 다시 추가합니다.</li>
+            <li><code>user-bff-service</code>는 아직 실행 가능한 NestJS 구현이 없어 gateway route/env에서 비활성 상태로 유지합니다. <code>wms-service</code>와 <code>outbox-relay-service</code>는 구현 여부와 관계없이 gateway 직접 upstream으로 추가하지 않고 BFF 또는 내부 운영 경로로만 접근합니다.</li>
           </ul>
         </article>
         <article>
           <h3>2026-06-12 전역 BFF 경유 원칙 확정</h3>
           <ul>
             <li>이후 추가되는 모든 외부 업무/관리/앱 API는 <code>gateway-service</code> → BFF → domain/platform service 순서로만 연결합니다.</li>
-            <li>gateway-service의 직접 upstream은 현재 <code>auth-iam-service</code>, <code>admin-bff-service</code>로 제한합니다.</li>
-            <li><code>tenant-service</code>, <code>wms-service</code>, <code>audit-log-service</code>와 이후 추가되는 domain/platform service는 gateway가 직접 호출하지 않습니다.</li>
+            <li>gateway-service의 직접 upstream은 현재 <code>auth-iam-service</code>, <code>admin-bff-service</code>로 제한합니다. user-bff-service 구현 후에는 <code>/api/app/**</code> 경로만 user-bff-service로 추가합니다.</li>
+            <li><code>tenant-service</code>, <code>wms-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code>와 이후 추가되는 domain/platform/worker service는 gateway가 직접 호출하지 않습니다.</li>
             <li>tenant status check는 Admin BFF와 이후 추가되는 모든 BFF가 tenant-service 내부 API로 수행합니다.</li>
           </ul>
         </article>

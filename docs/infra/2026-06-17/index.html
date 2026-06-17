@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CDK 인프라 코드 분석 (2026-06-17)</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Infra · CDK Review</p>
+        <h1>CDK 인프라 코드 분석</h1>
+        <p class="lead">
+          <code>infra/cdk</code>의 2026-06-17 기준 현황입니다.
+          현재 스택은 <strong>gateway-service</strong>, <strong>auth-iam-service</strong>, <strong>tenant-service</strong>, <strong>admin-bff-service</strong>, <strong>audit-log-service</strong>, <strong>outbox-relay-service</strong>를
+          하나의 CloudFormation 스택으로 함께 배포합니다.
+        </p>
+        <p class="lead">검토 기준일: 2026-06-17</p>
+      </header>
+
+      <section>
+        <h2>이번 변경 요약</h2>
+        <table>
+          <tr><th>영역</th><th>내용</th></tr>
+          <tr><td>신규 ECS 서비스</td><td><code>outbox-relay-service</code> ECR repository, task definition, ECS Fargate service, CloudWatch log group, security group을 추가했습니다.</td></tr>
+          <tr><td>Source DB secret</td><td><code>authIamOutboxDatabaseUrlSecretArn</code>, <code>tenantOutboxDatabaseUrlSecretArn</code>, <code>wmsOutboxDatabaseUrlSecretArn</code> context를 ECS task secret으로 주입합니다.</td></tr>
+          <tr><td>Publisher target</td><td><code>outboxPublisherType</code> 기본값은 <code>sqs</code>이며 CDK 관리형 audit event queue로 발행합니다. <code>eventbridge</code>이면 EventBridge <code>PutEvents</code>, <code>sqs</code>이면 SQS <code>SendMessage</code> 권한을 task role에 추가합니다.</td></tr>
+          <tr><td>Audit event queue</td><td>감사 이벤트용 SQS queue와 DLQ를 추가하고, audit-log-service에는 consume 권한과 <code>AUDIT_EVENT_QUEUE_URL</code>을 주입합니다.</td></tr>
+          <tr><td>Audit consumer</td><td><code>audit-log-service</code>의 <code>SqsAuditEventWorker</code>가 queue를 polling하고, 저장 성공 메시지만 삭제합니다. 실패 메시지는 SQS retry 후 DLQ redrive 정책을 따릅니다.</td></tr>
+          <tr><td>배포 workflow</td><td><code>deploy-outbox-relay-service.yml</code>, <code>deploy-audit-log-service.yml</code>과 기존 서비스 workflow가 audit/outbox desired count, image tag, source secret, publisher target, audit event queue override를 pass-through 검증하도록 보강했습니다.</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>CDK context</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>Context</th><th>기본값</th><th>용도</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>outboxDesiredCount</code></td><td><code>0</code></td><td>outbox-relay-service ECS desired count</td></tr>
+              <tr><td><code>outboxImageTag</code></td><td><code>latest</code></td><td>task definition에 기록할 Docker image tag</td></tr>
+              <tr><td><code>outboxSources</code></td><td><code>auth-iam,tenant</code></td><td>relay polling source 목록</td></tr>
+              <tr><td><code>outboxWorkerEnabled</code></td><td><code>true</code></td><td>worker loop 실행 여부</td></tr>
+              <tr><td><code>outboxPublisherType</code></td><td><code>sqs</code></td><td><code>mock</code>, <code>eventbridge</code>, <code>sqs</code> 중 하나</td></tr>
+              <tr><td><code>outboxEventBridgeBusName</code></td><td>empty</td><td>EventBridge publisher 대상 bus 이름</td></tr>
+              <tr><td><code>outboxSqsQueueUrl</code></td><td>empty</td><td>SQS publisher 대상 queue URL override. 비어 있으면 CDK 관리형 audit event queue 사용</td></tr>
+              <tr><td><code>auditEventConsumerEnabled</code></td><td><code>true</code></td><td>audit-log-service SQS polling consumer 실행 여부</td></tr>
+              <tr><td><code>auditEventQueueUrl</code></td><td>empty</td><td>audit-log-service 소비 queue URL override. 비어 있으면 CDK 관리형 audit event queue 사용</td></tr>
+          <tr><td><code>authIamOutboxDatabaseUrlSecretArn</code></td><td>empty</td><td><code>AUTH_IAM_OUTBOX_DATABASE_URL</code> secret ARN</td></tr>
+          <tr><td><code>tenantOutboxDatabaseUrlSecretArn</code></td><td>empty</td><td><code>TENANT_OUTBOX_DATABASE_URL</code> secret ARN</td></tr>
+          <tr><td><code>wmsOutboxDatabaseUrlSecretArn</code></td><td>empty</td><td><code>WMS_OUTBOX_DATABASE_URL</code> secret ARN</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>리소스 경계</h2>
+        <div class="grid">
+          <div class="card"><strong>CDK 포함</strong><p>outbox-relay-service ECR/ECS/CloudWatch/SG, source DB secret 참조, audit event SQS queue/DLQ, EventBridge/SQS IAM 권한.</p></div>
+          <div class="card"><strong>CDK 미포함</strong><p>RDS/Aurora DB 인스턴스, EventBridge bus 리소스, 비감사 SQS queue/DLQ, WMS service, user-bff-service.</p></div>
+          <div class="card"><strong>Gateway 경계</strong><p>gateway-service는 outbox-relay-service를 upstream으로 호출하지 않습니다. 운영 API 접근은 내부 서비스 경로로 제한합니다.</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>감사 이벤트 전달 경로</h2>
+        <p>감사 로그 저장은 동기 REST 호출이 아니라 각 서비스의 outbox row와 SQS consumer를 통해 처리합니다.</p>
+        <pre><code>auth-iam-service / tenant-service / future wms-service
+  └─ same DB transaction: outbox_events pending 저장
+      ↓
+outbox-relay-service
+  └─ source별 DB URL secret으로 pending row claim
+  └─ OUTBOX_PUBLISHER_TYPE=sqs이면 CDK 관리형 audit event queue로 SendMessage
+      ↓
+multi-tenant-{env}-audit-events-queue
+  └─ visibility timeout / retry / DLQ redrive
+      ↓
+audit-log-service
+  └─ AUDIT_EVENT_QUEUE_URL polling
+  └─ eventId unique key로 audit_logs append-only 저장
+  └─ 저장 성공 시 DeleteMessage</code></pre>
+        <table>
+          <tbody>
+            <tr><th>Queue</th><td><code>multi-tenant-{env}-audit-events-queue</code>. 외부 queue를 써야 하면 <code>auditEventQueueUrl</code> 또는 <code>outboxSqsQueueUrl</code> context로 override합니다.</td></tr>
+            <tr><th>DLQ</th><td><code>multi-tenant-{env}-audit-events-dlq</code>. CDK 기본 redrive 정책은 최대 수신 5회 후 DLQ 이동입니다.</td></tr>
+            <tr><th>멱등성</th><td><code>audit_logs.event_id</code> unique key를 기준으로 같은 이벤트가 재전달되어도 중복 row를 만들지 않습니다.</td></tr>
+            <tr><th>운영 잔여</th><td>dev AWS end-to-end 증적, DLQ 조회/처리 runbook, replay 승인, custom metric/alarm 기준은 후속 운영 작업입니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>기능별 리소스</h2>
+        <p><code>gateway-service-stack.ts</code>가 생성하는 AWS 리소스를 기능 단위로 정리합니다.</p>
+        <figure style="margin: 20px 0 0;">
+          <img
+            src="./architecture.svg"
+            alt="CDK 기능별 아키텍처 도면: Internet에서 ALB를 거쳐 gateway-service로, gateway-service가 auth-iam-service와 admin-bff-service만 호출하고 tenant-service, audit-log-service, outbox-relay-service는 BFF 또는 내부 이벤트 경로로 연결되는 구조"
+            style="display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff;"
+          />
+          <figcaption style="margin-top: 10px; color: var(--muted); font-size: 13px;">
+            기능별 아키텍처: ALB → gateway-service → auth-iam-service/admin-bff-service, tenant status와 감사 조회는 admin-bff-service 경유, 감사 이벤트 저장은 outbox-relay-service → audit SQS queue/DLQ → audit-log-service 경유
+          </figcaption>
+        </figure>
+        <table>
+          <tr><th>기능</th><th>gateway-service</th><th>auth-iam-service</th><th>tenant-service</th><th>admin-bff-service</th><th>audit-log-service</th><th>outbox-relay-service</th></tr>
+          <tr><td>ECR repository</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+          <tr><td>ECS Fargate task/service</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+          <tr><td>ALB 노출</td><td>O (public)</td><td>X (내부 전용)</td><td>X (내부 전용)</td><td>X (내부 전용)</td><td>X (내부 전용)</td><td>X (내부 전용)</td></tr>
+          <tr><td>Cloud Map 등록</td><td>-</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+          <tr><td>Container port</td><td>3000</td><td>3000</td><td>3000</td><td>3000</td><td>3000</td><td>3007</td></tr>
+          <tr><td>ElastiCache Redis 접근</td><td>rate limit</td><td>cache/session</td><td>cache/readiness</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td>Secrets Manager</td><td><code>JWT_SECRET</code></td><td>DB URL, JWT, internal auth</td><td>DB URL, internal auth</td><td>auth/tenant/audit internal auth</td><td>DB URL, audit internal auth</td><td>source별 outbox DB URL</td></tr>
+          <tr><td>CloudWatch Logs</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+          <tr><td>RDS/PostgreSQL</td><td>-</td><td>CDK 미포함 (외부 secret 참조)</td><td>CDK 미포함 (외부 secret 참조)</td><td>-</td><td>CDK 미포함 (외부 secret 참조)</td><td>source DB secret 참조만 수행</td></tr>
+          <tr><td>EventBridge/SQS</td><td>-</td><td>outbox event 저장</td><td>outbox event 저장</td><td>-</td><td>SQS consume/delete 권한, <code>AUDIT_EVENT_QUEUE_URL</code></td><td>PutEvents 또는 audit queue SendMessage 권한</td></tr>
+        </table>
+
+        <div class="grid">
+          <div class="card"><strong>네트워크 (VPC)</strong><p>2 AZ. 기본은 private app subnet + NAT Gateway 1개이며, <code>gatewayUseNatGateway=false</code>이면 dev 비용/Elastic IP 한도 대응용 public subnet 배치를 사용할 수 있습니다.</p></div>
+          <div class="card"><strong>ECS 클러스터</strong><p>Fargate 클러스터에 Container Insights와 Cloud Map private DNS namespace <code>{env}.multi-tenant.local</code>을 구성합니다.</p></div>
+          <div class="card"><strong>Security Group (8개)</strong><p>ALB, gateway, auth, tenant, admin-bff, audit-log, outbox-relay, redis SG를 둡니다. gateway는 auth/admin-bff만 호출하고, tenant/audit/outbox는 BFF 또는 내부 운영 경로에서만 접근합니다.</p></div>
+          <div class="card"><strong>ElastiCache Redis</strong><p>1노드 기본 <code>cache.t4g.micro</code>. gateway rate limit, Auth/IAM cache/session, tenant readiness/cache 의존성에서 공유합니다.</p></div>
+          <div class="card"><strong>ALB</strong><p>인터넷 facing ALB는 gateway-service만 target group으로 연결합니다. ACM ARN이 있으면 HTTPS 443 listener를 만들고 HTTP 80은 HTTPS로 리다이렉트합니다.</p></div>
+          <div class="card"><strong>Cloud Map 내부 연결</strong><p>gateway는 Auth/IAM과 Admin BFF만 upstream으로 호출합니다. tenant-service, audit-log-service, outbox-relay-service는 gateway 직접 upstream이 아니며 Admin BFF 또는 내부 운영 경로로 접근합니다.</p></div>
+          <div class="card"><strong>Outbox 발행 권한</strong><p><code>outboxPublisherType=eventbridge</code>이면 EventBridge <code>PutEvents</code>, <code>sqs</code>이면 SQS <code>SendMessage</code> 권한을 outbox task role에 추가합니다. SQS 기본 대상은 CDK 관리형 audit event queue이고, EventBridge bus는 외부 리소스로 연결합니다.</p></div>
+          <div class="card"><strong>Audit 소비 권한</strong><p><code>auditEventConsumerEnabled</code>가 <code>false</code>가 아니면 audit task role에 SQS <code>ReceiveMessage</code>, <code>DeleteMessage</code>, <code>ChangeMessageVisibility</code>, <code>GetQueueAttributes</code> 권한을 부여합니다.</p></div>
+          <div class="card"><strong>비용 영향 리소스</strong><p>desired count가 0이어도 ALB, NAT Gateway, ElastiCache, ECR 저장 용량, CloudWatch Logs 보존 비용은 발생할 수 있습니다.</p></div>
+        </div>
+
+        <p class="card-subheading">주요 CfnOutput: <code>GatewayServiceRepositoryUri</code>, <code>GatewayLoadBalancerDns</code>, <code>GatewayRedisEndpoint</code>, <code>AuthIamServiceRepositoryUri</code>, <code>AuthIamServiceInternalUrl</code>, <code>TenantServiceRepositoryUri</code>, <code>TenantServiceInternalUrl</code>, <code>AdminBffServiceRepositoryUri</code>, <code>AdminBffServiceInternalUrl</code>, <code>AuditLogServiceRepositoryUri</code>, <code>AuditLogServiceInternalUrl</code>, <code>AuditEventQueueUrl</code>, <code>AuditEventDeadLetterQueueUrl</code>, <code>OutboxRelayServiceRepositoryUri</code>, <code>OutboxRelayServiceInternalUrl</code>, 각 서비스 desired count와 image tag.</p>
+      </section>
+
+      <section>
+        <h2>배포 순서</h2>
+        <ol class="ordered">
+          <li>GitHub Environment에 6서비스 desired count와 image tag를 모두 설정합니다.</li>
+          <li><code>OUTBOX_SOURCES</code>에 포함된 source마다 대응하는 <code>*_OUTBOX_DATABASE_URL_SECRET_ARN</code>을 저장합니다.</li>
+          <li><code>audit-log-service</code> desired count를 0보다 크게 실행하려면 <code>AUDIT_DATABASE_URL_SECRET_ARN</code>과 <code>AUDIT_INTERNAL_AUTH_SECRET_ARN</code>을 설정합니다.</li>
+          <li><code>OUTBOX_PUBLISHER_TYPE=eventbridge</code>이면 <code>OUTBOX_EVENTBRIDGE_BUS_NAME</code>을 설정합니다. <code>sqs</code>는 기본 CDK audit event queue를 사용하며, 외부 queue를 쓰는 경우에만 <code>OUTBOX_SQS_QUEUE_URL</code> 또는 <code>AUDIT_EVENT_QUEUE_URL</code>을 설정합니다.</li>
+          <li><code>deploy-outbox-relay-service.yml</code>을 수동 실행합니다. workflow는 먼저 <code>outboxDesiredCount=0</code>으로 ECR 등 기본 인프라를 만들고, 이미지를 push한 뒤 최종 desired count로 다시 배포합니다.</li>
+          <li><code>deploy-audit-log-service.yml</code>을 수동 실행할 때 <code>runAuditPrismaMigration=true</code>를 선택하면 image deploy 전에 audit DB migration을 적용합니다.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>검증</h2>
+        <p>2026-06-17 기준 아래 검증을 수행했습니다.</p>
+        <pre><code>pnpm --filter audit-log-service typecheck
+pnpm --filter audit-log-service build
+pnpm --filter outbox-relay-service typecheck
+pnpm --filter outbox-relay-service build
+pnpm --filter @multi-tenant/infra-cdk typecheck
+pnpm --filter @multi-tenant/infra-cdk synth
+ruby -e 'require "yaml"; ARGV.each { |f| YAML.load_file(f); puts "yaml ok #{f}" }' .github/workflows/deploy-*.yml
+docker compose -f docker/local/docker-compose.yml config
+COMPOSE_ENV=dev docker compose -f docker/deploy/docker-compose.yml config</code></pre>
+        <p class="card-subheading">실제 AWS <code>cdk deploy</code>는 계정 secret과 배포 승인 대상이므로 이 문서에서는 로컬 typecheck/build, CDK synth, workflow YAML parse, Docker compose config 검증까지만 기록합니다.</p>
+      </section>
+
+      <p class="footer">작성일: 2026-06-17 · 대상: <code>infra/cdk</code> · 스택: <code>multi-tenant-{env}-gateway-service-stack</code></p>
+    </main>
+  </body>
+</html>

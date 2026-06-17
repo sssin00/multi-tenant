@@ -132,7 +132,7 @@
             <span>대분류: 아키텍처 현황 / 설계 / API 문서 / 개발과정</span>
           </div>
           <div class="metric">
-            <strong>1</strong>
+            <strong>4</strong>
             <span>날짜별 아키텍처 상황 문서</span>
           </div>
           <div class="metric">
@@ -140,7 +140,7 @@
             <span>설계 관련 문서, 규칙 페이지, 설계도</span>
           </div>
           <div class="metric">
-            <strong>9</strong>
+            <strong>10</strong>
             <span>API 문서 허브와 서비스별 endpoint 문서</span>
           </div>
           <div class="metric">
@@ -148,11 +148,11 @@
             <span>서비스별 개발과정 문서</span>
           </div>
           <div class="metric">
-            <strong>4</strong>
+            <strong>6</strong>
             <span>1차 구현 또는 배포 준비가 진행된 backend service</span>
           </div>
           <div class="metric">
-            <strong>6</strong>
+            <strong>4</strong>
             <span>착수 전 또는 선행 계약 대기 서비스/앱</span>
           </div>
         </div>
@@ -207,12 +207,26 @@
           <span class="tag">ARCHITECTURE STATUS</span>
         </div>
         <div class="doc-grid">
+          <a class="doc-card" href="./infra/2026-06-17/index.html">
+            <div>
+              <h2>2026-06-17</h2>
+              <p>outbox-relay-service와 audit event SQS queue/DLQ가 CDK/ECS, source DB secret, 수동 배포 workflow에 포함된 6서비스 배포 준비 상태를 기록합니다.</p>
+            </div>
+            <span class="tag done">LATEST</span>
+          </a>
+          <a class="doc-card" href="./infra/2026-06-15/index.html">
+            <div>
+              <h2>2026-06-15</h2>
+              <p>audit-log-service가 CDK/ECS, Cloud Map 내부 연결, 수동 배포 workflow에 포함된 5서비스 배포 준비 상태를 기록합니다.</p>
+            </div>
+            <span class="tag done">SNAPSHOT</span>
+          </a>
           <a class="doc-card" href="./infra/2026-06-12/index.html">
             <div>
               <h2>2026-06-12</h2>
-              <p>Admin BFF가 CDK, Docker, 수동 배포 workflow, Cloud Map 내부 연결에 포함된 최신 4서비스 배포 준비 상태를 기록합니다.</p>
+              <p>Admin BFF가 CDK, Docker, 수동 배포 workflow, Cloud Map 내부 연결에 포함된 당시 4서비스 배포 준비 상태를 기록합니다.</p>
             </div>
-            <span class="tag done">LATEST</span>
+            <span class="tag done">SNAPSHOT</span>
           </a>
           <a class="doc-card" href="./infra/2026-06-10/index.html">
             <div>
@@ -299,14 +313,14 @@
               <h2>admin-bff-service API</h2>
               <p>tenant, 사용자, role, module 운영 기반 API 계약을 정리합니다.</p>
             </div>
-            <span class="tag">DRAFT</span>
+            <span class="tag done">READY</span>
           </a>
           <a class="doc-card" href="./apis/auth-iam-service/index.html">
             <div>
               <h2>auth-iam-service API</h2>
               <p>로그인, token refresh, 사용자, 역할, 권한 API 초기 계약을 정리합니다.</p>
             </div>
-            <span class="tag">DRAFT</span>
+            <span class="tag done">READY</span>
           </a>
           <a class="doc-card" href="./apis/tenant-service/index.html">
             <div>
@@ -318,9 +332,16 @@
           <a class="doc-card" href="./apis/audit-log-service/index.html">
             <div>
               <h2>audit-log-service API</h2>
-              <p>append-only 감사 로그 저장과 관리자 조회 API 초안을 정리합니다.</p>
+              <p>append-only 감사 로그 SQS 이벤트 저장과 관리자 조회 API 계약을 정리합니다.</p>
             </div>
-            <span class="tag todo">TODO</span>
+            <span class="tag done">READY</span>
+          </a>
+          <a class="doc-card" href="./apis/outbox-relay-service/index.html">
+            <div>
+              <h2>outbox-relay-service API</h2>
+              <p>relay health/readiness, 감사 SQS 전달, 운영 status, source 상태 조회 API 계약을 정리합니다.</p>
+            </div>
+            <span class="tag done">READY</span>
           </a>
         </div>
       </section>
@@ -385,18 +406,18 @@
           <a class="service-card" href="./development/services/outbox-relay-service.html">
             <div class="card-head">
               <h3>outbox-relay-service</h3>
-              <span class="tag todo">착수 전</span>
+              <span class="tag done">1차 구현</span>
             </div>
-            <p>Outbox 이벤트 발행, EventBridge/SQS 연동, retry</p>
-            <p class="progress-note">Auth/IAM과 tenant-service의 outbox_events relay 대상, retry, DLQ 정책 확정이 선행 작업입니다.</p>
+            <p>Outbox 이벤트 발행, 감사 SQS 전달, retry</p>
+            <p class="progress-note">Auth/IAM과 tenant-service outbox relay, mock/EventBridge/SQS publisher, audit event queue/DLQ, Docker/CDK/GitHub Actions 배포 준비가 정리되었습니다.</p>
           </a>
           <a class="service-card" href="./development/services/audit-log-service.html">
             <div class="card-head">
               <h3>audit-log-service</h3>
-              <span class="tag todo">착수 전</span>
+              <span class="tag done">1차 구현</span>
             </div>
             <p>감사 로그 저장, 조회, 보존, evidence 관리</p>
-            <p class="progress-note">Auth/IAM과 Admin BFF의 audit 연동 대상이며 append-only 감사 로그 저장소를 담당합니다.</p>
+            <p class="progress-note">Append-only 저장/조회 API, SQS outbox 이벤트 소비, Admin BFF 조회 연동, Docker/CDK/ECS 배포 준비가 정리되었습니다.</p>
           </a>
           <a class="service-card" href="./development/services/web-wms.html">
             <div class="card-head">
@@ -425,6 +446,32 @@
         </div>
       </section>
 
+      <section id="test-logs">
+        <div class="section-title">
+          <div>
+            <h2>검증 로그</h2>
+            <p>로컬 실행, 반복 테스트, 통합 검증 결과를 날짜별 HTML 문서로 기록합니다.</p>
+          </div>
+          <span class="tag">TEST LOGS</span>
+        </div>
+        <div class="doc-grid">
+          <a class="doc-card" href="./test-logs/2026-06-17/outbox-relay-local-verification.html">
+            <div>
+              <h2>2026-06-17 Outbox Relay 로컬 검증</h2>
+              <p>outbox-relay-service의 health/readiness, source DB polling, mock publisher 발행, retry/failed 상태 전환 결과를 기록합니다.</p>
+            </div>
+            <span class="tag done">LATEST</span>
+          </a>
+          <a class="doc-card" href="./test-logs/2026-06-12/repeat-test-report.html">
+            <div>
+              <h2>2026-06-12 반복 테스트</h2>
+              <p>문서 HTML 파싱, 서비스 typecheck/build를 10회 반복한 당시 검증 결과를 기록합니다.</p>
+            </div>
+            <span class="tag">SNAPSHOT</span>
+          </a>
+        </div>
+      </section>
+
       <section>
         <div class="section-title">
           <div>
@@ -449,7 +496,7 @@
         </div>
       </section>
 
-      <p class="footer">작성일: 2026-06-01 · 현행화: 2026-06-12 · 문서 기준: 아키텍처 현황 / 설계 / API 문서 / 개발과정</p>
+      <p class="footer">작성일: 2026-06-01 · 현행화: 2026-06-17 · 문서 기준: 아키텍처 현황 / 설계 / API 문서 / 개발과정</p>
     </main>
   </body>
 </html>

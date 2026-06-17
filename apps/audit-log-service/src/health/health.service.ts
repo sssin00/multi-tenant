@@ -1,6 +1,7 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 
 import { getAppConfig, type AppConfig } from "../config/app.config.js";
+import { PrismaService } from "../database/prisma.service.js";
 
 export interface ReadinessResponse {
   status: "ready" | "not_ready";
@@ -9,6 +10,8 @@ export interface ReadinessResponse {
   checks: {
     config: ReadinessCheck;
     internalAuth: ReadinessCheck;
+    eventConsumer: ReadinessCheck;
+    database: ReadinessCheck;
     security: ReadinessCheck;
   };
 }
@@ -22,10 +25,17 @@ interface ReadinessCheck {
 export class HealthService {
   private readonly config = getAppConfig();
 
-  getReadiness(): ReadinessResponse {
+  constructor(
+    @Inject(PrismaService)
+    private readonly prismaService: PrismaService
+  ) {}
+
+  async getReadiness(): Promise<ReadinessResponse> {
     const checks = {
       config: this.checkConfig(this.config),
       internalAuth: this.checkInternalAuth(this.config),
+      eventConsumer: this.checkEventConsumer(this.config),
+      database: await this.checkDatabase(),
       security: this.checkSecurity(this.config)
     };
     const isReady = Object.values(checks).every((check) => check.status === "ok");
@@ -45,6 +55,10 @@ export class HealthService {
 
     if (!config.requestIdHeader || !config.tenantHeader) {
       return { status: "failed", message: "Request context headers must be configured" };
+    }
+
+    if (!process.env.DATABASE_URL) {
+      return { status: "failed", message: "DATABASE_URL is required" };
     }
 
     return { status: "ok" };
@@ -84,5 +98,43 @@ export class HealthService {
     }
 
     return { status: "ok" };
+  }
+
+  private checkEventConsumer(config: AppConfig): ReadinessCheck {
+    const consumer = config.eventConsumer;
+    if (!consumer.enabled) {
+      return { status: "ok" };
+    }
+
+    if (!consumer.queueUrl) {
+      return { status: "failed", message: "AUDIT_EVENT_QUEUE_URL is required when audit event consumer is enabled" };
+    }
+
+    if (consumer.batchSize <= 0 || consumer.batchSize > 10) {
+      return { status: "failed", message: "AUDIT_EVENT_BATCH_SIZE must be between 1 and 10" };
+    }
+
+    if (consumer.waitTimeSeconds < 0 || consumer.waitTimeSeconds > 20) {
+      return { status: "failed", message: "AUDIT_EVENT_WAIT_TIME_SECONDS must be between 0 and 20" };
+    }
+
+    if (consumer.visibilityTimeoutSeconds <= 0) {
+      return { status: "failed", message: "AUDIT_EVENT_VISIBILITY_TIMEOUT_SECONDS must be positive" };
+    }
+
+    if (consumer.pollIntervalMs <= 0) {
+      return { status: "failed", message: "AUDIT_EVENT_POLL_INTERVAL_MS must be positive" };
+    }
+
+    return { status: "ok" };
+  }
+
+  private async checkDatabase(): Promise<ReadinessCheck> {
+    try {
+      await this.prismaService.ping();
+      return { status: "ok" };
+    } catch {
+      return { status: "failed", message: "DATABASE_URL is unavailable" };
+    }
   }
 }

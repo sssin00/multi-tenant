@@ -8,13 +8,13 @@ export interface ReadinessResponse {
   status: "ready" | "not_ready";
   service: string;
   timestamp: string;
-    checks: {
-      config: ReadinessCheck;
-      jwt: ReadinessCheck;
-      internalAuth: ReadinessCheck;
-      database: ReadinessCheck;
-      redis: ReadinessCheck;
-      security: ReadinessCheck;
+  checks: {
+    config: ReadinessCheck;
+    jwt: ReadinessCheck;
+    internalAuth: ReadinessCheck;
+    database: ReadinessCheck;
+    redis: ReadinessCheck;
+    security: ReadinessCheck;
   };
 }
 
@@ -169,4 +169,5 @@ export class HealthService {
       return false;
     }
   }
+
 }

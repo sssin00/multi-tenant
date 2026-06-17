@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2026-06-17 Outbox Relay 로컬 검증 로그</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Test Log · 2026-06-17</p>
+        <h1>outbox-relay-service 로컬 검증</h1>
+        <p class="lead">
+          로컬 Docker compose 환경에서 outbox-relay-service의 실행 상태, source DB 연결, pending event claim,
+          event envelope 검증, mock publisher 발행, retry/failed 상태 전환을 확인한 기록입니다.
+        </p>
+        <p class="lead">
+          1차 검증에서는 로컬 기본 설정인 <code>OUTBOX_PUBLISHER_TYPE=mock</code>으로 relay 단독 경로를 확인했고,
+          보완 수정 후 <code>OUTBOX_PUBLISHER_TYPE=sqs</code>와 LocalStack SQS를 사용해
+          outbox-relay-service에서 audit-log-service 저장까지 이어지는 end-to-end 흐름을 추가 검증했습니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>검증 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>실행 일시</th><td>2026-06-17 17:50-17:52 KST</td></tr>
+            <tr><th>환경</th><td>Local Docker compose, PostgreSQL <code>55432</code>, outbox-relay-service <code>3007</code>, audit-log-service <code>3006</code></td></tr>
+            <tr><th>Publisher</th><td><code>mock</code></td></tr>
+            <tr><th>Source DB</th><td><code>auth_iam</code>, <code>tenant</code></td></tr>
+            <tr><th>검증 결과</th><td><span class="tag done">통과</span> mock relay와 LocalStack SQS 기반 audit 저장 경로를 모두 확인했습니다.</td></tr>
+            <tr><th>자동화 명령</th><td><code>pnpm test:outbox:sqs:local</code></td></tr>
+            <tr><th>Mock 검증 이벤트</th><td><code>auth.local.verification.created</code>, eventId <code>f8083e64-65fe-4237-8446-ed7c896dd41e</code></td></tr>
+            <tr><th>SQS 검증 이벤트</th><td><code>auth.local.sqsAudit.verified</code>, eventId <code>9243c6ca-ae62-4006-80aa-3c94b935bc12</code></td></tr>
+            <tr><th>SQS requestId</th><td><code>req-local-sqs-audit-1781687107</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>수행한 검증</h2>
+        <div class="grid">
+          <div class="card">
+            <strong>정적 검증</strong>
+            <p><code>pnpm --filter outbox-relay-service typecheck</code>와 <code>pnpm --filter outbox-relay-service build</code>가 통과했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>컨테이너 실행</strong>
+            <p><code>docker compose -f docker/local/docker-compose.yml up --build -d outbox-relay-service</code>로 outbox-relay-service를 빌드하고 실행했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Health/Readiness</strong>
+            <p><code>GET /health</code>, <code>GET /ready</code>, 운영 status/source API 응답을 확인했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Mock DB 상태 전환</strong>
+            <p>검증용 pending event를 삽입한 뒤 worker poll 이후 <code>published</code>, <code>published_target=mock</code>으로 전환되는 것을 확인했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>SQS 감사 저장</strong>
+            <p>LocalStack SQS queue로 발행된 event를 audit-log-service consumer가 소비해 <code>audit_log.audit_logs</code>에 <code>event_id</code> 기준으로 저장했습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>명령과 결과</h2>
+        <table>
+          <thead>
+            <tr><th>항목</th><th>명령/확인</th><th>결과</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Outbox typecheck</td>
+              <td><code>pnpm --filter outbox-relay-service typecheck</code></td>
+              <td><span class="tag done">통과</span></td>
+            </tr>
+            <tr>
+              <td>Outbox build</td>
+              <td><code>pnpm --filter outbox-relay-service build</code></td>
+              <td><span class="tag done">통과</span></td>
+            </tr>
+            <tr>
+              <td>Audit typecheck</td>
+              <td><code>pnpm --filter audit-log-service typecheck</code></td>
+              <td><span class="tag done">수정 후 통과</span> 꼬인 Prisma 생성물을 재생성한 뒤 통과</td>
+            </tr>
+            <tr>
+              <td>Audit build</td>
+              <td><code>pnpm --filter audit-log-service build</code></td>
+              <td><span class="tag done">수정 후 통과</span> 꼬인 Prisma 생성물을 재생성한 뒤 통과</td>
+            </tr>
+            <tr>
+              <td>Outbox health</td>
+              <td><code>GET http://127.0.0.1:3007/health</code></td>
+              <td><span class="tag done">통과</span> <code>{"status":"ok","service":"outbox-relay-service"}</code></td>
+            </tr>
+            <tr>
+              <td>Outbox readiness</td>
+              <td><code>GET http://127.0.0.1:3007/ready</code></td>
+              <td><span class="tag done">통과</span> config, sources, publisher, worker, security 모두 <code>ok</code></td>
+            </tr>
+            <tr>
+              <td>Outbox status</td>
+              <td><code>GET /internal/operations/outbox-relay/status</code></td>
+              <td><span class="tag done">통과</span> <code>workerEnabled=true</code>, <code>publisherType=mock</code>, <code>publishedCount=1</code>, <code>failedCount=14</code></td>
+            </tr>
+            <tr>
+              <td>Source stats</td>
+              <td><code>GET /internal/operations/outbox-relay/sources</code></td>
+              <td><span class="tag done">통과</span> 검증 후 pending <code>0</code>, auth-iam failed <code>10</code>, tenant failed <code>4</code></td>
+            </tr>
+            <tr>
+              <td>Audit health/readiness</td>
+              <td><code>GET http://127.0.0.1:3006/health</code>, <code>GET http://127.0.0.1:3006/ready</code></td>
+              <td><span class="tag done">통과</span> runtime container는 ready 상태</td>
+            </tr>
+            <tr>
+              <td>LocalStack SQS E2E</td>
+              <td><code>OUTBOX_PUBLISHER_TYPE=sqs</code>, <code>AUDIT_EVENT_CONSUMER_ENABLED=true</code></td>
+              <td><span class="tag done">통과</span> outbox event가 SQS로 발행되고 audit-log-service가 소비해 저장</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>DB 증적</h2>
+        <table>
+          <thead>
+            <tr><th>DB</th><th>확인 내용</th><th>결과</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>auth_iam.outbox_events</code></td>
+              <td>검증 이벤트 <code>f8083e64-65fe-4237-8446-ed7c896dd41e</code></td>
+              <td><code>status=published</code>, <code>published_target=mock</code>, <code>retry_count=0</code>, <code>last_error=null</code></td>
+            </tr>
+            <tr>
+              <td><code>auth_iam.outbox_events</code></td>
+              <td>기존 pending event 10건</td>
+              <td><code>payload.aggregateType does not match outbox aggregateType</code>로 최대 재시도 후 <code>failed</code> 전환</td>
+            </tr>
+            <tr>
+              <td><code>tenant.outbox_events</code></td>
+              <td>기존 pending event 4건</td>
+              <td><code>payload.aggregateType does not match outbox aggregateType</code>로 최대 재시도 후 <code>failed</code> 전환</td>
+            </tr>
+            <tr>
+              <td><code>audit_log.audit_logs</code></td>
+              <td>SQS 검증 이벤트 <code>9243c6ca-ae62-4006-80aa-3c94b935bc12</code></td>
+              <td><code>action=auth.local.sqsAudit.verified</code>, <code>resource_type=verification</code>, <code>result=success</code>, <code>details.purpose=local-sqs-audit-verification</code>로 저장되었습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>발견 사항</h2>
+        <div class="grid">
+          <div class="card">
+            <strong>새 outbox envelope는 정상</strong>
+            <p>현재 <code>auth-iam-service</code>와 <code>tenant-service</code>의 <code>OutboxEventService</code>는 payload에 <code>aggregateType</code>과 <code>aggregateId</code>를 포함합니다. 이 형식의 이벤트는 relay 검증을 통과했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>오래된 pending event는 실패 처리</strong>
+            <p>기존 로컬 DB에 남아 있던 이벤트 중 payload에 aggregate 필드가 빠진 row는 relay가 계속 재시도한 뒤 <code>failed</code>로 전환했습니다. 이는 실패 격리 동작이 정상임을 보여줍니다.</p>
+          </div>
+          <div class="card">
+            <strong>SQS 연동 통과</strong>
+            <p><code>OUTBOX_SQS_ENDPOINT</code>를 추가하고 일반 queue에서는 FIFO 전용 옵션을 보내지 않도록 수정한 뒤 outbox-relay → SQS → audit-log-service 저장을 확인했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Audit Prisma 정합성 수정</strong>
+            <p>꼬인 generated Prisma 폴더를 재생성하고 로컬 <code>audit_log</code> DB에 최신 schema를 push해 <code>event_id</code> column과 index를 맞췄습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>수정한 보완점</h2>
+        <table>
+          <thead>
+            <tr><th>항목</th><th>조치</th><th>검증</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>audit-log-service Prisma 생성물 import 정리</td>
+              <td>부분 생성 상태였던 <code>apps/audit-log-service/src/generated/prisma</code>를 재생성했습니다.</td>
+              <td><code>pnpm --filter audit-log-service typecheck</code>, <code>build</code> 통과</td>
+            </tr>
+            <tr>
+              <td>로컬 audit_log DB schema 재동기화</td>
+              <td><code>DATABASE_URL=postgresql://postgres:postgres@localhost:55432/audit_log prisma db push --accept-data-loss</code>로 개발 DB를 최신 schema에 맞췄습니다.</td>
+              <td><code>audit_logs.event_id</code>, unique index, tenant/event index 확인</td>
+            </tr>
+            <tr>
+              <td>SQS 연동 검증</td>
+              <td><code>OUTBOX_SQS_ENDPOINT</code> 설정과 standard queue 옵션 처리를 보완했습니다.</td>
+              <td>LocalStack SQS 발행, audit-log-service 소비, <code>audit_logs.event_id</code> 저장 확인</td>
+            </tr>
+            <tr>
+              <td>검증 절차 스크립트화</td>
+              <td><code>scripts/test/verify-local-outbox-sqs.mjs</code>와 <code>pnpm test:outbox:sqs:local</code> 명령을 추가했습니다.</td>
+              <td>스크립트 실행 결과 eventId <code>b8e0d2f7-dfb8-4555-8761-2379d476d870</code>가 outbox <code>published</code>, audit log <code>success</code>로 확인되었습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>남은 개선점</h2>
+        <table>
+          <thead>
+            <tr><th>우선순위</th><th>항목</th><th>내용</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>P2</code></td>
+              <td>기존 실패 이벤트 정리 정책</td>
+              <td>개발 DB에 남은 failed outbox row를 보존할지, replay/migration 대상에서 제외할지 운영 기준을 정해야 합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>다음 검증 순서</h2>
+        <ol>
+          <li>SQS 중복 메시지 재전송 시 <code>event_id</code> 기준 idempotency가 유지되는지 반복 검증합니다.</li>
+          <li>dev AWS에서 SQS/DLQ/IAM/CloudWatch 증적을 확보합니다.</li>
+          <li>WMS outbox source가 추가되면 같은 경로로 <code>wms.inventory.adjusted</code> 이벤트 저장을 검증합니다.</li>
+        </ol>
+      </section>
+
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

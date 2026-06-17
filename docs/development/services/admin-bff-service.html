@@ -41,8 +41,8 @@
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag done">1차 구현</span></td></tr>
-          <tr><th>완료 범위</th><td>NestJS 기본 구조, Auth/IAM 권한 check, tenant 관리 API, 사용자/role/permission 화면 조합 API, audit log 조회 route/client 사전 준비, CDK 배포 리소스, 수동 배포 workflow</td></tr>
-          <tr><th>남은 범위</th><td>audit-log-service 저장소 구현 후 조회 API 통합 검증, <code>/api/admin/me</code> 구현</td></tr>
+          <tr><th>완료 범위</th><td>NestJS 기본 구조, Auth/IAM 권한 check, tenant 관리 API, 사용자/role/permission 화면 조합 API, audit log 조회 연동, CDK 배포 리소스, 수동 배포 workflow</td></tr>
+          <tr><th>남은 범위</th><td><code>/api/admin/me</code> 구현, audit-log-service 장애 처리 정책 보강과 운영 검증 증거 축적</td></tr>
           <tr><th>API 문서</th><td><code>docs/apis/admin-bff-service/index.html</code></td></tr>
         </table>
       </section>
@@ -75,14 +75,15 @@
               <p><label><input type="checkbox" checked disabled /> tenant module 교체와 domain 관리 API 연결</label></p>
               <p><label><input type="checkbox" checked disabled /> 사용자/role/permission 화면 조합 API 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> 감사 로그 조회 API route/client 사전 준비</label></p>
+              <p><label><input type="checkbox" checked disabled /> audit-log-service 내부 조회 API 연동</label></p>
               <p><label><input type="checkbox" checked disabled /> <code>docs/apis/admin-bff-service/index.html</code>에 API 계약 작성</label></p>
             </div>
           </div>
           <div class="card">
             <h3>남은 작업</h3>
             <div class="task-list">
-              <p><label><input type="checkbox" disabled /> audit-log-service 저장소 구현 후 조회 API 통합 검증</label></p>
               <p><label><input type="checkbox" disabled /> <code>/api/admin/me</code> 구현</label></p>
+              <p><label><input type="checkbox" disabled /> audit-log-service 장애 처리 정책 보강과 운영 검증 증거 축적</label></p>
             </div>
           </div>
         </div>
@@ -99,7 +100,7 @@
             <tr><th>Internal auth</th><td>auth-iam-service와 tenant-service 호출에 사용할 HMAC signer를 추가했습니다.</td></tr>
             <tr><th>Permission check</th><td><code>@AdminPermission(...)</code> decorator와 전역 guard를 추가했습니다. decorator가 붙은 route는 auth-iam-service의 <code>POST /api/auth/permissions/check</code>를 internal auth로 호출해 관리자 권한을 확인합니다.</td></tr>
             <tr><th>Tenant client</th><td><code>TenantInternalClient</code>를 추가했습니다. tenant 목록/생성/상세/수정/상태/module/domain 내부 API를 호출하고, 변경성 요청에는 <code>Idempotency-Key</code>를 전파합니다.</td></tr>
-            <tr><th>Audit client</th><td><code>AuditLogInternalClient</code>와 <code>GET /api/admin/audit-logs</code> controller를 준비했습니다. 실제 audit 저장소가 준비되고 <code>AUDIT_LOG_SERVICE_URL</code>이 설정되면 <code>GET /api/internal/audit/logs</code>로 위임합니다.</td></tr>
+            <tr><th>Audit client</th><td><code>AuditLogInternalClient</code>와 <code>GET /api/admin/audit-logs</code> controller를 구현했습니다. 로컬 compose 기준 <code>AUDIT_LOG_SERVICE_URL=http://audit-log-service:3000</code>와 <code>AUDIT_INTERNAL_AUTH_SECRET</code>로 <code>GET /api/internal/audit/logs</code>에 query, request context, internal auth header를 전파합니다.</td></tr>
             <tr><th>Infra</th><td><code>apps/admin-bff-service/Dockerfile</code>을 추가했습니다. ECS 컨테이너 기본 포트는 <code>3000</code>이고 gateway는 Cloud Map 내부 URL과 <code>/api/admin</code> base path를 포함한 <code>ADMIN_BFF_SERVICE_URL</code>로 <code>/api/admin/**</code>를 전달합니다.</td></tr>
             <tr><th>Deploy</th><td>CDK에 ECR repository, CloudWatch log group, security group, ECS Fargate task/service, Cloud Map service를 추가했습니다. 기본 <code>adminBffDesiredCount</code>는 <code>0</code>이며, 이미지 push 후 <code>deploy-admin-bff-service.yml</code> 수동 workflow로 desired count를 올립니다.</td></tr>
           </tbody>
@@ -111,7 +112,8 @@
           <tr><th>ADMIN-BFF-001</th><td>관리자 권한이 있는 사용자는 tenant 목록/상세/생성/수정/상태/module/domain API를 호출할 수 있다.</td></tr>
           <tr><th>ADMIN-BFF-002</th><td>권한이 없는 사용자는 각 API의 <code>@AdminPermission</code> 기준에 따라 <code>403 FORBIDDEN</code>으로 차단된다.</td></tr>
           <tr><th>ADMIN-BFF-003</th><td>변경성 요청은 <code>Idempotency-Key</code>가 없으면 차단되고, downstream 내부 호출에도 header가 전파된다.</td></tr>
-          <tr><th>ADMIN-BFF-004</th><td>audit-log-service URL이 없는 환경에서 audit log 조회는 <code>AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>로 실패한다.</td></tr>
+          <tr><th>ADMIN-BFF-004</th><td>audit-log-service URL이 설정된 환경에서 audit log 조회는 <code>GET /api/internal/audit/logs</code>로 위임되고 표준 list envelope를 반환한다.</td></tr>
+          <tr><th>ADMIN-BFF-005</th><td>audit-log-service URL이 없는 선택 환경에서 audit log 조회는 <code>AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>로 실패한다.</td></tr>
         </table>
       </section>
       <section>
@@ -130,18 +132,18 @@
             </thead>
             <tbody>
               <tr>
-                <td><code>P0</code></td>
-                <td>audit-log-service 통합 검증</td>
-                <td>audit-log-service 저장소와 내부 조회 계약이 준비되면 <code>GET /api/admin/audit-logs</code>를 실제 downstream으로 연결합니다.</td>
-                <td>관리자 audit log 조회가 권한 check, request context, internal auth header를 유지한 채 성공하고 실패 응답이 표준 envelope로 반환됩니다.</td>
-                <td>admin-bff-service API 문서, audit-log-service 개발 문서, logging/audit 규칙</td>
-              </tr>
-              <tr>
                 <td><code>P1</code></td>
                 <td>Admin Me API 구현</td>
                 <td><code>/api/admin/me</code>에서 관리자 프로필, tenant scope, permission summary, 메뉴 표시용 권한 정보를 조합합니다.</td>
                 <td>web-admin 초기화 화면이 별도 중복 호출 없이 현재 사용자와 권한 요약을 받아 렌더링할 수 있습니다.</td>
                 <td>admin-bff-service API 문서, web-admin 개발 문서, Auth/IAM 개발 문서</td>
+              </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>Audit 장애 처리 정책 보강</td>
+                <td>audit-log-service timeout, unavailable, 저장/조회 장애 시 Admin BFF와 upstream 서비스의 retry/fail-open/fail-closed 기준을 확정합니다.</td>
+                <td>운영 정책과 시나리오가 확정되고 실패 응답, retry, alert 기준이 문서와 구현에 반영됩니다.</td>
+                <td>admin-bff-service API 문서, audit-log-service 개발 문서, logging/audit 규칙</td>
               </tr>
             </tbody>
           </table>
@@ -221,7 +223,7 @@
           <h3>2026-06-12 TODO 상태 점검</h3>
           <ul>
             <li>tenant 목록/생성/상태 변경, 사용자/role/permission 화면 조합, 감사 로그 조회 route/client 사전 준비는 완료 상태로 확인했습니다.</li>
-            <li>이후 tenant 상세/수정, module 교체, domain 관리 API까지 연결되어 Admin BFF tenant 관리 TODO는 audit-log-service 통합 검증과 <code>/api/admin/me</code>를 제외하고 완료되었습니다.</li>
+            <li>이후 tenant 상세/수정, module 교체, domain 관리 API까지 연결되어 Admin BFF tenant 관리 TODO는 <code>/api/admin/me</code>를 제외하고 완료되었습니다.</li>
           </ul>
         </article>
         <article>
@@ -231,6 +233,27 @@
             <li><code>AuditLogInternalClient</code>를 추가해 <code>AUDIT_LOG_SERVICE_URL</code>이 설정되면 <code>GET /api/internal/audit/logs</code>로 query, request context, internal auth header를 전파하도록 준비했습니다.</li>
             <li>audit 저장소가 아직 준비되지 않은 환경에서는 <code>503 AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>로 응답하도록 해, API surface는 열어두되 미구현 저장소 호출은 방지합니다.</li>
             <li><code>AUDIT_INTERNAL_AUTH_SECRET</code> 설정을 추가했습니다. audit-log-service URL이 설정된 환경에서는 readiness가 audit 내부 인증 secret도 확인합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 Audit log 조회 API 연동</h3>
+          <ul>
+            <li><code>AuditLogInternalClient</code> 응답 타입을 audit-log-service의 실제 <code>AuditLogResponse</code> 계약에 맞춰 보강했습니다.</li>
+            <li>로컬 compose에서 <code>admin-bff-service</code>가 <code>audit-log-service</code> health 이후 기동되도록 의존성을 추가했습니다.</li>
+            <li><code>GET /api/admin/audit-logs</code>는 권한 check 후 <code>GET /api/internal/audit/logs</code>로 query, request context, internal auth header를 전파합니다.</li>
+            <li>선택 환경에서 <code>AUDIT_LOG_SERVICE_URL</code>이 없으면 기존처럼 <code>AUDIT_LOG_SERVICE_NOT_CONFIGURED</code> 표준 오류로 응답합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 Audit log 조회 API 로컬 compose 검증</h3>
+          <ul>
+            <li><code>pnpm --filter admin-bff-service typecheck</code>와 <code>pnpm --filter admin-bff-service build</code>가 통과했습니다.</li>
+            <li>기존 실행 중이던 <code>multi-tenant-admin-bff-service</code> 컨테이너는 audit URL/secret이 빈 값으로 생성돼 있어, <code>docker compose -f docker/local/docker-compose.yml up -d --build admin-bff-service</code>로 현재 env와 이미지를 반영했습니다.</li>
+            <li>재생성 후 컨테이너 환경에서 <code>AUDIT_LOG_SERVICE_URL=http://audit-log-service:3000</code>, <code>AUDIT_INTERNAL_AUTH_SECRET=replace-with-local-audit-internal-secret-32chars</code>가 주입된 것을 확인했습니다.</li>
+            <li><code>GET /ready</code>는 <code>requestId=req-admin-ready-compose-audit-1781481700000</code> 기준 <code>200 ready</code>와 <code>checks.downstream=ok</code>, <code>checks.internalAuth=ok</code>를 반환했습니다.</li>
+            <li><code>GET /api/admin/audit-logs?page=1&amp;size=3&amp;action=auth.role.permissionsReplaced</code>는 관리자 사용자 <code>22222222-2222-4222-8222-222222222222</code>, <code>requestId=req-admin-audit-list-compose-1781481700000</code> 기준 <code>200</code>으로 성공했습니다.</li>
+            <li>성공 응답은 <code>data.items[0].action=auth.role.permissionsReplaced</code>, <code>data.items[0].resource.id=7661d4a0-cde3-423c-a1bc-0db5933728f7</code>, <code>data.page=1</code>, <code>data.size=3</code>, <code>data.total=1</code>을 포함했습니다.</li>
+            <li>권한이 없는 사용자 <code>06b814db-7586-47ef-a486-0c89373c227a</code>의 <code>requestId=req-admin-audit-list-compose-denied-1781481700000</code> 요청은 <code>403 FORBIDDEN</code>과 <code>details.permission=audit.logs.read</code>로 차단됐습니다.</li>
           </ul>
         </article>
         <article>

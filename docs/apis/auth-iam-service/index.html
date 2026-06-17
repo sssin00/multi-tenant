@@ -29,7 +29,7 @@
             <tr><th>Envelope</th><td>모든 응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>를 포함합니다. list 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용합니다.</td></tr>
             <tr><th>JWT</th><td>access token은 JWT이며 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</td></tr>
             <tr><th>Refresh token</th><td>opaque token을 사용하고 서버에는 hash만 저장합니다. refresh 사용 시 새 token을 발급하고 이전 token은 폐기합니다.</td></tr>
-            <tr><th>Audit</th><td><code>auth-iam-service</code>는 <code>audit_logs</code> 테이블을 소유하지 않습니다. 사용자/역할/권한 변경 API는 <code>AUDIT_LOG_SERVICE_URL</code>의 별도 audit-log-service로 audit record 저장을 요청합니다.</td></tr>
+            <tr><th>Audit</th><td><code>auth-iam-service</code>는 <code>audit_logs</code> 테이블을 소유하지 않습니다. 사용자/역할/권한 변경 API는 같은 DB transaction 안에서 <code>outbox_events</code>를 저장하고, outbox relay가 발행한 이벤트를 <code>audit-log-service</code>가 소비해 append-only 감사 로그로 기록합니다.</td></tr>
             <tr><th>Outbox</th><td>사용자/permission/role 변경 API는 업무 변경과 같은 DB transaction에서 <code>outbox_events</code>에 <code>pending</code> event를 저장합니다.</td></tr>
           </tbody>
         </table>
@@ -341,8 +341,8 @@
             <tr><th>Status</th><td><code>PATCH /api/auth/users/{userId}/status</code>는 <code>active</code>, <code>inactive</code>, <code>locked</code>를 지원합니다. <code>inactive</code> 또는 <code>locked</code> 전환 시 active refresh token을 revoke합니다.</td></tr>
             <tr><th>Delete</th><td><code>DELETE /api/auth/users/{userId}</code>는 hard delete가 아니라 <code>inactive</code> 상태 전환으로 처리합니다.</td></tr>
             <tr><th>Secret</th><td>사용자 응답에는 <code>passwordHash</code>를 포함하지 않습니다.</td></tr>
-            <tr><th>Audit</th><td>생성, 수정, 상태 변경은 <code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code> action으로 audit-log-service에 기록 요청을 보냅니다.</td></tr>
-            <tr><th>Outbox</th><td>생성, 수정, 상태 변경은 같은 이름의 <code>auth.user.*</code> outbox event를 <code>pending</code> 상태로 저장합니다.</td></tr>
+            <tr><th>Audit</th><td>생성, 수정, 상태 변경은 <code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code> 이벤트로 감사 로그 저장 대상이 됩니다.</td></tr>
+            <tr><th>Outbox</th><td>생성, 수정, 상태 변경은 같은 이름의 <code>auth.user.*</code> outbox event를 <code>pending</code> 상태로 저장합니다. 이벤트에는 <code>aggregateType=auth_user</code>, 사용자 <code>aggregateId</code>, actor, 변경 요약만 포함합니다.</td></tr>
             <tr><th>Errors</th><td><code>400 TENANT_REQUIRED</code>, <code>400 VALIDATION_FAILED</code>, <code>404 AUTH_USER_NOT_FOUND</code>, <code>409 AUTH_USER_EMAIL_CONFLICT</code></td></tr>
           </tbody>
         </table>
@@ -487,9 +487,9 @@
         <table>
           <tbody>
             <tr><th>Audit 대상</th><td>사용자 생성/수정/상태 변경, permission 생성, role 생성/수정, role-permission 교체, user-role 부여/해제</td></tr>
-            <tr><th>Audit 저장 위치</th><td><code>auth-iam-service</code> DB가 아니라 <code>AUDIT_LOG_SERVICE_URL</code>의 별도 audit-log-service입니다.</td></tr>
+            <tr><th>Audit 저장 위치</th><td><code>auth-iam-service</code> DB가 아니라 <code>audit-log-service</code>입니다. 저장 전달은 REST 호출이 아니라 <code>outbox_events</code> 발행 이벤트 기반입니다.</td></tr>
             <tr><th>Outbox 대상</th><td><code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code>, <code>auth.permission.created</code>, <code>auth.role.created</code>, <code>auth.role.updated</code>, <code>auth.role.permissionsReplaced</code>, <code>auth.userRole.assigned</code>, <code>auth.userRole.removed</code></td></tr>
-            <tr><th>Outbox 상태</th><td>업무 변경 transaction 안에서 <code>pending</code>, <code>retryCount=0</code>으로 저장합니다.</td></tr>
+            <tr><th>Outbox 상태</th><td>업무 변경 transaction 안에서 <code>pending</code>, <code>retryCount=0</code>으로 저장합니다. 이벤트 payload에는 <code>aggregateType</code>과 <code>aggregateId</code>를 포함해 audit-log-service가 resource를 구성할 수 있게 합니다.</td></tr>
           </tbody>
         </table>
       </section>
@@ -507,7 +507,7 @@
               <tr><td><code>403</code></td><td><code>TENANT_MISMATCH</code>, <code>AUTH_ACCOUNT_LOCKED</code>, <code>AUTH_ADMIN_SCOPE_MISMATCH</code>, <code>AUTH_INTERNAL_SERVICE_FORBIDDEN</code></td></tr>
               <tr><td><code>404</code></td><td><code>AUTH_USER_NOT_FOUND</code>, <code>AUTH_ROLE_NOT_FOUND</code>, <code>AUTH_PERMISSION_NOT_FOUND</code>, <code>AUTH_USER_ROLE_NOT_FOUND</code></td></tr>
               <tr><td><code>409</code></td><td><code>AUTH_USER_EMAIL_CONFLICT</code>, <code>AUTH_PERMISSION_CODE_CONFLICT</code>, <code>AUTH_ROLE_CODE_CONFLICT</code>, <code>AUTH_USER_ROLE_CONFLICT</code></td></tr>
-              <tr><td><code>503</code></td><td><code>AUTH_INTERNAL_AUTH_NOT_READY</code>, <code>AUDIT_CONTEXT_INCOMPLETE</code>, <code>AUDIT_LOG_SERVICE_UNAVAILABLE</code></td></tr>
+              <tr><td><code>503</code></td><td><code>AUTH_INTERNAL_AUTH_NOT_READY</code></td></tr>
             </tbody>
           </table>
         </div>
@@ -544,8 +544,8 @@
           <div class="card"><strong>JWT 운영 알고리즘</strong><p>로컬은 <code>HS256</code>로 충분하지만, 운영은 <code>RS256</code>와 key rotation 방식을 확정해야 합니다.</p></div>
           <div class="card"><strong>내부 호출 인증</strong><p>Permission summary/check는 HMAC 기반 service-to-service 인증을 적용했습니다. Secret은 <code>AUTH_INTERNAL_AUTH_SECRET</code>로 주입합니다.</p></div>
           <div class="card"><strong>Bootstrap 경계</strong><p>tenant 최초 관리자 생성 API와 system admin 권한 경계를 명확히 분리해야 합니다.</p></div>
-          <div class="card"><strong>Audit 서비스 계약</strong><p>현재 내부 저장 경로는 <code>/api/internal/audit/logs</code>로 두었습니다. 실제 audit-log-service 구현 시 인증 header, retry, 장애 시 처리 방식을 확정해야 합니다.</p></div>
-          <div class="card"><strong>Outbox Relay</strong><p><code>outbox_events</code> 발행, retry, DLQ, <code>published</code>/<code>failed</code> 상태 전환은 outbox-relay-service 후속 작업에서 확정합니다.</p></div>
+          <div class="card"><strong>Audit 이벤트 계약</strong><p>감사 저장은 <code>outbox_events</code> 기반입니다. <code>eventId</code>, <code>eventType</code>, <code>tenantId</code>, <code>requestId</code>, <code>aggregateType</code>, <code>aggregateId</code>, <code>actor</code>, <code>data</code>를 발행하고 audit-log-service가 소비합니다.</p></div>
+          <div class="card"><strong>Outbox Relay</strong><p><code>outbox_events</code> 발행, retry, DLQ, <code>published</code>/<code>failed</code> 상태 전환은 outbox-relay-service에서 담당합니다.</p></div>
           <div class="card"><strong>후속 작업</strong><p>상세 백로그는 <a href="../../development/services/auth-iam-service.html">auth-iam-service 개발 문서</a>의 후속 작업 백로그를 기준으로 관리합니다.</p></div>
         </div>
       </section>

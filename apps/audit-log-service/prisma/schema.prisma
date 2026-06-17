@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AuditActorType {
+  user
+  system
+  service
+}
+
+enum AuditResult {
+  success
+  failure
+}
+
+model AuditLog {
+  auditId      String         @id @default(uuid()) @map("audit_id") @db.Uuid
+  eventId      String?        @unique @map("event_id") @db.Uuid
+  tenantId     String         @map("tenant_id") @db.Uuid
+  requestId    String         @map("request_id")
+  occurredAt   DateTime       @map("occurred_at") @db.Timestamptz(6)
+  actorType    AuditActorType @map("actor_type")
+  actorId      String?        @map("actor_id")
+  action       String
+  resourceType String         @map("resource_type")
+  resourceId   String?        @map("resource_id")
+  result       AuditResult
+  reason       String?
+  details      Json?
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId, occurredAt(sort: Desc), createdAt(sort: Desc)])
+  @@index([tenantId, action, occurredAt(sort: Desc)])
+  @@index([tenantId, actorType, actorId, occurredAt(sort: Desc)])
+  @@index([tenantId, resourceType, resourceId, occurredAt(sort: Desc)])
+  @@index([tenantId, result, occurredAt(sort: Desc)])
+  @@index([requestId])
+  @@index([tenantId, eventId])
+  @@map("audit_logs")
+}

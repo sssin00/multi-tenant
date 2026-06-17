@@ -142,13 +142,9 @@ AUTH_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS=300
 
 Audit log:
 
-`auth-iam-service`는 `audit_logs` 테이블을 직접 소유하지 않습니다. 사용자, role, permission, user-role 변경이 성공하면 `AUDIT_LOG_SERVICE_URL`로 설정된 별도 audit-log-service의 내부 API에 audit record 저장을 요청합니다.
+`auth-iam-service`는 `audit_logs` 테이블을 직접 소유하지 않고 audit-log-service 저장 API도 직접 호출하지 않습니다. 사용자, role, permission, user-role 변경은 업무 변경과 같은 DB transaction 안에서 `outbox_events`에 append하고, outbox relay가 EventBridge/SQS로 발행한 이벤트를 audit-log-service가 소비해 저장합니다.
 
-```bash
-AUDIT_LOG_SERVICE_URL=
-```
-
-현재 호출 경로는 `POST /api/internal/audit/logs`이며 `X-Request-Id`, `X-Tenant-Id`, actor, action, resource, result, details를 전달합니다. 로컬 개발에서는 audit-log-service를 별도로 만들기 전까지 `AUDIT_LOG_SERVICE_URL`을 비워두고 audit 전송을 건너뜁니다.
+감사 저장 이벤트는 `eventId`, `eventType`, `schemaVersion`, `tenantId`, `requestId`, `occurredAt`, `source=auth-iam-service`, `aggregateType`, `aggregateId`, `actor`, `data`를 포함합니다. `eventId`는 audit-log-service의 `audit_logs.event_id` unique key로 저장되어 이벤트 재전달 시 중복 저장을 막습니다.
 
 Outbox event:
 

@@ -1,4 +1,34 @@
 services:
+  audit-log-service:
+    image: multi-tenant/audit-log-service:${COMPOSE_ENV:-local}
+    container_name: multi-tenant-${COMPOSE_ENV:-local}-audit-log-service
+    restart: unless-stopped
+    env_file:
+      - ../env/audit-log-service/.env.${COMPOSE_ENV:-local}
+    ports:
+      - "3006:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${AUDIT_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  outbox-relay-service:
+    image: multi-tenant/outbox-relay-service:${COMPOSE_ENV:-local}
+    container_name: multi-tenant-${COMPOSE_ENV:-local}-outbox-relay-service
+    restart: unless-stopped
+    env_file:
+      - ../env/outbox-relay-service/.env.${COMPOSE_ENV:-local}
+    ports:
+      - "3007:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${OUTBOX_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
   auth-iam-service:
     image: multi-tenant/auth-iam-service:${COMPOSE_ENV:-local}
     container_name: multi-tenant-${COMPOSE_ENV:-local}-auth-iam-service
@@ -41,6 +71,8 @@ services:
       auth-iam-service:
         condition: service_healthy
       tenant-service:
+        condition: service_healthy
+      audit-log-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${ADMIN_BFF_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]

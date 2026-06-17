@@ -10,7 +10,6 @@ export interface AppConfig {
   auth: AuthConfig;
   internalAuth: InternalAuthConfig;
   redis: RedisConfig;
-  audit: AuditConfig;
 }
 
 export type AppEnvironment = "local" | "dev" | "staging" | "prod";
@@ -51,10 +50,6 @@ export interface SecurityHeadersConfig {
 
 export interface RedisConfig {
   url?: string;
-}
-
-export interface AuditConfig {
-  serviceUrl?: string;
 }
 
 const DEFAULT_AUTH_PORT = 3000;
@@ -118,9 +113,6 @@ export function getAppConfig(): AppConfig {
     },
     redis: {
       url: readOptionalString("REDIS_URL")
-    },
-    audit: {
-      serviceUrl: readOptionalString("AUDIT_LOG_SERVICE_URL")
     }
   };
 }

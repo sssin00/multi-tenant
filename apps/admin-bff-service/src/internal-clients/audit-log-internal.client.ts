@@ -28,11 +28,13 @@ export interface AuditLogListItem {
   action: string;
   resource: {
     type: string;
-    id: string;
+    id: string | null;
   };
   result: string;
   requestId: string;
-  details?: Record<string, unknown>;
+  reason?: string | null;
+  details?: unknown;
+  createdAt?: string;
 }
 
 interface ApiEnvelope<T> {

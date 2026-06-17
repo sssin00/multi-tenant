@@ -398,7 +398,7 @@
         <p class="lead">
           모든 인프라는 AWS 서비스를 사용하고, 실행 환경은 ECS Fargate를 기준으로 합니다.
           이 문서는 장기 기술스택과 현재 CDK 구현 상태를 함께 정리합니다.
-          2026-06-12 현재 CDK는 gateway-service, auth-iam-service, tenant-service, admin-bff-service를 같은 ECS 스택에서 배포하는 구조입니다.
+          2026-06-17 현재 CDK는 gateway-service, auth-iam-service, tenant-service, admin-bff-service, audit-log-service, outbox-relay-service를 같은 ECS 스택에서 배포하는 구조입니다.
         </p>
       </header>
 
@@ -442,7 +442,7 @@
             </tr>
             <tr>
               <th>배포 서비스</th>
-              <td><code>gateway-service</code>, <code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>입니다. 각 서비스는 ECR repository, ECS Fargate task/service, CloudWatch log group을 가집니다.</td>
+              <td><code>gateway-service</code>, <code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code>입니다. 각 서비스는 ECR repository, ECS Fargate task/service, CloudWatch log group을 가집니다.</td>
             </tr>
             <tr>
               <th>외부 진입점</th>
@@ -450,7 +450,7 @@
             </tr>
             <tr>
               <th>내부 연결</th>
-              <td><code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>는 ALB에 직접 노출하지 않습니다. gateway-service는 Auth/IAM, Admin BFF, User BFF만 upstream으로 호출합니다. tenant-service와 이후 추가되는 domain/platform service는 gateway-service가 직접 호출하지 않고, BFF를 통해서만 외부 요청을 처리합니다. tenant status check와 tenant 관리 API는 <code>/api/admin/**</code> → Admin BFF → tenant-service 내부 API 경로를 사용합니다. Auth/IAM URL은 auth base path를 포함한 <code>auth-iam-service.{env}.multi-tenant.local:3000/api/auth</code>를 사용합니다.</td>
+              <td><code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code>는 ALB에 직접 노출하지 않습니다. gateway-service는 Auth/IAM, Admin BFF, User BFF만 upstream으로 호출합니다. tenant-service, audit-log-service, outbox-relay-service 같은 domain/platform/worker service는 gateway-service가 직접 호출하지 않고, BFF 또는 내부 서비스 호출 경로로만 사용합니다. tenant status check와 tenant 관리 API는 <code>/api/admin/**</code> → Admin BFF → tenant-service 내부 API 경로를 사용합니다. 감사 로그 조회는 <code>/api/admin/**</code> → Admin BFF → audit-log-service 내부 API 경로를 사용합니다. Outbox Relay 운영 API는 내부 운영 경로로만 접근하며, CDK 보안 그룹은 admin-bff-service에서 outbox-relay-service 3007 포트 접근만 허용합니다.</td>
             </tr>
             <tr>
               <th>Redis</th>
@@ -458,15 +458,15 @@
             </tr>
             <tr>
               <th>PostgreSQL</th>
-              <td>RDS/Aurora 리소스는 아직 CDK에 없습니다. Auth/IAM은 <code>authDatabaseUrlSecretArn</code>, tenant-service는 <code>tenantDatabaseUrlSecretArn</code>으로 기존 Secrets Manager secret을 ECS task secret <code>DATABASE_URL</code>에 주입합니다.</td>
+              <td>RDS/Aurora 리소스는 아직 CDK에 없습니다. Auth/IAM은 <code>authDatabaseUrlSecretArn</code>, tenant-service는 <code>tenantDatabaseUrlSecretArn</code>, audit-log-service는 <code>auditDatabaseUrlSecretArn</code>으로 기존 Secrets Manager secret을 ECS task secret <code>DATABASE_URL</code>에 주입합니다. outbox-relay-service는 source별 전용 secret ARN인 <code>authIamOutboxDatabaseUrlSecretArn</code>, <code>tenantOutboxDatabaseUrlSecretArn</code>, <code>wmsOutboxDatabaseUrlSecretArn</code>을 각각 <code>AUTH_IAM_OUTBOX_DATABASE_URL</code>, <code>TENANT_OUTBOX_DATABASE_URL</code>, <code>WMS_OUTBOX_DATABASE_URL</code>로 주입합니다.</td>
             </tr>
             <tr>
-              <th>아직 CDK 미포함</th>
-              <td>Route53 record, RDS/Aurora, EventBridge, SQS, S3, CloudFront, OpenSearch, audit-log-service, outbox-relay-service, user-bff-service, WMS 서비스는 현재 스택 밖입니다.</td>
+              <th>현재 스택 밖</th>
+              <td>Route53 record, RDS/Aurora, EventBridge bus, S3, CloudFront, OpenSearch, user-bff-service, WMS 서비스는 현재 CDK 스택 밖입니다. 감사 이벤트용 SQS queue/DLQ, outbox-relay-service ECS task/service, EventBridge/SQS IAM 권한은 CDK에 포함됩니다. 외부 SQS queue를 써야 하는 경우에는 context로 queue URL을 override합니다.</td>
             </tr>
             <tr>
               <th>기준 문서</th>
-              <td>상세 리소스와 context는 <a href="../infra/2026-06-12/index.html">2026-06-12 CDK 인프라 코드 분석</a>을 기준으로 합니다.</td>
+              <td>상세 리소스와 context는 <a href="../infra/2026-06-17/index.html">2026-06-17 CDK 인프라 코드 분석</a>을 기준으로 합니다.</td>
             </tr>
           </tbody>
         </table>
@@ -494,7 +494,7 @@
             </tr>
             <tr>
               <th>Database</th>
-              <td>Amazon RDS PostgreSQL 또는 Aurora PostgreSQL. 현재 CDK는 DB를 생성하지 않으며, Auth/IAM은 외부 Secrets Manager secret의 <code>DATABASE_URL</code>을 참조합니다.</td>
+              <td>Amazon RDS PostgreSQL 또는 Aurora PostgreSQL. 현재 CDK는 DB를 생성하지 않으며, Auth/IAM, tenant-service, audit-log-service는 외부 Secrets Manager secret의 <code>DATABASE_URL</code>을 참조합니다. 배포 DB schema 변경은 Prisma <code>migrate deploy</code>로만 적용합니다.</td>
             </tr>
             <tr>
               <th>ORM</th>
@@ -510,7 +510,7 @@
             </tr>
             <tr>
               <th>API</th>
-              <td>REST first. 내부 서비스 간 고성능 통신이 필요한 시점에 gRPC를 도입합니다.</td>
+              <td>조회/명령 API는 REST first입니다. 감사 로그 저장처럼 비동기 기록이 적합한 흐름은 outbox + EventBridge/SQS 이벤트로 처리하고, 내부 서비스 간 고성능 동기 통신이 필요한 시점에 gRPC를 도입합니다.</td>
             </tr>
             <tr>
               <th>Auth</th>
@@ -526,7 +526,7 @@
             </tr>
             <tr>
               <th>CI/CD</th>
-              <td>GitHub Actions + CDK + ECR. 현재 <code>deploy-gateway-service.yml</code>, <code>deploy-auth-iam-service.yml</code>, <code>deploy-tenant-service.yml</code>, <code>deploy-admin-bff-service.yml</code>이 각 서비스 이미지를 build/push하며, 자동 push 배포 없이 수동 실행만 허용합니다. 서비스별 workflow는 같은 CDK 스택을 갱신하므로 비대상 서비스 desired count와 image tag를 명시하지 않으면 실패합니다.</td>
+              <td>GitHub Actions + CDK + ECR. 현재 <code>deploy-gateway-service.yml</code>, <code>deploy-auth-iam-service.yml</code>, <code>deploy-tenant-service.yml</code>, <code>deploy-admin-bff-service.yml</code>, <code>deploy-audit-log-service.yml</code>, <code>deploy-outbox-relay-service.yml</code>이 각 서비스 이미지를 build/push하며, 자동 push 배포 없이 수동 실행만 허용합니다. 서비스별 workflow는 같은 CDK 스택을 갱신하므로 비대상 서비스 desired count와 image tag를 명시하지 않으면 실패합니다.</td>
             </tr>
           </tbody>
         </table>
@@ -556,7 +556,7 @@
           </article>
           <article class="service-card">
             <h3>데이터</h3>
-            <p>업무 데이터는 PostgreSQL을 기준으로 합니다. 현재 CDK는 Redis만 생성하고, Auth/IAM과 tenant-service PostgreSQL은 외부 secret으로 연결합니다.</p>
+            <p>업무 데이터는 PostgreSQL을 기준으로 합니다. 현재 CDK는 Redis만 생성하고, Auth/IAM, tenant-service, audit-log-service PostgreSQL은 외부 secret으로 연결합니다. 운영 migration은 <code>db push</code>가 아니라 Prisma <code>migrate deploy</code>를 사용합니다.</p>
             <div class="pill-row">
               <span class="pill">RDS/Aurora later</span>
               <span class="pill">ElastiCache Redis</span>
@@ -565,7 +565,7 @@
           </article>
           <article class="service-card">
             <h3>이벤트/비동기</h3>
-            <p>초기 WMS MVP 방향은 EventBridge와 SQS이지만, 현재 CDK에는 아직 포함하지 않았습니다. outbox-relay-service 배포 시점에 추가합니다.</p>
+            <p>outbox-relay-service는 EventBridge 또는 SQS publisher를 선택해 발행합니다. 현재 CDK는 감사 이벤트용 SQS queue/DLQ, relay ECS task/service, 발행 IAM 권한을 관리합니다. EventBridge bus는 아직 외부 리소스를 context로 연결합니다.</p>
             <div class="pill-row">
               <span class="pill">EventBridge</span>
               <span class="pill">SQS</span>
@@ -615,8 +615,8 @@
               <span class="pill">user-bff later</span>
               <span class="pill">tenant-service</span>
               <span class="pill">wms-service later</span>
-              <span class="pill">audit-log-service later</span>
-              <span class="pill">outbox-relay later</span>
+              <span class="pill">audit-log-service</span>
+              <span class="pill">outbox-relay-service</span>
             </div>
           </div>
           <div class="layer">
@@ -626,7 +626,7 @@
               <span class="pill">External DB secret</span>
               <span class="pill">RDS/Aurora later</span>
               <span class="pill">S3 later</span>
-              <span class="pill">EventBridge/SQS later</span>
+              <span class="pill">Audit SQS queue</span>
             </div>
           </div>
           <div class="layer">
@@ -659,15 +659,15 @@
               <li>auth-iam-service</li>
               <li>tenant-service</li>
               <li>admin-bff-service</li>
+              <li>audit-log-service</li>
+              <li>outbox-relay-service</li>
             </ul>
           </div>
           <div class="panel">
             <h3>WMS 도메인 완성 전후 추가 서비스</h3>
             <ul>
-              <li>audit-log-service</li>
               <li>user-bff-service</li>
               <li>wms-service</li>
-              <li>outbox-relay-service</li>
             </ul>
           </div>
         </div>
@@ -699,7 +699,7 @@
           <strong>설계 원칙</strong>
           <p>
             애플리케이션 코드에는 <code>EventPublisher</code> 인터페이스를 두고,
-            초기 구현체는 EventBridge로 만듭니다. 나중에 MSK Kafka 구현체를 추가해도 도메인 코드는 크게 흔들리지 않습니다.
+            감사 이벤트처럼 단일 worker가 안정적으로 처리해야 하는 흐름은 SQS publisher를, 여러 consumer fan-out이 필요한 흐름은 EventBridge publisher를 사용합니다. 나중에 MSK Kafka 구현체를 추가해도 도메인 코드는 크게 흔들리지 않습니다.
           </p>
         </div>
       </section>
@@ -752,7 +752,7 @@
           </div>
           <div class="decision-card">
             <strong>gRPC 전면 도입</strong>
-            <span>REST first로 시작하고, 내부 병목이 확인된 서비스부터 도입합니다.</span>
+            <span>조회/명령 API는 REST first로 시작하고, 감사 저장과 도메인 후처리는 이벤트 기반으로 분리합니다. 내부 병목이 확인된 서비스부터 gRPC를 도입합니다.</span>
           </div>
           <div class="decision-card">
             <strong>Service Mesh</strong>
@@ -773,7 +773,7 @@
         </div>
       </section>
 
-      <p class="footer">작성일: 2026-05-29 · 현행화: 2026-06-12 · 프로젝트: multi-tenant smart factory · 기준: AWS ECS Fargate</p>
+      <p class="footer">작성일: 2026-05-29 · 현행화: 2026-06-17 · 프로젝트: multi-tenant smart factory · 기준: AWS ECS Fargate</p>
     </main>
   </body>
 </html>

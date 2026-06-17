@@ -21,7 +21,7 @@
             <tr><th>위치</th><td><code>apps/audit-log-service</code></td></tr>
             <tr><th>카테고리</th><td>Backend Service · Audit</td></tr>
             <tr><th>책임</th><td>감사 로그 저장, 검색/조회, 보존 정책, evidence 추적, requestId 기반 시스템 로그 연결</td></tr>
-            <tr><th>연동</th><td>auth-iam-service와 WMS 등 도메인 서비스가 내부 API로 audit record 저장을 요청하고, admin-bff-service가 운영자 조회 API로 위임합니다. gateway-service가 audit-log-service를 직접 호출하지 않습니다.</td></tr>
+            <tr><th>연동</th><td>auth-iam-service, tenant-service, WMS 등 도메인 서비스는 감사 대상 이벤트를 outbox에 저장하고, audit-log-service가 EventBridge/SQS 또는 raw event envelope를 소비해 audit record를 저장합니다. admin-bff-service는 운영자 조회 API를 위임하며, gateway-service는 audit-log-service를 직접 호출하지 않습니다.</td></tr>
             <tr><th>주의</th><td>감사 로그는 시스템 로그와 분리하고, 수정/삭제가 아닌 append-only 저장 원칙을 따릅니다.</td></tr>
           </tbody>
         </table>
@@ -45,10 +45,10 @@
         <h2>구현 상태</h2>
         <table>
           <tbody>
-            <tr><th>상태</th><td><span class="tag progress">NestJS 실행 구조 생성</span></td></tr>
-            <tr><th>완료 범위</th><td><code>apps/audit-log-service</code> 기본 폴더, workspace 인식용 <code>package.json</code>, <code>README.md</code>, NestJS bootstrap, app module, config, health/readiness, request context, access log, security headers, global exception filter, internal auth guard/decorator</td></tr>
-            <tr><th>남은 범위</th><td>Prisma schema, 내부 저장/조회 API, Admin BFF 조회 연동, Docker/Postman 연결</td></tr>
-            <tr><th>선행 조건</th><td>내부 서비스 인증 secret, audit DB 이름, Admin BFF 조회 query 계약, 민감정보 저장 금지 기준</td></tr>
+            <tr><th>상태</th><td><span class="tag done">1차 구현 · Outbox Relay SQS 소비 경로 연결</span></td></tr>
+            <tr><th>완료 범위</th><td><code>apps/audit-log-service</code> 기본 폴더, workspace 인식용 <code>package.json</code>, <code>README.md</code>, NestJS bootstrap, app module, config, health/readiness, request context, access log, security headers, global exception filter, internal auth guard/decorator, local <code>audit_log</code> DB 생성 흐름, <code>audit_logs</code> Prisma schema와 조회/eventId index, Prisma DB lifecycle, append-only repository/service, 이벤트 기반 audit 저장 consumer, <code>AUDIT_EVENT_QUEUE_URL</code> SQS polling worker, <code>GET /api/internal/audit/logs</code>, Dockerfile, Docker/local/deploy compose 연결, Postman 조회 요청, CDK/ECS 리소스 구성, audit event queue/DLQ 연결, audit-log-service 전용 수동 GitHub Actions 배포 workflow 확인</td></tr>
+            <tr><th>남은 범위</th><td>dev AWS에서 Outbox Relay → SQS → audit-log-service end-to-end 증적 확보, DLQ/replay 운영 기준, 감사 로그 보존 정책 확정</td></tr>
+            <tr><th>선행 조건</th><td>내부 서비스 인증 secret, audit DB 이름, Admin BFF 조회 query 계약, 이벤트 payload 최소화, 민감정보 저장 금지 기준</td></tr>
             <tr><th>API 문서</th><td><code>docs/apis/audit-log-service/index.html</code></td></tr>
           </tbody>
         </table>
@@ -59,7 +59,7 @@
         <div class="grid">
           <div class="card"><strong>Service Shell</strong><p>NestJS 앱 기본 구조, health/readiness, config, request context, access log, exception filter를 구성합니다.</p></div>
           <div class="card"><strong>Audit Store</strong><p>PostgreSQL + Prisma 기반 <code>audit_logs</code> 저장소를 만들고 append-only 원칙을 적용합니다.</p></div>
-          <div class="card"><strong>POST /api/internal/audit/logs</strong><p>내부 서비스가 업무 행위 완료 후 audit record를 저장하는 API입니다.</p></div>
+          <div class="card"><strong>Audit Event Consumer</strong><p>업무 행위 완료 이벤트를 소비해 append-only 감사 record를 저장합니다.</p></div>
           <div class="card"><strong>GET /api/internal/audit/logs</strong><p>Admin BFF가 tenant 범위의 감사 로그를 조건별로 조회하는 API입니다.</p></div>
           <div class="card"><strong>Admin BFF 연동</strong><p><code>GET /api/admin/audit-logs</code>를 실제 audit-log-service 조회 API로 연결합니다.</p></div>
           <div class="card"><strong>Security</strong><p>password, token, secret, Authorization, SQL, stack trace, 민감 개인정보 원문 저장을 금지합니다.</p></div>
@@ -86,8 +86,8 @@
           <div class="flow-item">
             <span class="step-number">3</span>
             <div>
-              <strong>내부 저장 API 구현</strong>
-              <p><code>POST /api/internal/audit/logs</code>를 구현하고 internal auth, validation, 민감정보 저장 금지 기준을 적용합니다.</p>
+              <strong>이벤트 기반 저장 구현</strong>
+              <p>outbox relay가 발행한 감사 대상 이벤트를 소비하고 <code>eventId</code> 기준 중복 저장 방지를 적용합니다.</p>
             </div>
           </div>
           <div class="flow-item">
@@ -100,8 +100,8 @@
           <div class="flow-item">
             <span class="step-number">5</span>
             <div>
-              <strong>Admin BFF와 Auth/IAM 연동</strong>
-              <p>Admin BFF 조회 API와 Auth/IAM audit 저장 client를 실제 audit-log-service로 연결합니다.</p>
+              <strong>Admin BFF 조회와 이벤트 저장 연동</strong>
+              <p>Admin BFF 조회 API는 audit-log-service 내부 조회 API로 연결하고, Auth/IAM 저장 경로는 outbox event 기반으로 전환합니다.</p>
             </div>
           </div>
           <div class="flow-item">
@@ -125,25 +125,32 @@
               <p><label><input type="checkbox" checked disabled /> workspace 인식용 <code>package.json</code>, <code>README.md</code> 추가</label></p>
               <p><label><input type="checkbox" checked disabled /> <code>apps/audit-log-service</code> NestJS 실행 구조 생성</label></p>
               <p><label><input type="checkbox" checked disabled /> <code>audit_log</code> database 생성 흐름을 local DB reset 스크립트에 추가</label></p>
+              <p><label><input type="checkbox" checked disabled /> Prisma schema 작성: <code>audit_logs</code>와 필요한 index 정의</label></p>
+              <p><label><input type="checkbox" checked disabled /> append-only repository/service 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> 이벤트 기반 audit 저장 consumer 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /api/internal/audit/logs</code> 조회 API 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> 내부 서비스 인증 guard/decorator 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> validation error와 audit 전용 error code 정리</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>auth-iam-service</code> 직접 저장 client 제거와 outbox event 기반 전환 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> 사용자 생성/수정/상태 변경 audit 저장 시나리오 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> role/permission 변경 audit 저장 시나리오 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>admin-bff-service</code>의 <code>GET /api/admin/audit-logs</code> 조회 연동 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> Admin BFF permission <code>audit.logs.read</code> 검증 유지</label></p>
+              <p><label><input type="checkbox" checked disabled /> Docker env, local compose, deploy compose 기본 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>apps/audit-log-service/Dockerfile</code> 추가 및 image build 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> Postman collection에 audit 조회 요청 추가</label></p>
+              <p><label><input type="checkbox" checked disabled /> CDK/ECS 배포 구성 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> audit-log-service 전용 GitHub Actions 배포 workflow 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> 운영 audit DB secret과 Prisma migration 실행 기준 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> Outbox Relay SQS 이벤트 polling consumer 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> CDK audit event queue/DLQ와 consumer env 연결</label></p>
             </div>
           </div>
           <div class="card">
             <h3>남은 작업</h3>
             <div class="task-list">
-              <p><label><input type="checkbox" disabled /> Prisma schema 작성: <code>audit_logs</code>와 필요한 index 정의</label></p>
-              <p><label><input type="checkbox" disabled /> append-only repository/service 구현</label></p>
-              <p><label><input type="checkbox" disabled /> <code>POST /api/internal/audit/logs</code> 저장 API 구현</label></p>
-              <p><label><input type="checkbox" disabled /> <code>GET /api/internal/audit/logs</code> 조회 API 구현</label></p>
-              <p><label><input type="checkbox" disabled /> 내부 서비스 인증 guard/decorator 적용</label></p>
-              <p><label><input type="checkbox" disabled /> validation error와 audit 전용 error code 정리</label></p>
-              <p><label><input type="checkbox" disabled /> <code>auth-iam-service</code> audit 저장 client URL을 실제 audit-log-service로 연결</label></p>
-              <p><label><input type="checkbox" disabled /> 사용자 생성/수정/상태 변경 audit 저장 시나리오 확인</label></p>
-              <p><label><input type="checkbox" disabled /> role/permission 변경 audit 저장 시나리오 확인</label></p>
-              <p><label><input type="checkbox" disabled /> <code>admin-bff-service</code>의 <code>GET /api/admin/audit-logs</code> 조회 연동</label></p>
-              <p><label><input type="checkbox" disabled /> Admin BFF permission <code>audit.logs.read</code> 검증 유지</label></p>
-              <p><label><input type="checkbox" disabled /> Docker env, local compose, deploy compose 기본 연결</label></p>
-              <p><label><input type="checkbox" disabled /> Postman collection에 audit 저장/조회 요청 추가</label></p>
-              <p><label><input type="checkbox" disabled /> CDK/ECS 배포 구성 추가</label></p>
+              <p><label><input type="checkbox" disabled /> dev AWS Outbox Relay → SQS → audit-log-service 저장 증적 확보</label></p>
+              <p><label><input type="checkbox" disabled /> 감사 로그 보존 기간, archive, 검색 인덱스 정책 확정</label></p>
             </div>
           </div>
         </div>
@@ -159,6 +166,7 @@
             </thead>
             <tbody>
               <tr><td><code>auditId</code></td><td>예</td><td>감사 로그 고유 ID. UUID</td><td><code>aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa</code></td></tr>
+              <tr><td><code>eventId</code></td><td>아니오</td><td>저장 원천 이벤트 ID. 이벤트 기반 저장에서는 unique key로 중복 저장을 방지합니다.</td><td><code>bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb</code></td></tr>
               <tr><td><code>tenantId</code></td><td>예</td><td>감사 로그 소유 tenant</td><td><code>11111111-1111-4111-8111-111111111111</code></td></tr>
               <tr><td><code>requestId</code></td><td>예</td><td>API 요청 추적 ID</td><td><code>req-...</code></td></tr>
               <tr><td><code>occurredAt</code></td><td>예</td><td>업무 행위 발생 시각. ISO 8601 UTC</td><td><code>2026-06-12T00:00:00.000Z</code></td></tr>
@@ -177,10 +185,10 @@
         <div class="wide-table">
           <table>
             <thead>
-              <tr><th>Endpoint</th><th>호출자</th><th>필수 조건</th><th>응답</th><th>완료 기준</th></tr>
+              <tr><th>계약</th><th>호출자/원천</th><th>필수 조건</th><th>응답/효과</th><th>완료 기준</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>POST /api/internal/audit/logs</code></td><td>auth-iam-service, tenant-service, wms-service later</td><td>internal auth, tenantId, requestId, actor, action, resource, result</td><td><code>data.auditId</code>, <code>data.recorded</code></td><td>유효한 요청은 201로 저장되고 DB에서 조회됩니다.</td></tr>
+              <tr><td>Audit 저장 이벤트</td><td>auth-iam-service, tenant-service, wms-service outbox events</td><td><code>eventId</code>, <code>eventType</code>, <code>schemaVersion</code>, <code>tenantId</code>, <code>requestId</code>, <code>occurredAt</code>, <code>source</code>, <code>aggregateType</code>, <code>aggregateId</code>, <code>actor</code></td><td><code>eventType</code>을 <code>action</code>으로, aggregate를 <code>resource</code>로 저장합니다.</td><td>같은 <code>eventId</code>가 재전달되어도 중복 row가 생성되지 않습니다.</td></tr>
               <tr><td><code>GET /api/internal/audit/logs</code></td><td>admin-bff-service</td><td>internal auth, tenantId context, page/size</td><td><code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code></td><td>tenant 범위와 기간 조건으로 page 조회가 됩니다.</td></tr>
             </tbody>
           </table>
@@ -201,8 +209,21 @@
           <tbody>
             <tr><th>저장 금지</th><td><code>password</code>, <code>accessToken</code>, <code>refreshToken</code>, <code>Authorization</code>, cookie, secret, API key, private key, SQL, stack trace</td></tr>
             <tr><th>마스킹</th><td>email, phone, 사업자등록번호처럼 운영상 식별이 필요한 값은 원문 대신 마스킹 값이나 별도 identifier만 저장합니다.</td></tr>
-            <tr><th>실패 정책</th><td>1차는 audit 저장 실패 시 caller가 오류를 알 수 있게 응답합니다. 비즈니스 처리와 audit 저장 실패의 최종 정책은 운영 단계에서 재검토합니다.</td></tr>
+            <tr><th>실패 정책</th><td>업무 API는 audit-log-service HTTP 저장 응답에 결합하지 않습니다. 저장 실패는 outbox-relay-service의 retry, failed 상태, DLQ 또는 replay 정책으로 처리합니다.</td></tr>
             <tr><th>권한</th><td>외부 조회는 Admin BFF의 <code>audit.logs.read</code> permission을 통과한 요청만 audit-log-service로 전달됩니다.</td></tr>
+          </tbody>
+        </table>
+        <h3 class="card-subheading">운영 DB Secret과 Migration 기준</h3>
+        <table>
+          <tbody>
+            <tr><th>GitHub secret</th><td><code>AUDIT_DATABASE_URL_SECRET_ARN</code>에는 AWS Secrets Manager secret ARN만 저장합니다. DB URL 원문은 GitHub secret이나 repository 파일에 두지 않습니다.</td></tr>
+            <tr><th>Secrets Manager 이름</th><td>권장 이름은 <code>multi-tenant-{env}-audit-log-service-database-url</code>입니다.</td></tr>
+            <tr><th>SecretString 형식</th><td>plain PostgreSQL URL 또는 JSON <code>{ "DATABASE_URL": "postgresql://..." }</code>, <code>{ "databaseUrl": "postgresql://..." }</code>, <code>{ "url": "postgresql://..." }</code> 형식을 허용합니다.</td></tr>
+            <tr><th>Runtime 주입</th><td>CDK context <code>auditDatabaseUrlSecretArn</code>을 ECS task secret <code>DATABASE_URL</code>로 주입합니다.</td></tr>
+            <tr><th>Migration 명령</th><td>배포 DB schema 변경은 <code>pnpm --filter audit-log-service prisma:migrate:deploy</code>만 사용합니다. 운영/staging/dev 배포 DB에 <code>prisma db push</code> 또는 <code>prisma migrate dev</code>를 사용하지 않습니다.</td></tr>
+            <tr><th>Workflow</th><td><code>deploy-audit-log-service.yml</code> 수동 실행 시 <code>runAuditPrismaMigration=true</code>를 선택하면 image deploy 전에 Secrets Manager에서 DB URL을 읽어 migration을 실행합니다.</td></tr>
+            <tr><th>네트워크 예외</th><td>DB가 private subnet이라 GitHub-hosted runner에서 접근할 수 없으면 승인된 self-hosted runner, bastion, 또는 ECS one-off task에서 같은 명령을 실행합니다.</td></tr>
+            <tr><th>실패 정책</th><td>migration 실패 시 ECS deploy를 진행하지 않습니다. <code>prisma migrate resolve</code>는 운영자 확인 후 실패 이력 정리에만 사용합니다.</td></tr>
           </tbody>
         </table>
       </section>
@@ -218,12 +239,13 @@
           <tr><th>AUDIT-006</th><td>password/token/secret이 details에 포함되면 저장 전 거절하거나 제거한다.</td></tr>
           <tr><th>AUDIT-007</th><td>auth-iam-service의 사용자 생성 성공 후 audit record가 저장된다.</td></tr>
           <tr><th>AUDIT-008</th><td>Admin BFF의 audit 조회 API는 <code>audit.logs.read</code> 권한이 없으면 거절된다.</td></tr>
+          <tr><th>AUDIT-009</th><td>auth-iam-service의 role/permission 변경 성공 후 audit record가 저장된다.</td></tr>
         </table>
       </section>
 
       <section>
         <h2>후속 작업</h2>
-        <p>현재 audit-log-service 착수 전 이어서 확정할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
+        <p>내부 API와 기본 연동 완료 후 운영 배포 전에 이어서 정리할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
         <div class="wide-table">
           <table>
             <thead>
@@ -238,17 +260,10 @@
             <tbody>
               <tr>
                 <td><code>P0</code></td>
-                <td>내부 저장 API 계약 확정</td>
-                <td><code>POST /api/internal/audit/logs</code>의 request body, 내부 인증 header, 실패 시 처리 기준을 확정합니다.</td>
-                <td>auth-iam-service가 사용자/권한 변경 성공 후 audit record를 안정적으로 저장 요청할 수 있습니다.</td>
-                <td>audit-log-service API 문서, auth-iam-service 개발 문서, logging/audit 규칙</td>
-              </tr>
-              <tr>
-                <td><code>P0</code></td>
-                <td>Admin BFF 조회 계약 확정</td>
-                <td><code>GET /api/internal/audit/logs</code>의 검색 조건, pagination, 권한, tenant scope 기준을 정합니다.</td>
-                <td>Admin BFF의 <code>GET /api/admin/audit-logs</code>가 실제 audit-log-service 조회 API로 연결됩니다.</td>
-                <td>admin-bff-service 개발 문서, admin-bff-service API 문서, audit-log-service API 문서</td>
+                <td>운영 DB secret과 migration 실행 기준 확정</td>
+                <td><code>AUDIT_DATABASE_URL_SECRET_ARN</code> 값, 운영 PostgreSQL 준비, Prisma migration 적용 흐름을 정합니다.</td>
+                <td><span class="tag done">완료</span> ECS task가 운영 audit DB secret을 참조하고, 배포 전 schema 적용 절차가 재현 가능합니다.</td>
+                <td>infra README, audit-log-service 개발 문서, 운영 DB 문서</td>
               </tr>
               <tr>
                 <td><code>P1</code></td>
@@ -264,6 +279,17 @@
 
       <section>
         <h2>개발 기록</h2>
+        <article>
+          <h3>2026-06-17 Prisma 정합성과 LocalStack SQS 소비 검증</h3>
+          <ul>
+            <li>부분 생성 상태로 꼬였던 <code>apps/audit-log-service/src/generated/prisma</code>를 재생성해 <code>client.ts</code>, <code>enums.ts</code>, model 타입 출력 구조를 복구했습니다.</li>
+            <li>로컬 <code>audit_log</code> DB에 최신 Prisma schema를 push해 <code>audit_logs.event_id</code> column, unique index, tenant/event index를 동기화했습니다.</li>
+            <li><code>pnpm --filter audit-log-service typecheck</code>와 <code>pnpm --filter audit-log-service build</code>가 통과했습니다.</li>
+            <li>LocalStack SQS consumer를 활성화한 host 실행에서 <code>auth.local.sqsAudit.verified</code> event를 소비해 <code>audit_log.audit_logs</code>에 <code>event_id=9243c6ca-ae62-4006-80aa-3c94b935bc12</code>로 저장되는 것을 확인했습니다.</li>
+            <li><code>pnpm test:outbox:sqs:local</code> 명령으로 같은 검증을 자동 실행할 수 있게 했고, 스크립트 실행 결과 eventId <code>b8e0d2f7-dfb8-4555-8761-2379d476d870</code>가 추가로 저장되었습니다.</li>
+            <li>검증 로그는 <a href="../../test-logs/2026-06-17/outbox-relay-local-verification.html">2026-06-17 Outbox Relay 로컬 검증 로그</a>에 기록했습니다.</li>
+          </ul>
+        </article>
         <article>
           <h3>2026-06-12 서비스 문서 추가</h3>
           <ul>
@@ -301,11 +327,136 @@
           </ul>
         </article>
         <article>
+          <h3>2026-06-15 audit_logs Prisma schema 작성</h3>
+          <ul>
+            <li><code>apps/audit-log-service/prisma/schema.prisma</code>에 append-only 감사 로그 테이블 <code>audit_logs</code>와 <code>AuditActorType</code>, <code>AuditResult</code> enum을 추가했습니다.</li>
+            <li>tenant 범위의 기간 조회, action/result/actor/resource/requestId 검색을 위한 복합 index를 정의했습니다.</li>
+            <li><code>prisma validate</code>, <code>prisma generate</code>, TypeScript typecheck, local <code>audit_log</code> DB schema push를 확인했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 append-only repository/service 구현</h3>
+          <ul>
+            <li><code>PrismaService</code>를 추가해 audit-log-service의 DB 연결 lifecycle과 readiness DB ping을 구성했습니다.</li>
+            <li><code>AuditLogsRepository</code>는 append 저장과 page 검색만 제공하고 update/delete 경로를 만들지 않아 append-only 원칙을 코드 표면에 반영했습니다.</li>
+            <li><code>AuditLogsService</code>는 tenantId/requestId/actor/action/resource/result/details 검증, 민감 detail key 차단, 저장 응답과 조회 응답 매핑을 담당합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 내부 저장/조회 API 구현</h3>
+          <ul>
+            <li>초기 구현에서는 <code>POST /api/internal/audit/logs</code> 저장 API를 추가했으나, 최종 저장 경로는 이벤트 기반 consumer로 전환했습니다.</li>
+            <li><code>GET /api/internal/audit/logs</code>를 추가해 <code>admin-bff-service</code>가 tenant 범위, 기간, actor, action, resource, result, requestId 조건으로 page 조회할 수 있게 했습니다.</li>
+            <li>로컬 <code>audit_log</code> DB에 테스트 감사 로그를 저장하고 같은 tenant/action 조건으로 조회되는 것을 확인했습니다.</li>
+            <li><code>docs/apis/audit-log-service/index.html</code>을 구현된 API 계약과 응답 예시 기준으로 업데이트했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 validation error와 audit 전용 error code 정리</h3>
+          <ul>
+            <li>요청값 검증 실패는 공통 규칙에 따라 <code>VALIDATION_FAILED</code>를 유지하고, <code>error.details.fields</code>를 필드명-메시지 객체로 정리했습니다.</li>
+            <li>감사 로그 저장소 쓰기/조회 실패는 <code>AUDIT_LOG_WRITE_FAILED</code>, <code>AUDIT_LOG_QUERY_FAILED</code>로 감싸 caller가 audit 전용 장애를 분기할 수 있게 했습니다.</li>
+            <li><code>details</code> 민감 키 포함, 필수 actor 누락, 조회 기간 역전 조건이 <code>VALIDATION_FAILED</code>로 응답하는 것을 로컬 HTTP 호출로 확인했습니다.</li>
+            <li><code>docs/apis/audit-log-service/index.html</code>에 HTTP status별 error code 매핑과 오류 응답 예시를 추가했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 auth-iam-service audit 저장 client 실제 연동 확인</h3>
+          <ul>
+            <li>초기 REST 저장 client 연동은 로컬에서 검증했으나, 저장 경로를 처음부터 이벤트 기반으로 운영하기 위해 <code>auth-iam-service</code>의 audit 저장 client와 <code>AUDIT_LOG_SERVICE_URL</code> 의존성을 제거했습니다.</li>
+            <li>현재 <code>auth-iam-service</code>는 업무 변경 transaction 안에서 <code>outbox_events</code>를 저장하고, audit-log-service는 발행된 이벤트를 소비해 저장합니다.</li>
+            <li>검증 결과 <code>audit_log.audit_logs</code>에 <code>request_id=req-auth-audit-client-verify</code>, <code>action=auth.audit.client.verified</code>, <code>result=success</code> record가 저장됐습니다.</li>
+            <li>로컬 compose에는 <code>audit-log-service</code>와 <code>audit-log-service-db-push</code>가 등록되어 있고, <code>auth-iam-service</code>는 audit-log-service health check에 의존하지 않습니다.</li>
+            <li>배포 환경에서는 <code>auth-iam-service</code> task definition에 audit 저장 URL/secret을 주입하지 않고, <code>admin-bff-service</code>에만 조회용 audit URL/secret을 주입합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 Auth/IAM 사용자 변경 audit 저장 시나리오 확인</h3>
+          <ul>
+            <li><code>UsersService.create</code>, <code>UsersService.update</code>, <code>UsersService.updateStatus</code>를 실제 <code>auth_iam</code> DB와 <code>audit-log-service</code> internal API에 연결해 실행했습니다.</li>
+            <li>검증 사용자 <code>eb2602f0-778e-42b9-9d7a-e1b988ac9e91</code>, email <code>audit-user-1781481233000@demo.local</code>가 생성되고, 표시명이 <code>Audit Scenario User Updated</code>, 상태가 <code>locked</code>로 변경됐습니다.</li>
+            <li><code>audit_log.audit_logs</code>에서 <code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code> 3건이 같은 tenant와 resourceId로 저장된 것을 확인했습니다.</li>
+            <li>검증 requestId는 <code>req-auth-user-create-audit-1781481233000</code>, <code>req-auth-user-update-audit-1781481233000</code>, <code>req-auth-user-status-audit-1781481233000</code>입니다.</li>
+            <li>각 감사 로그의 <code>details</code>는 생성 <code>{ "status": "active" }</code>, 수정 <code>{ "changedFields": ["displayName"] }</code>, 상태 변경 <code>{ "status": "locked" }</code>로 저장됐습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 Auth/IAM role/permission 변경 audit 저장 시나리오 확인</h3>
+          <ul>
+            <li><code>PermissionsService.create</code>, <code>RbacService.createRole</code>, <code>RbacService.updateRole</code>, <code>RbacService.replaceRolePermissions</code>, <code>RbacService.assignUserRole</code>, <code>RbacService.removeUserRole</code>를 실제 <code>auth_iam</code> DB와 <code>audit-log-service</code> internal API에 연결해 실행했습니다.</li>
+            <li>검증 permission은 <code>scenario.audit.verify1781481478763</code>, role은 <code>audit_role_scenario_1781481478763</code>이며 role ID는 <code>7661d4a0-cde3-423c-a1bc-0db5933728f7</code>입니다.</li>
+            <li><code>audit_log.audit_logs</code>에서 <code>auth.permission.created</code>, <code>auth.role.created</code>, <code>auth.role.updated</code>, <code>auth.role.permissionsReplaced</code>, <code>auth.userRole.assigned</code>, <code>auth.userRole.removed</code> 6건이 같은 tenant와 actor로 저장된 것을 확인했습니다.</li>
+            <li>검증 requestId는 <code>req-auth-permission-create-audit-1781481478763</code>, <code>req-auth-role-create-audit-1781481478763</code>, <code>req-auth-role-update-audit-1781481478763</code>, <code>req-auth-role-permissions-audit-1781481478763</code>, <code>req-auth-user-role-assign-audit-1781481478763</code>, <code>req-auth-user-role-remove-audit-1781481478763</code>입니다.</li>
+            <li>role-permission 교체 결과는 <code>auth.users.read</code>와 <code>scenario.audit.verify1781481478763</code> 2개 권한으로 확인했고, 검증 user-role row <code>d3b2a60a-fa8c-4c8c-afa4-122689ebccc0</code>는 삭제되어 최종 count가 <code>0</code>임을 확인했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 Admin BFF 감사 로그 조회 연동 확인</h3>
+          <ul>
+            <li><code>admin-bff-service</code>의 <code>GET /api/admin/audit-logs</code>가 <code>audit.logs.read</code> 권한 확인 후 <code>audit-log-service</code>의 <code>GET /api/internal/audit/logs</code>로 조회를 위임하는 것을 확인했습니다.</li>
+            <li>로컬 compose의 <code>admin-bff-service</code>를 현재 env로 재생성해 <code>AUDIT_LOG_SERVICE_URL=http://audit-log-service:3000</code>와 <code>AUDIT_INTERNAL_AUTH_SECRET</code>가 주입된 상태를 확인했습니다.</li>
+            <li>관리자 사용자 <code>22222222-2222-4222-8222-222222222222</code>로 <code>requestId=req-admin-audit-list-compose-1781481700000</code> 요청을 실행했고, <code>auth.role.permissionsReplaced</code> 감사 로그 1건이 표준 list envelope로 반환됐습니다.</li>
+            <li>권한이 없는 사용자 <code>06b814db-7586-47ef-a486-0c89373c227a</code>의 <code>requestId=req-admin-audit-list-compose-denied-1781481700000</code> 요청은 <code>403 FORBIDDEN</code>과 <code>permission=audit.logs.read</code> details로 차단됐습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 Docker env와 compose 기본 연결</h3>
+          <ul>
+            <li><code>docker/env/audit-log-service/.env.dev</code>, <code>.env.staging</code>, <code>.env.prod</code>를 추가해 배포용 compose 환경에서도 <code>AUDIT_PORT</code>, internal auth, CORS, <code>DATABASE_URL</code> 기본값을 갖도록 했습니다.</li>
+            <li><code>admin-bff-service</code>의 dev/staging/prod env에는 조회용 <code>AUDIT_LOG_SERVICE_URL=http://audit-log-service:3000</code>와 환경별 <code>AUDIT_INTERNAL_AUTH_SECRET</code> placeholder를 유지합니다.</li>
+            <li><code>auth-iam-service</code>의 audit 저장 URL/secret env는 제거했습니다. 저장은 outbox 이벤트 기반이므로 audit-log-service HTTP health에 직접 의존하지 않습니다.</li>
+            <li><code>docker/deploy/docker-compose.yml</code>에 <code>audit-log-service</code>를 추가하고, <code>admin-bff-service</code>만 audit-log-service health 이후 시작되도록 <code>depends_on</code>을 연결했습니다.</li>
+            <li><code>docker/local/docker-compose.yml</code>은 <code>audit-log-service</code>, <code>audit-log-service-db-push</code>, <code>admin-bff-service</code> 조회 연결을 포함하고 있으며, 로컬 compose 재생성 후 조회 API 검증까지 완료했습니다.</li>
+            <li><code>docker compose -f docker/local/docker-compose.yml config</code>와 <code>COMPOSE_ENV=dev docker compose -f docker/deploy/docker-compose.yml config</code>로 local/deploy compose 설정 파싱과 audit 연결값 반영을 확인했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 Postman audit 조회 요청 추가</h3>
+          <ul>
+            <li><code>postman/multi-tenant-local.postman_collection.json</code>에 <code>Audit Log internal direct</code> 폴더를 추가했습니다.</li>
+            <li>컬렉션 변수에 <code>auditBaseUrl=http://localhost:3006</code>와 <code>auditInternalAuthSecret=replace-with-local-audit-internal-secret-32chars</code>를 추가했습니다.</li>
+            <li><code>GET audit logs internal admin-bff caller</code> 요청은 <code>admin-bff-service</code> caller로 HMAC header를 생성하고 <code>GET /api/internal/audit/logs?page=1&amp;size=20</code>을 조회합니다.</li>
+            <li>감사 저장은 Postman의 직접 REST 요청이 아니라 outbox relay/EventBridge/SQS 이벤트 발행 경로로 검증합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 CDK/ECS 배포 구성 확인</h3>
+          <ul>
+            <li><code>infra/cdk</code>의 <code>GatewayServiceStack</code>에 <code>audit-log-service</code> ECR repository, CloudWatch log group, security group, ECS Fargate task definition/service, Cloud Map service discovery, CDK output이 구성되어 있음을 확인했습니다.</li>
+            <li>audit ECS task는 <code>auditDatabaseUrlSecretArn</code>을 <code>DATABASE_URL</code>로, <code>auditInternalAuthSecretArn</code>을 <code>AUDIT_INTERNAL_AUTH_SECRET</code>로 주입합니다.</li>
+            <li><code>admin-bff-service</code> task definition에는 조회용 <code>AUDIT_LOG_SERVICE_URL</code>이 주입됩니다. 별도 override가 없고 <code>auditDesiredCount&gt;0</code>이면 Cloud Map URL <code>http://audit-log-service.{env}.multi-tenant.local:3000</code>을 사용합니다.</li>
+            <li><code>auth-iam-service</code> task definition에는 audit 저장 URL/secret을 주입하지 않습니다. 저장은 outbox 이벤트 발행과 audit-log-service consumer가 담당합니다.</li>
+            <li><code>deploy-audit-log-service.yml</code>은 audit-log-service를 typecheck/build하고 <code>apps/audit-log-service/Dockerfile</code> 이미지를 ECR에 push한 뒤 <code>AUDIT_DESIRED_COUNT</code>와 새 image tag를 CDK deploy에 적용합니다.</li>
+            <li>기존 gateway/auth/tenant/admin-bff 수동 배포 workflow도 <code>AUDIT_DESIRED_COUNT</code>, <code>AUDIT_IMAGE_TAG</code>, audit secret ARN context를 검증하고 CDK에 전달해 같은 스택의 audit 상태를 보존합니다.</li>
+            <li><code>deploy-audit-log-service.yml</code> YAML parse, <code>pnpm --filter audit-log-service typecheck</code>, <code>pnpm --filter audit-log-service build</code>, <code>pnpm --filter @multi-tenant/infra-cdk typecheck</code>, <code>pnpm --filter @multi-tenant/infra-cdk exec cdk synth</code>, <code>docker build -f apps/audit-log-service/Dockerfile -t multi-tenant/audit-log-service:cdk-check .</code>로 workflow와 CDK/ECS 구성 유효성을 확인했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-15 운영 audit DB secret과 Prisma migration 기준 확정</h3>
+          <ul>
+            <li><code>apps/audit-log-service/prisma/migrations/20260615000000_init_audit_logs/migration.sql</code>에 초기 <code>audit_logs</code> migration을 추가했습니다.</li>
+            <li><code>audit-log-service</code> package script에 <code>prisma:migrate:deploy</code>를 추가하고, 운영/배포 DB에서는 <code>db push</code> 대신 <code>prisma migrate deploy</code>만 사용하도록 기준을 정했습니다.</li>
+            <li><code>AUDIT_DATABASE_URL_SECRET_ARN</code>은 GitHub Environment secret으로 관리하되 값은 Secrets Manager ARN만 저장합니다. 실제 SecretString은 plain PostgreSQL URL 또는 <code>DATABASE_URL</code>/<code>databaseUrl</code>/<code>url</code> JSON key를 허용합니다.</li>
+            <li><code>deploy-audit-log-service.yml</code>에 <code>runAuditPrismaMigration</code> 수동 입력을 추가해, 선택 시 image deploy 전에 Secrets Manager에서 DB URL을 읽고 migration을 실행하도록 했습니다.</li>
+            <li>DB가 private subnet이라 GitHub-hosted runner에서 접근할 수 없는 환경은 같은 명령을 self-hosted runner, bastion, 또는 ECS one-off task에서 실행하는 기준으로 남겼습니다.</li>
+          </ul>
+        </article>
+        <article>
           <h3>2026-06-12 전역 BFF 경유 원칙 확정</h3>
           <ul>
             <li>audit-log-service는 외부 조회 surface를 직접 제공하지 않고, Admin BFF가 <code>/api/admin/audit-logs</code>를 소유하는 기준으로 정리했습니다.</li>
             <li>외부 감사 로그 조회 요청은 <code>gateway-service</code> → <code>admin-bff-service</code> → <code>audit-log-service</code> 순서로만 처리합니다.</li>
-            <li>저장 API는 내부 서비스 인증을 사용하는 internal API로 유지하고, gateway-service에서 audit-log-service로 직접 proxy하지 않습니다.</li>
+            <li>저장은 내부 REST API가 아니라 이벤트 기반으로 처리하며, gateway-service에서 audit-log-service로 직접 proxy하지 않습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-17 Outbox Relay 기반 감사 이벤트 SQS 소비 구현</h3>
+          <ul>
+            <li><code>@aws-sdk/client-sqs</code>를 추가하고 <code>SqsAuditEventWorker</code>가 <code>AUDIT_EVENT_QUEUE_URL</code>에서 메시지를 long polling으로 수신하도록 구현했습니다.</li>
+            <li>수신한 SQS message body는 기존 <code>AuditLogEventConsumer.handleSqsEvent</code>로 전달해 <code>eventId</code> 기준 append-only 저장과 중복 방지를 그대로 사용합니다.</li>
+            <li>저장 성공 시 <code>DeleteMessage</code>를 호출하고, 저장 실패 시 메시지를 삭제하지 않아 SQS visibility timeout 이후 재시도되며 CDK DLQ redrive 정책으로 격리됩니다.</li>
+            <li><code>AUDIT_EVENT_CONSUMER_ENABLED</code>, <code>AUDIT_EVENT_QUEUE_URL</code>, <code>AUDIT_EVENT_POLL_INTERVAL_MS</code>, <code>AUDIT_EVENT_WAIT_TIME_SECONDS</code>, <code>AUDIT_EVENT_VISIBILITY_TIMEOUT_SECONDS</code>, <code>AUDIT_EVENT_BATCH_SIZE</code>를 config/readiness에 추가했습니다.</li>
+            <li>CDK는 기본 audit event queue와 DLQ를 생성하고 audit-log-service에는 consume 권한, outbox-relay-service에는 send 권한을 부여합니다. 외부 queue를 써야 하면 <code>auditEventQueueUrl</code> 또는 <code>outboxSqsQueueUrl</code> context로 override합니다.</li>
           </ul>
         </article>
       </section>

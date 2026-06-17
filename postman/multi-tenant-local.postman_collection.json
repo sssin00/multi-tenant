@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9c093f24-9c94-4680-a7d0-0d4d7b28f2f2",
     "name": "multi-tenant local API test",
-    "description": "Local API collection for gateway, Auth/IAM, tenant-service internal APIs, and Admin BFF. External business/admin requests should use gateway -> BFF routes. Tenant-service direct requests are internal caller simulations for local debugging only. Run `pnpm db:reset:local` before using the seeded demo account. Seed tenant code follows the tenant-service generation rule and defaults to `DEMO0001` for `demo.localhost`.",
+    "description": "Local API collection for gateway, Auth/IAM, tenant-service internal APIs, audit-log-service internal APIs, and Admin BFF. External business/admin requests should use gateway -> BFF routes. Tenant-service and audit-log-service direct requests are internal caller simulations for local debugging only. Run `pnpm db:reset:local` before using the seeded demo account. Seed tenant code follows the tenant-service generation rule and defaults to `DEMO0001` for `demo.localhost`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -1514,7 +1514,7 @@
           ]
         },
         {
-          "name": "GET admin audit logs expected 503 until audit service exists",
+          "name": "GET admin audit logs",
           "request": {
             "method": "GET",
             "header": [
@@ -1539,11 +1539,20 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('audit log route is either ready or explicitly not configured', function () {",
+                  "pm.test('audit log route delegates when configured', function () {",
                   "  pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
                   "  const body = pm.response.json();",
+                  "  pm.expect(body.requestId).to.exist;",
+                  "  pm.expect(body.timestamp).to.exist;",
+                  "  if (pm.response.code === 200) {",
+                  "    pm.expect(body.success).to.eql(true);",
+                  "    pm.expect(body.data).to.have.property('items');",
+                  "    pm.expect(body.data).to.have.property('page');",
+                  "    pm.expect(body.data).to.have.property('size');",
+                  "    pm.expect(body.data).to.have.property('total');",
+                  "  }",
                   "  if (pm.response.code === 503) {",
-                  "    pm.expect(body.error.code).to.eql('AUDIT_LOG_SERVICE_NOT_CONFIGURED');",
+                  "    pm.expect(body.error.code).to.be.oneOf(['AUDIT_LOG_SERVICE_NOT_CONFIGURED', 'AUDIT_LOG_INTERNAL_AUTH_NOT_READY', 'UPSTREAM_UNAVAILABLE', 'UPSTREAM_TIMEOUT']);",
                   "  }",
                   "});"
                 ]
@@ -3443,6 +3452,198 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Audit Log internal direct",
+      "item": [
+        {
+          "name": "GET audit-log health direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-audit-health"
+              }
+            ],
+            "url": "{{auditBaseUrl}}/health"
+          }
+        },
+        {
+          "name": "GET audit-log ready direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-audit-ready"
+              }
+            ],
+            "url": "{{auditBaseUrl}}/ready"
+          }
+        },
+        {
+          "name": "GET audit logs internal admin-bff caller",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{auditBaseUrl}}/api/internal/audit/logs?page=1&size=20"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'GET';",
+                  "const requestId = 'postman-audit-list';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/audit/logs?page=1&size=20&action=postman.audit.recorded';",
+                  "const rawBody = '';",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('auditInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('audit logs listed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.items).to.be.an('array');",
+                  "  pm.expect(body.data.page).to.eql(1);",
+                  "  pm.expect(body.data.size).to.eql(20);",
+                  "  pm.expect(body.data).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "audit-log-service direct checks. Audit writes are event-based through outbox relay/EventBridge/SQS, so this folder keeps health/readiness and internal admin-bff query requests only."
+    },
+    {
+      "name": "Outbox Relay direct",
+      "item": [
+        {
+          "name": "GET outbox relay health direct",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{outboxRelayBaseUrl}}/health",
+              "host": [
+                "{{outboxRelayBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET outbox relay ready direct",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{outboxRelayBaseUrl}}/ready",
+              "host": [
+                "{{outboxRelayBaseUrl}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET outbox relay status direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{outboxRelayBaseUrl}}/internal/operations/outbox-relay/status",
+              "host": [
+                "{{outboxRelayBaseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "operations",
+                "outbox-relay",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET outbox relay sources direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{outboxRelayBaseUrl}}/internal/operations/outbox-relay/sources",
+              "host": [
+                "{{outboxRelayBaseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "operations",
+                "outbox-relay",
+                "sources"
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -3512,7 +3713,7 @@
     },
     {
       "key": "auditInternalAuthSecret",
-      "value": "",
+      "value": "replace-with-local-audit-internal-secret-32chars",
       "type": "string"
     },
     {
@@ -3559,6 +3760,15 @@
       "key": "domainId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "auditBaseUrl",
+      "value": "http://localhost:3006",
+      "type": "string"
+    },
+    {
+      "key": "outboxRelayBaseUrl",
+      "value": "http://localhost:3007"
     }
   ]
 }

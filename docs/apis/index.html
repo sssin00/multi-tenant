@@ -81,7 +81,7 @@
           </a>
           <a class="api-service-card" href="./admin-bff-service/index.html">
             <h3>admin-bff-service</h3>
-            <p>tenant, 사용자, role, module, audit 조회 준비 API 계약과 구현 상태</p>
+            <p>tenant, 사용자, role, module, audit 조회 API 계약과 구현 상태</p>
             <span class="tag done">READY</span>
           </a>
           <div class="api-service-card">
@@ -101,19 +101,19 @@
           </a>
           <a class="api-service-card" href="./audit-log-service/index.html">
             <h3>audit-log-service</h3>
-            <p>append-only 감사 로그 저장, 내부 조회, 장애 처리 API 초안</p>
-            <span class="tag todo">TODO</span>
+            <p>append-only 감사 로그 SQS 이벤트 저장, 내부 조회, 장애 처리 계약</p>
+            <span class="tag done">READY</span>
           </a>
           <div class="api-service-card">
             <h3>wms-service</h3>
             <p>기준정보, 재고, 입고, 출고, 작업 지시 API</p>
             <span class="tag todo">TODO</span>
           </div>
-          <div class="api-service-card">
+          <a class="api-service-card" href="./outbox-relay-service/index.html">
             <h3>outbox-relay-service</h3>
-            <p>Outbox 이벤트 발행, retry, 상태 확인 API</p>
-            <span class="tag todo">TODO</span>
-          </div>
+            <p>Outbox 이벤트 발행, 감사 SQS 전달, retry, 상태 확인 API</p>
+            <span class="tag done">READY</span>
+          </a>
         </div>
       </section>
 

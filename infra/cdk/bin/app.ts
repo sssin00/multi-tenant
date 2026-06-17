@@ -53,6 +53,26 @@ const adminBffCorsAllowedOrigins = readOptionalContextString("adminBffCorsAllowe
 const adminBffAuthInternalAuthSecretArn = readOptionalContextString("adminBffAuthInternalAuthSecretArn");
 const adminBffTenantInternalAuthSecretArn = readOptionalContextString("adminBffTenantInternalAuthSecretArn");
 const adminBffAuditInternalAuthSecretArn = readOptionalContextString("adminBffAuditInternalAuthSecretArn");
+const auditImageTag = app.node.tryGetContext("auditImageTag") ?? "latest";
+const auditDesiredCount = readNonNegativeIntegerContext("auditDesiredCount", 0);
+const auditCorsAllowedOrigins = readOptionalContextString("auditCorsAllowedOrigins");
+const auditDatabaseUrlSecretArn = readOptionalContextString("auditDatabaseUrlSecretArn");
+const auditInternalAuthSecretArn = readOptionalContextString("auditInternalAuthSecretArn");
+const auditEventConsumerEnabled = readOptionalContextString("auditEventConsumerEnabled");
+const auditEventQueueUrl = readOptionalContextString("auditEventQueueUrl");
+const outboxImageTag = app.node.tryGetContext("outboxImageTag") ?? "latest";
+const outboxDesiredCount = readNonNegativeIntegerContext("outboxDesiredCount", 0);
+const outboxCorsAllowedOrigins = readOptionalContextString("outboxCorsAllowedOrigins");
+const outboxSources = readOptionalContextString("outboxSources");
+const outboxWorkerEnabled = readOptionalContextString("outboxWorkerEnabled");
+const outboxPublisherTypeRaw = app.node.tryGetContext("outboxPublisherType");
+const outboxPublisherType =
+  outboxPublisherTypeRaw === "eventbridge" || outboxPublisherTypeRaw === "sqs" ? outboxPublisherTypeRaw : "mock";
+const outboxEventBridgeBusName = readOptionalContextString("outboxEventBridgeBusName");
+const outboxSqsQueueUrl = readOptionalContextString("outboxSqsQueueUrl");
+const authIamOutboxDatabaseUrlSecretArn = readOptionalContextString("authIamOutboxDatabaseUrlSecretArn");
+const tenantOutboxDatabaseUrlSecretArn = readOptionalContextString("tenantOutboxDatabaseUrlSecretArn");
+const wmsOutboxDatabaseUrlSecretArn = readOptionalContextString("wmsOutboxDatabaseUrlSecretArn");
 const auditLogServiceUrl = readOptionalContextString("auditLogServiceUrl");
 const authIamServiceUrl = readOptionalContextString("authIamServiceUrl");
 const adminBffServiceUrl = readOptionalContextString("adminBffServiceUrl");
@@ -93,6 +113,24 @@ new GatewayServiceStack(app, `${project}-${envName}-gateway-service-stack`, {
   adminBffAuthInternalAuthSecretArn,
   adminBffTenantInternalAuthSecretArn,
   adminBffAuditInternalAuthSecretArn,
+  auditImageTag,
+  auditDesiredCount,
+  auditCorsAllowedOrigins,
+  auditDatabaseUrlSecretArn,
+  auditInternalAuthSecretArn,
+  auditEventConsumerEnabled,
+  auditEventQueueUrl,
+  outboxImageTag,
+  outboxDesiredCount,
+  outboxCorsAllowedOrigins,
+  outboxSources,
+  outboxWorkerEnabled,
+  outboxPublisherType,
+  outboxEventBridgeBusName,
+  outboxSqsQueueUrl,
+  authIamOutboxDatabaseUrlSecretArn,
+  tenantOutboxDatabaseUrlSecretArn,
+  wmsOutboxDatabaseUrlSecretArn,
   auditLogServiceUrl,
   authIamServiceUrl,
   adminBffServiceUrl,

@@ -1,6 +1,5 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 
-import { AuditLogClientService } from "../audit/audit-log-client.service.js";
 import { PrismaService } from "../database/prisma.service.js";
 import { OutboxEventService } from "../outbox/outbox-event.service.js";
 import {
@@ -33,8 +32,6 @@ export class PermissionsService {
   constructor(
     @Inject(PrismaService)
     private readonly prismaService: PrismaService,
-    @Inject(AuditLogClientService)
-    private readonly auditLogClientService: AuditLogClientService,
     @Inject(OutboxEventService)
     private readonly outboxEventService: OutboxEventService
   ) {}
@@ -79,16 +76,6 @@ export class PermissionsService {
 
       return createdPermission;
     });
-    await this.auditLogClientService.record({
-      context,
-      action: "auth.permission.created",
-      resourceType: "permission",
-      resourceId: permission.id,
-      details: {
-        code: permission.code
-      }
-    });
-
     return this.toResponse(permission);
   }
 
