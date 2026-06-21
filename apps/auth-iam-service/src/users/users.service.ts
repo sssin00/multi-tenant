@@ -1,14 +1,13 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException
 } from "@nestjs/common";
 
 import { PrismaService } from "../database/prisma.service.js";
-import { UserStatus } from "../generated/prisma/enums.js";
+import { UserStatus, UserType } from "../generated/prisma/enums.js";
 import { OutboxEventService } from "../outbox/outbox-event.service.js";
 import { PasswordHasher } from "../auth/password-hasher.js";
 
@@ -46,6 +45,7 @@ export interface UserResponse {
   tenantId: string;
   email: string;
   displayName: string;
+  userType: UserType;
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
@@ -99,6 +99,7 @@ export class UsersService {
           email: input.email,
           displayName: input.displayName,
           passwordHash,
+          userType: input.userType,
           status: input.status
         }
       });
@@ -113,6 +114,7 @@ export class UsersService {
         aggregateId: createdUser.id,
         data: {
           userId: createdUser.id,
+          userType: createdUser.userType,
           status: createdUser.status
         }
       });
@@ -314,12 +316,14 @@ export class UsersService {
     email: string;
     displayName: string;
     password: string;
+    userType: UserType;
     status: UserStatus;
   } {
     const input = this.asRecord(body);
     const email = this.readEmail(input.email);
     const displayName = this.readString(input.displayName);
     const password = typeof input.password === "string" ? input.password : "";
+    const userType = this.readUserType(input.userType);
     const status = this.readStatus(input.status, UserStatus.active);
     const fields: Record<string, string> = {};
 
@@ -337,6 +341,10 @@ export class UsersService {
       fields.password = "password must be at least 8 characters";
     }
 
+    if (userType !== UserType.general_user) {
+      fields.userType = "tenant-scoped user API only supports general_user";
+    }
+
     if (Object.keys(fields).length > 0) {
       throw this.validationFailed(fields);
     }
@@ -345,6 +353,7 @@ export class UsersService {
       email,
       displayName,
       password,
+      userType,
       status
     };
   }
@@ -452,6 +461,20 @@ export class UsersService {
     });
   }
 
+  private readUserType(value: unknown): UserType {
+    if (value === undefined || value === null || value === "") {
+      return UserType.general_user;
+    }
+
+    if (value === UserType.general_user || value === UserType.system_admin) {
+      return value;
+    }
+
+    throw this.validationFailed({
+      userType: "userType must be system_admin or general_user"
+    });
+  }
+
   private requireTenant(tenantId: string | undefined): string {
     if (!tenantId) {
       throw new BadRequestException({
@@ -487,6 +510,7 @@ export class UsersService {
     tenantId: string;
     email: string;
     displayName: string;
+    userType: UserType;
     status: UserStatus;
     createdAt: Date;
     updatedAt: Date;
@@ -496,6 +520,7 @@ export class UsersService {
       tenantId: user.tenantId,
       email: user.email,
       displayName: user.displayName,
+      userType: user.userType,
       status: user.status,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString()

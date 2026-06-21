@@ -32,6 +32,7 @@
             <p><label><input type="checkbox" checked disabled /> JWT claim과 refresh token 기본 규칙</label></p>
             <p><label><input type="checkbox" checked disabled /> permission naming과 RBAC 기본 모델</label></p>
             <p><label><input type="checkbox" checked disabled /> 멀티테넌트 기본 처리 규칙</label></p>
+            <p><label><input type="checkbox" checked disabled /> 사용자 타입은 system_admin과 general_user로 분리하고 general_user는 tenant 필수</label></p>
             <p><label><input type="checkbox" checked disabled /> 시스템 로그와 감사 로그 분리 원칙</label></p>
             <p><label><input type="checkbox" checked disabled /> 이벤트 naming과 outbox 기본 규칙</label></p>
             <p><label><input type="checkbox" checked disabled /> 환경 변수와 secret 관리 규칙</label></p>
@@ -45,23 +46,24 @@
             <p><label><input type="checkbox" checked disabled /> Docker Redis host 접속 포트 규칙</label></p>
             <p><label><input type="checkbox" checked disabled /> 모든 외부 업무/관리/API 요청은 BFF 경유, tenant status check도 BFF 책임</label></p>
             <p><label><input type="checkbox" checked disabled /> API 추가/수정/삭제 시 Postman collection 동시 갱신 규칙</label></p>
+            <p><label><input type="checkbox" checked disabled /> CDK 1차 backend service 범위는 gateway, auth-iam, tenant, admin-bff, user-bff, wms, audit-log, outbox-relay 8개로 관리</label></p>
           </div>
           <div class="card">
             <h3>초안 확정 규칙</h3>
             <p><label><input type="checkbox" disabled /> 감사 로그 규칙: 분리 원칙, 대상, 이벤트 기반 저장은 정했지만 보존 기간, archive, replay 감사 흐름은 미확정</label></p>
             <p><label><input type="checkbox" disabled /> Outbox Relay 규칙: 이벤트 envelope, source DB, lock/retry/failed 상태와 감사 SQS queue/DLQ는 정했지만 replay 승인, custom metric/alarm은 미확정</label></p>
             <p><label><input type="checkbox" disabled /> 배포/운영 규칙: 수동 workflow와 desired count 보호는 정했지만 rollback, alarm, 운영 runbook은 미확정</label></p>
-            <p><label><input type="checkbox" disabled /> AWS 인프라 규칙: ECS/CDK/Cloud Map과 감사 SQS queue/DLQ는 정했지만 RDS, S3, EventBridge bus, Route53 CDK 구성은 후속</label></p>
+            <p><label><input type="checkbox" disabled /> AWS 인프라 규칙: ECS/CDK/Cloud Map과 감사 SQS queue/DLQ는 정했지만 RDS/Aurora 생성, S3, EventBridge bus 생성, Route53 record CDK 구성은 후속</label></p>
             <p><label><input type="checkbox" disabled /> Auth/IAM 운영 규칙: 로컬 HS256은 정했지만 운영 RS256, key rotation, JWKS는 미확정</label></p>
             <p><label><input type="checkbox" disabled /> 권한 scope 규칙: tenant/admin 기본 경계는 정했지만 warehouse-scoped permission 적용 범위는 미확정</label></p>
             <p><label><input type="checkbox" disabled /> Tenant 전략: shared DB + tenantId는 정했지만 schema/database 분리 전환 기준은 미확정</label></p>
-            <p><label><input type="checkbox" disabled /> BFF 규칙: BFF 경유 원칙은 확정됐지만 user-bff 화면별 조합 계약은 WMS API 이후 확정</label></p>
-            <p><label><input type="checkbox" disabled /> API 문서 규칙: gateway, auth, tenant, admin-bff, audit-log, outbox-relay는 작성됐지만 user-bff와 WMS는 TODO</label></p>
+            <p><label><input type="checkbox" disabled /> BFF 규칙: BFF 경유 원칙과 user-bff app shell 계약은 확정됐지만 WMS 화면별 조합 API 계약은 후속 확정</label></p>
+            <p><label><input type="checkbox" checked disabled /> API 문서 규칙: gateway, auth, tenant, admin-bff, user-bff, audit-log, outbox-relay, WMS API 문서 작성</label></p>
           </div>
           <div class="card">
             <h3>결정 필요 규칙</h3>
             <p><label><input type="checkbox" disabled /> DB naming, schema, migration, index, soft delete, audit field 규칙</label></p>
-            <p><label><input type="checkbox" disabled /> WMS 도메인 모델과 재고 계산 규칙</label></p>
+            <p><label><input type="checkbox" disabled /> WMS 2차 도메인 규칙: lot/serial, 보류 재고, 작업 지시, ERP 재전송 기준</label></p>
             <p><label><input type="checkbox" disabled /> Idempotency-Key 저장 전략, TTL, 중복 응답 재사용 규칙</label></p>
             <p><label><input type="checkbox" disabled /> Audit-log-service 보존 기간, archive, replay 감사 기록, 운영 장애 처리 규칙</label></p>
             <p><label><input type="checkbox" disabled /> Outbox Relay replay 승인, custom metric/alarm, dev AWS end-to-end 증적 운영 규칙</label></p>
@@ -78,8 +80,8 @@
         <h2>다음 규칙 결정 순서</h2>
         <table>
           <tbody>
-            <tr><th>1</th><td>DB 규칙 - WMS 데이터 모델 설계 전에 table, column, migration, index, audit field 기준을 정합니다.</td></tr>
-            <tr><th>2</th><td>WMS 도메인 규칙 - warehouse, location, item, inventory, lot/serial, 가용 재고 계산 기준을 정합니다.</td></tr>
+            <tr><th>1</th><td>DB 규칙 - WMS 1차 schema는 구현됐지만 table, column, migration, index, audit field 공통 기준은 별도로 정합니다.</td></tr>
+            <tr><th>2</th><td>WMS 2차 도메인 규칙 - lot/serial, 보류 재고, 작업 지시, ERP 재전송 기준을 정합니다.</td></tr>
             <tr><th>3</th><td>Idempotency 규칙 - 변경성 POST/PATCH 요청의 중복 처리 저장소와 TTL을 정합니다.</td></tr>
             <tr><th>4</th><td>Audit-log-service 규칙 - 보존 기간, archive, replay 감사 기록, 운영 장애 처리 기준을 정합니다.</td></tr>
             <tr><th>5</th><td>Outbox Relay 규칙 - replay 승인, custom metric/alarm, dev AWS end-to-end 운영 기준을 정합니다.</td></tr>

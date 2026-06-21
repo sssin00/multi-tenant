@@ -19,7 +19,7 @@
           <tr><th>위치</th><td><code>apps/gateway-service</code></td></tr>
           <tr><th>카테고리</th><td>Backend Service · Edge Gateway</td></tr>
           <tr><th>책임</th><td>request id 발급, tenant 식별, JWT 검증, 라우팅, rate limit, 공통 로그와 보안 정책 적용</td></tr>
-          <tr><th>라우팅</th><td><code>/api/auth/**</code>, <code>/api/admin/**</code>를 Auth/IAM과 Admin BFF로 전달</td></tr>
+          <tr><th>라우팅</th><td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>를 Auth/IAM, Admin BFF, User BFF로 전달</td></tr>
           <tr><th>주의</th><td>재고 차감, 입고 완료, 출고 할당 같은 업무 로직과 DB 직접 접근은 넣지 않습니다.</td></tr>
         </table>
       </section>
@@ -30,7 +30,7 @@
             <tr><th>요청 진입</th><td>외부 HTTP 요청의 첫 진입점으로 <code>X-Request-Id</code>를 보장하고, 표준 응답 header와 access log 기준을 적용합니다.</td></tr>
             <tr><th>인증 전처리</th><td>public route를 제외한 요청의 JWT 서명, 만료, issuer, audience를 검증하고 user/tenant context를 추출합니다.</td></tr>
             <tr><th>Tenant 보호</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code> mismatch를 차단하고 downstream으로 tenant context를 전파합니다.</td></tr>
-            <tr><th>라우팅</th><td><code>/api/auth/**</code>, <code>/api/admin/**</code>, 이후 <code>/api/app/**</code> surface를 각 BFF 또는 Auth/IAM upstream으로 전달합니다.</td></tr>
+            <tr><th>라우팅</th><td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code> surface를 각 BFF 또는 Auth/IAM upstream으로 전달합니다.</td></tr>
             <tr><th>공통 정책</th><td>rate limit, CORS, security header, upstream timeout, retry, 표준 error envelope를 gateway 레벨에서 통일합니다.</td></tr>
             <tr><th>제외 범위</th><td>도메인 업무 판단, 화면 데이터 조합, DB 접근, tenant 상태 상세 검증은 gateway 기능이 아닙니다.</td></tr>
           </tbody>
@@ -40,7 +40,7 @@
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag done">1차 구현</span></td></tr>
-          <tr><th>완료 범위</th><td>health/readiness, request context, JWT 검증, tenant mismatch 차단, Auth/BFF proxy route, rate limit, security/CORS, AWS 배포 기준</td></tr>
+          <tr><th>완료 범위</th><td>health/readiness, request context, JWT 검증, tenant mismatch 차단, Auth/Admin BFF/User BFF proxy route, rate limit, security/CORS, AWS 배포 기준</td></tr>
           <tr><th>남은 범위</th><td>새 BFF/API surface가 추가될 때 route group, timeout, rate limit, CORS 기준을 함께 검증합니다.</td></tr>
           <tr><th>API 문서</th><td><code>docs/apis/gateway-service</code></td></tr>
         </table>
@@ -51,7 +51,7 @@
           <div class="card"><strong>Health</strong><p><code>GET /health</code>, <code>GET /ready</code></p></div>
           <div class="card"><strong>Context</strong><p><code>x-request-id</code>, <code>x-tenant-id</code> 추출과 전파</p></div>
           <div class="card"><strong>Auth</strong><p>JWT guard 기본 구조와 public/private route 구분</p></div>
-          <div class="card"><strong>Routing</strong><p>auth-iam, admin-bff로 프록시 라우팅</p></div>
+          <div class="card"><strong>Routing</strong><p>auth-iam, admin-bff, user-bff로 프록시 라우팅</p></div>
           <div class="card"><strong>Log</strong><p>tenant_id, request_id, user_id 기반 access log</p></div>
           <div class="card"><strong>Policy</strong><p>Redis rate limit, 보안 header/CORS 운영 기준</p></div>
         </div>
@@ -72,7 +72,7 @@
               <p><label><input type="checkbox" checked disabled /> Bearer token 기반 auth guard 기본 구조</label></p>
               <p><label><input type="checkbox" checked disabled /> JWT payload의 <code>sub</code>, <code>tenantId</code> 추출</label></p>
               <p><label><input type="checkbox" checked disabled /> JWT <code>tenantId</code>와 header tenant mismatch 차단</label></p>
-              <p><label><input type="checkbox" checked disabled /> <code>/api/auth/**</code>, <code>/api/admin/**</code> proxy route map</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code> proxy route map</label></p>
               <p><label><input type="checkbox" checked disabled /> upstream으로 <code>x-request-id</code>, <code>x-tenant-id</code>, <code>x-user-id</code> 전파</label></p>
               <p><label><input type="checkbox" checked disabled /> Proxy request body 전달 처리</label></p>
               <p><label><input type="checkbox" checked disabled /> Global exception filter로 API 에러 응답 포맷 통일</label></p>
@@ -85,7 +85,7 @@
               <p><label><input type="checkbox" checked disabled /> 보안 header와 CORS 운영 기준 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> HTTPS, ACM, Route53 연결 기준 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> GitHub Actions 배포 자동화</label></p>
-              <p><label><input type="checkbox" checked disabled /> AWS 배포에서 Auth/IAM Cloud Map 내부 DNS upstream 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> AWS 배포에서 Auth/IAM, Admin BFF, User BFF Cloud Map 내부 DNS upstream 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> gateway 테스트 시나리오 문서화</label></p>
             </div>
           </div>
@@ -161,9 +161,9 @@
             <summary>Proxy Routing, Body 전달, Timeout/Retry</summary>
             <div class="detail-body">
               <div class="compact-grid">
-                <div class="card"><strong>Route Map</strong><p><code>/api/auth/**</code>, <code>/api/admin/**</code>를 각각 Auth/IAM, Admin BFF로 전달합니다.</p></div>
+                <div class="card"><strong>Route Map</strong><p><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>를 각각 Auth/IAM, Admin BFF, User BFF로 전달합니다.</p></div>
                 <div class="card"><strong>전달</strong><p>request body, query string, request context headers를 upstream으로 보존해 전달합니다.</p></div>
-                <div class="card"><strong>Timeout</strong><p>auth는 기본 <code>3000ms</code>, admin은 기본 <code>5000ms</code>입니다.</p></div>
+                <div class="card"><strong>Timeout</strong><p>auth는 기본 <code>3000ms</code>, admin/app은 기본 <code>5000ms</code>입니다.</p></div>
                 <div class="card"><strong>Retry</strong><p><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout/network error/502/503/504에서 재시도합니다.</p></div>
               </div>
               <div class="doc-chip-list">
@@ -201,7 +201,7 @@
             <div class="detail-body">
               <div class="compact-grid">
                 <div class="card"><strong>Security</strong><p>공통 보안 header, 명시 origin 기반 CORS, HTTPS 요청 HSTS를 적용했습니다.</p></div>
-                <div class="card"><strong>Infra</strong><p>ACM ARN이 있으면 ALB HTTPS listener를 만들고 HTTP를 HTTPS로 redirect합니다. AWS 배포에서 Auth/IAM upstream 기본값은 Cloud Map 내부 DNS입니다.</p></div>
+                <div class="card"><strong>Infra</strong><p>ACM ARN이 있으면 ALB HTTPS listener를 만들고 HTTP를 HTTPS로 redirect합니다. AWS 배포에서 Auth/IAM, Admin BFF, User BFF upstream 기본값은 Cloud Map 내부 DNS입니다.</p></div>
                 <div class="card"><strong>CI/CD</strong><p>push 자동 배포는 당분간 비활성화되어 있으며, GitHub Actions 수동 실행으로 배포합니다. 자동 배포를 다시 켜면 <code>dev</code>, <code>staging</code>, <code>main</code> 브랜치를 각각 dev, staging, prod 환경으로 매핑합니다.</p></div>
                 <div class="card"><strong>Docs</strong><p>API 문서, 개발 기록, 테스트 시나리오, 향후 서비스 연동 작업을 함께 갱신했습니다.</p></div>
               </div>
@@ -279,7 +279,7 @@
               <td><code>GWS-PROXY-001</code></td>
               <td>Proxy route가 request context와 body를 upstream으로 전달한다</td>
               <td><code>P0</code></td>
-              <td><code>/api/auth/**</code>, <code>/api/admin/**</code>가 각각 설정된 upstream으로 전달되고 body, query, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>가 보존된다.</td>
+              <td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>가 각각 설정된 upstream으로 전달되고 body, query, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>가 보존된다.</td>
               <td>upstream mock 수신 headers/body/query, gateway access log</td>
             </tr>
             <tr>
@@ -371,7 +371,7 @@
               <tr>
                 <td><code>P1</code></td>
                 <td>User BFF와 WMS route 연결</td>
-                <td>User BFF 구현 시 <code>/api/app/**</code> route map과 WMS 업무 API 라우팅 경계를 별도 작업으로 추가합니다.</td>
+                <td>User BFF 구현에 맞춰 <code>/api/app/**</code> route map과 WMS 업무 API 라우팅 경계를 유지합니다.</td>
                 <td>gateway에는 WMS 업무 로직이 없고, tenant/user context가 BFF와 domain service까지 전파됩니다.</td>
                 <td>user-bff-service 개발 문서, wms-service 개발 문서, gateway 테스트 시나리오</td>
               </tr>
@@ -440,7 +440,7 @@
             <li>요청 완료 시 JSON access log를 남기며 <code>method</code>, <code>path</code>, <code>statusCode</code>, <code>durationMs</code>, <code>requestId</code>, <code>tenantId</code>, <code>userId</code>를 포함합니다.</li>
             <li><code>/health</code>, <code>/ready</code>는 public route로 유지하고, <code>/api/**</code>는 기본 private route로 처리합니다.</li>
             <li>JWT verifier는 local-dev 기본 구조로 시작하며 <code>sub</code>, <code>tenantId</code>, <code>exp</code>를 확인합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</li>
-            <li>초기 proxy routing 뼈대에는 <code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>를 포함했습니다. 2026-06-12 기준 미구현 user-bff 경로인 <code>/api/app/**</code>는 gateway 활성 route에서 제거했습니다.</li>
+            <li>초기 proxy routing 뼈대에는 <code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>를 포함했습니다. <code>/api/app/**</code>는 2026-06-12에 일시 제거했다가 2026-06-18 user-bff 기본 구조 구현 후 다시 활성화했습니다.</li>
             <li>Proxy route API 문서는 <a href="../../apis/gateway-service/proxy-routes.html"><code>docs/apis/gateway-service/proxy-routes.html</code></a>에 기록합니다.</li>
           </ul>
           <table>
@@ -507,7 +507,7 @@
           <h3>2026-06-09 Upstream Timeout과 Retry 정책</h3>
           <ul>
             <li>proxy route별 upstream timeout을 추가했습니다.</li>
-            <li><code>/api/auth/**</code>는 기본 <code>3000ms</code>, <code>/api/admin/**</code>는 기본 <code>5000ms</code>를 적용합니다.</li>
+            <li><code>/api/auth/**</code>는 기본 <code>3000ms</code>, <code>/api/admin/**</code>와 <code>/api/app/**</code>는 기본 <code>5000ms</code>를 적용합니다.</li>
             <li><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout, network error, upstream <code>502</code>, <code>503</code>, <code>504</code> 응답에 대해 기본 1회 재시도합니다.</li>
             <li><code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>는 중복 실행 위험 때문에 재시도하지 않습니다.</li>
             <li>최종 timeout은 <code>504 GATEWAY_TIMEOUT</code>, 최종 연결 실패는 <code>503 UPSTREAM_UNAVAILABLE</code>로 응답합니다.</li>
@@ -580,7 +580,7 @@
             <li>자동 배포를 다시 켜면 <code>dev</code> 브랜치는 <code>dev</code> 환경, <code>staging</code> 브랜치는 <code>staging</code> 환경, <code>main</code> 브랜치는 <code>prod</code> 환경으로 배포합니다.</li>
             <li>배포는 GitHub OIDC로 AWS role을 assume하는 방식이며, 환경별 GitHub Environment secret <code>AWS_ROLE_ARN</code>을 사용합니다.</li>
             <li>첫 배포도 가능하도록 CDK를 <code>gatewayDesiredCount=0</code>으로 먼저 실행해 ECR/기본 인프라를 만들고, 이미지를 ECR에 push한 뒤 실제 desired count로 다시 배포합니다.</li>
-            <li>gateway workflow는 같은 CDK 스택의 auth/tenant/admin-bff 값을 함께 갱신하므로 <code>AUTH_DESIRED_COUNT</code>, <code>AUTH_IMAGE_TAG</code>, <code>TENANT_DESIRED_COUNT</code>, <code>TENANT_IMAGE_TAG</code>, <code>ADMIN_BFF_DESIRED_COUNT</code>, <code>ADMIN_BFF_IMAGE_TAG</code>를 명시하지 않으면 실패합니다.</li>
+            <li>gateway workflow는 같은 CDK 스택의 auth/tenant/admin-bff/user-bff/wms/audit/outbox 값을 함께 갱신하므로 비대상 서비스 desired count와 image tag를 명시하지 않으면 실패합니다.</li>
             <li>이미지 tag는 <code>{env}-{gitSha12}</code> 형식을 사용합니다.</li>
             <li>CDK stack은 GitHub Environment variable로 ACM 인증서 ARN, gateway domain, CORS origin, upstream service URL을 받을 수 있습니다.</li>
             <li>JWT secret은 GitHub Environment secret <code>GATEWAY_JWT_SECRET_ARN</code>으로 Secrets Manager ARN을 전달하고, ECS task secret으로 주입합니다.</li>
@@ -627,14 +627,14 @@
             <li><code>/api/admin/**</code>는 <code>ADMIN_BFF_SERVICE_URL</code>로 전달하며, admin-bff가 auth-iam 권한 확인과 tenant-service 내부 조회를 수행합니다.</li>
             <li>tenant 관리 API는 gateway가 tenant-service로 직접 proxy하지 않고 <code>/api/admin/tenants/**</code> → admin-bff-service → tenant-service 내부 API 경로를 사용합니다.</li>
             <li>tenant status check도 BFF가 tenant-service 내부 API로 수행합니다. gateway-service에는 tenant-service URL이나 tenant internal auth secret을 두지 않습니다.</li>
-            <li><code>user-bff-service</code>는 아직 실행 가능한 NestJS 구현이 없어 gateway route/env에서 비활성 상태로 유지합니다. <code>wms-service</code>와 <code>outbox-relay-service</code>는 구현 여부와 관계없이 gateway 직접 upstream으로 추가하지 않고 BFF 또는 내부 운영 경로로만 접근합니다.</li>
+            <li>2026-06-12 기준 <code>user-bff-service</code>는 실행 가능한 NestJS 구현이 없어 gateway route/env에서 비활성 상태로 유지했습니다. 2026-06-18 기본 구조 구현 후 <code>/api/app/**</code> route로 다시 연결했습니다.</li>
           </ul>
         </article>
         <article>
           <h3>2026-06-12 전역 BFF 경유 원칙 확정</h3>
           <ul>
             <li>이후 추가되는 모든 외부 업무/관리/앱 API는 <code>gateway-service</code> → BFF → domain/platform service 순서로만 연결합니다.</li>
-            <li>gateway-service의 직접 upstream은 현재 <code>auth-iam-service</code>, <code>admin-bff-service</code>로 제한합니다. user-bff-service 구현 후에는 <code>/api/app/**</code> 경로만 user-bff-service로 추가합니다.</li>
+            <li>gateway-service의 upstream은 현재 <code>auth-iam-service</code>, <code>admin-bff-service</code>, <code>user-bff-service</code>로 구성합니다.</li>
             <li><code>tenant-service</code>, <code>wms-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code>와 이후 추가되는 domain/platform/worker service는 gateway가 직접 호출하지 않습니다.</li>
             <li>tenant status check는 Admin BFF와 이후 추가되는 모든 BFF가 tenant-service 내부 API로 수행합니다.</li>
           </ul>
@@ -642,11 +642,27 @@
         <article>
           <h3>2026-06-12 미사용 Gateway API와 설정 제거</h3>
           <ul>
-            <li>실행 가능한 user-bff-service 구현이 아직 없으므로 gateway-service의 활성 route에서 <code>/api/app/**</code>를 제거했습니다.</li>
-            <li><code>USER_BFF_SERVICE_URL</code>, <code>GATEWAY_APP_UPSTREAM_TIMEOUT_MS</code>, <code>GATEWAY_RATE_LIMIT_APP_PER_WINDOW</code> 설정을 gateway 환경 파일과 CDK task 환경 변수에서 제거했습니다.</li>
-            <li>rate limit route group은 현재 활성 proxy surface인 <code>auth</code>, <code>admin</code>만 사용합니다.</li>
+            <li>2026-06-12에는 실행 가능한 user-bff-service 구현이 없어 gateway-service의 활성 route에서 <code>/api/app/**</code>를 제거했습니다. 2026-06-18 기본 구조 구현 후 다시 활성화했고, 2026-06-19 CDK task 환경 변수에도 반영했습니다.</li>
+            <li>현재 <code>USER_BFF_SERVICE_URL</code>, <code>GATEWAY_APP_UPSTREAM_TIMEOUT_MS</code>, <code>GATEWAY_RATE_LIMIT_APP_PER_WINDOW</code> 설정은 local/dev/staging/prod와 CDK task 환경 변수에서 관리합니다.</li>
+            <li>rate limit route group은 현재 활성 proxy surface인 <code>auth</code>, <code>admin</code>, <code>app</code>을 사용합니다.</li>
             <li>코드에서 사용하지 않는 <code>authMode</code> 설정 필드를 제거했습니다.</li>
-            <li>user-bff-service가 구현될 때 <code>/api/app/**</code> route, timeout, rate limit, env, 문서를 별도 변경으로 다시 추가합니다.</li>
+            <li>2026-06-18 변경에서 <code>/api/app/**</code> route, timeout, rate limit, env, 문서를 다시 추가했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-19 AWS User BFF route CDK 반영</h3>
+          <ul>
+            <li>CDK gateway task environment에 <code>USER_BFF_SERVICE_URL</code>과 app route rate limit 기본값을 주입하도록 배포 기준을 맞췄습니다.</li>
+            <li>Auth/IAM URL은 gateway/user-bff용 <code>.../api/auth</code> prefix와 admin-bff/wms용 base URL을 분리했습니다.</li>
+            <li>서비스별 workflow가 공유 CDK 스택을 갱신할 때 user-bff-service와 wms-service desired count/image tag를 함께 보존하도록 문서를 갱신했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-18 User BFF App Route 활성화</h3>
+          <ul>
+            <li><code>ProxyRouteConfig</code>에 <code>app</code> route key를 추가하고 <code>/api/app/**</code> 요청을 <code>USER_BFF_SERVICE_URL</code>로 전달하도록 했습니다.</li>
+            <li><code>GATEWAY_APP_UPSTREAM_TIMEOUT_MS</code>, <code>GATEWAY_RATE_LIMIT_APP_PER_WINDOW</code>, <code>USER_BFF_SERVICE_URL</code> env를 local/dev/staging/prod에 추가했습니다.</li>
+            <li>local compose에서 gateway-service가 user-bff-service health 상태 이후 시작하도록 연결했습니다.</li>
           </ul>
         </article>
       </section>

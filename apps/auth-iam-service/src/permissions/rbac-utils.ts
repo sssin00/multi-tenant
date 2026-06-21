@@ -56,8 +56,8 @@ export function readCode(value: unknown, fieldName: string): string {
 }
 
 export function readPermissionCode(value: unknown, fieldName: string): string {
-  const code = readString(value).toLowerCase();
-  if (!code || !/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*){2,}$/.test(code)) {
+  const code = readString(value);
+  if (!code || !/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*){2,}$/.test(code)) {
     throw validationFailed({
       [fieldName]: `${fieldName} must use {domain}.{resource}.{action} format`
     });

@@ -453,6 +453,7 @@
           <tbody>
             <tr><th>Purpose</th><td>관리자 화면에서 tenant 사용자 목록, 생성, 수정, 상태 변경, role 부여를 처리합니다. 화면 초기 데이터는 <code>GET /api/admin/access-control/screen-data</code>로 조합 조회합니다.</td></tr>
             <tr><th>Tenant scope</th><td><code>X-Tenant-Id</code> 기준으로 auth-iam-service에 위임합니다. 다른 tenant 사용자는 노출하지 않습니다.</td></tr>
+            <tr><th>User type</th><td>tenant 사용자 API는 <code>general_user</code>만 생성/관리합니다. <code>userType</code> 생략 시 <code>general_user</code>로 저장되고 <code>system_admin</code>은 Auth/IAM 검증에서 <code>400 VALIDATION_FAILED</code>로 실패합니다.</td></tr>
             <tr><th>Downstream</th><td><code>/api/auth/users/**</code>, <code>/api/auth/users/{userId}/roles</code>, <code>/api/auth/user-roles/{userRoleId}</code></td></tr>
             <tr><th>Idempotency</th><td><code>POST</code>, <code>PATCH</code>, <code>DELETE</code> 요청은 <code>Idempotency-Key</code> header가 필수입니다.</td></tr>
             <tr><th>Secret</th><td>응답에는 password, password hash, token을 포함하지 않습니다.</td></tr>
@@ -465,7 +466,7 @@
             </thead>
             <tbody>
               <tr><td><code>GET /api/admin/users</code></td><td><code>auth.users.read</code></td><td><code>page</code>, <code>size</code>, optional <code>status</code>, <code>email</code></td><td>user list</td></tr>
-              <tr><td><code>POST /api/admin/users</code></td><td><code>auth.users.create</code></td><td><code>email</code>, <code>displayName</code>, <code>password</code>, optional <code>status</code></td><td>user object</td></tr>
+              <tr><td><code>POST /api/admin/users</code></td><td><code>auth.users.create</code></td><td><code>email</code>, <code>displayName</code>, <code>password</code>, optional <code>status</code>, optional <code>userType=general_user</code></td><td>user object with <code>userType</code></td></tr>
               <tr><td><code>GET /api/admin/users/{userId}</code></td><td><code>auth.users.read</code></td><td>-</td><td><code>user</code> object and <code>roles</code> summary</td></tr>
               <tr><td><code>PATCH /api/admin/users/{userId}</code></td><td><code>auth.users.update</code></td><td>optional <code>email</code>, <code>displayName</code></td><td>user object</td></tr>
               <tr><td><code>PATCH /api/admin/users/{userId}/status</code></td><td><code>auth.users.updateStatus</code></td><td><code>status</code>: <code>active</code>, <code>inactive</code>, <code>locked</code></td><td>user object</td></tr>

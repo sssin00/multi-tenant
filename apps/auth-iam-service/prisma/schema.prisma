@@ -13,6 +13,11 @@ enum UserStatus {
   locked
 }
 
+enum UserType {
+  system_admin
+  general_user
+}
+
 enum OutboxStatus {
   pending
   published
@@ -25,6 +30,7 @@ model AuthUser {
   email        String
   displayName  String     @map("display_name")
   passwordHash String     @map("password_hash")
+  userType     UserType   @default(general_user) @map("user_type")
   status       UserStatus @default(active)
   createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -33,6 +39,7 @@ model AuthUser {
   userRoles     UserRole[]
 
   @@unique([tenantId, email])
+  @@index([tenantId, userType])
   @@index([tenantId, status])
   @@map("auth_users")
 }

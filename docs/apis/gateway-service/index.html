@@ -91,8 +91,8 @@
         <a class="api-summary" href="./proxy-routes.html">
           <span class="method">ANY</span>
           <div>
-            <h2>/api/{surface}/**</h2>
-            <p>JWT, tenant mismatch, rate limit을 통과한 업무 API 요청을 BFF와 Auth/IAM으로 전달합니다.</p>
+            <h2>/api/auth/** · /api/admin/** · /api/app/**</h2>
+            <p><code>auth</code>, <code>admin</code>, <code>app</code> route group을 각각 Auth/IAM, Admin BFF, User BFF로 전달합니다. tenant-service, wms-service, audit-log-service는 BFF 또는 내부 worker 경로에서 사용합니다.</p>
           </div>
           <span class="tag done">ACTIVE</span>
         </a>

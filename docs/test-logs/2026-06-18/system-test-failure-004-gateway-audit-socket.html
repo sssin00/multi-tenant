@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>전체 시스템 로컬 테스트 기록</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">System Test Log</p>
+        <h1>전체 시스템 로컬 테스트 기록</h1>
+        <p class="lead">
+          로컬 배포 후 seed, tenant, 인증, 사용자, 권한, WMS, outbox/audit 시나리오를 실행한 기록입니다.
+          이 파일은 각 시나리오가 끝날 때마다 갱신됩니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>실행 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>상태</th><td><span class="tag todo">failed</span></td></tr>
+            <tr><th>시작</th><td>2026-06-17T22:34:11.661Z</td></tr>
+            <tr><th>마지막 갱신</th><td>2026-06-17T22:34:28.746Z</td></tr>
+            <tr><th>반복 횟수</th><td><code>1</code></td></tr>
+            <tr><th>통과</th><td><code>22</code></td></tr>
+            <tr><th>실패</th><td><code>1</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>항목별 결과</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>iteration</th><th>scenarioId</th><th>title</th><th>result</th><th>evidence</th><th>endedAt</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>SETUP-READY-001</code></td>
+                <td>전체 서비스 readiness 확인</td>
+                <td><span class="tag done">passed</span></td>
+                <td>gateway-service=200, auth-iam-service=200, tenant-service=200, admin-bff-service=200, wms-service=200, audit-log-service=200, outbox-relay-service=200</td>
+                <td>2026-06-17T22:34:11.848Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>SETUP-SEED-003</code></td>
+                <td>seed 관리자 로그인과 JWT claim 확인</td>
+                <td><span class="tag done">passed</span></td>
+                <td>userId=22222222-2222-4222-8222-222222222222, claims=aud,exp,iat,iss,sub,tenantId,type</td>
+                <td>2026-06-17T22:34:11.934Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>AUTH-TOKEN-001</code></td>
+                <td>refresh token rotation</td>
+                <td><span class="tag done">passed</span></td>
+                <td>newRefreshIssued=true, oldRefreshReuseStatus=401</td>
+                <td>2026-06-17T22:34:11.961Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>AUTH-LOGIN-002</code></td>
+                <td>tenant header/body mismatch 차단</td>
+                <td><span class="tag done">passed</span></td>
+                <td>status=403, code=TENANT_MISMATCH</td>
+                <td>2026-06-17T22:34:11.966Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>TENANT-ADM-001</code></td>
+                <td>tenant 목록 조회</td>
+                <td><span class="tag done">passed</span></td>
+                <td>total=4, seedTenantFound=true</td>
+                <td>2026-06-17T22:34:12.030Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>TENANT-ADM-002</code></td>
+                <td>tenant 신규 생성</td>
+                <td><span class="tag done">passed</span></td>
+                <td>tenantId=01115b32-22e9-4469-932a-0adaf0332d24, code=SYST0004</td>
+                <td>2026-06-17T22:34:12.052Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>TENANT-ADM-003</code></td>
+                <td>tenant 기본 정보 수정</td>
+                <td><span class="tag done">passed</span></td>
+                <td>tenantId=01115b32-22e9-4469-932a-0adaf0332d24, name=System Test Tenant Updated 1781735651661-1</td>
+                <td>2026-06-17T22:34:12.069Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>TENANT-ADM-004</code></td>
+                <td>tenant 상태 변경</td>
+                <td><span class="tag done">passed</span></td>
+                <td>tenantId=01115b32-22e9-4469-932a-0adaf0332d24, statuses=suspended-&gt;active</td>
+                <td>2026-06-17T22:34:12.112Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>TENANT-ADM-005</code></td>
+                <td>tenant module 교체</td>
+                <td><span class="tag done">passed</span></td>
+                <td>tenantId=01115b32-22e9-4469-932a-0adaf0332d24, modules=auth,tenant,wms</td>
+                <td>2026-06-17T22:34:12.138Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>TENANT-ADM-006</code></td>
+                <td>tenant domain 추가와 비활성화</td>
+                <td><span class="tag done">passed</span></td>
+                <td>domainId=95a6aa73-dd58-4057-8990-a425c883cfc1</td>
+                <td>2026-06-17T22:34:12.169Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>AUTH-USER-001</code></td>
+                <td>사용자 생성</td>
+                <td><span class="tag done">passed</span></td>
+                <td>userId=1a370c79-797d-4022-afbc-14b00ef27955</td>
+                <td>2026-06-17T22:34:12.291Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>AUTH-USER-002</code></td>
+                <td>사용자 정보 수정</td>
+                <td><span class="tag done">passed</span></td>
+                <td>userId=1a370c79-797d-4022-afbc-14b00ef27955, displayName=System Scenario User Updated 1</td>
+                <td>2026-06-17T22:34:12.310Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>AUTH-USER-003</code></td>
+                <td>사용자 상태 변경과 복구</td>
+                <td><span class="tag done">passed</span></td>
+                <td>userId=1a370c79-797d-4022-afbc-14b00ef27955, statuses=locked-&gt;active</td>
+                <td>2026-06-17T22:34:12.348Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>ACCESS-PERM-001</code></td>
+                <td>permission 생성과 목록 조회</td>
+                <td><span class="tag done">passed</span></td>
+                <td>permissionId=d9fad594-7890-4171-bb20-8cabd9e33a25, code=scenario.permission.verify17817356523481</td>
+                <td>2026-06-17T22:34:12.420Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>ACCESS-ROLE-001</code></td>
+                <td>role 생성</td>
+                <td><span class="tag done">passed</span></td>
+                <td>roleId=e68c7589-f0f6-4e01-a057-f487a8e54428</td>
+                <td>2026-06-17T22:34:12.460Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>ACCESS-ROLE-002</code></td>
+                <td>role permission 교체</td>
+                <td><span class="tag done">passed</span></td>
+                <td>roleId=e68c7589-f0f6-4e01-a057-f487a8e54428, permission=scenario.permission.verify17817356523481</td>
+                <td>2026-06-17T22:34:12.493Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>ACCESS-ASSIGN-001</code></td>
+                <td>사용자 role 부여와 회수</td>
+                <td><span class="tag done">passed</span></td>
+                <td>userRoleId=00068cd7-1cc2-4138-9ec8-11f2bd65f4ef, removed=true</td>
+                <td>2026-06-17T22:34:12.572Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>NEG-VALID-001</code></td>
+                <td>validation error envelope</td>
+                <td><span class="tag done">passed</span></td>
+                <td>status=400, code=VALIDATION_FAILED</td>
+                <td>2026-06-17T22:34:12.599Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>NEG-IDEMP-001</code></td>
+                <td>mutation idempotency key 검증</td>
+                <td><span class="tag done">passed</span></td>
+                <td>status=400, code=IDEMPOTENCY_KEY_REQUIRED</td>
+                <td>2026-06-17T22:34:12.618Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>NEG-AUTH-001</code></td>
+                <td>권한 없는 API 차단</td>
+                <td><span class="tag done">passed</span></td>
+                <td>status=401, code=UNAUTHORIZED</td>
+                <td>2026-06-17T22:34:12.625Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>WMS-FLOW-001</code></td>
+                <td>WMS 로컬 통합 시나리오 일괄 검증</td>
+                <td><span class="tag done">passed</span></td>
+                <td>WMS-INT-001..005 passed, outbox/audit verified</td>
+                <td>2026-06-17T22:34:21.451Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>OBS-OUTBOX-002</code></td>
+                <td>outbox relay SQS publish와 audit 저장</td>
+                <td><span class="tag done">passed</span></td>
+                <td>outbox pending-&gt;published and audit log stored</td>
+                <td>2026-06-17T22:34:28.741Z</td>
+              </tr>
+              <tr>
+                <td><code>1</code></td>
+                <td><code>OBS-AUDIT-001</code></td>
+                <td>감사 로그 관리자 조회</td>
+                <td><span class="tag todo">failed</span></td>
+                <td>fetch failed</td>
+                <td>2026-06-17T22:34:28.746Z</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <p class="footer"><a href="../../test-scenarios/system-test-scenarios.html">전체 시스템 테스트 시나리오로 이동</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

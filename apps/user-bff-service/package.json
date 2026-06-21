@@ -4,10 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo \"user-bff-service build not configured yet\"",
-    "dev": "echo \"user-bff-service dev not configured yet\"",
-    "lint": "echo \"user-bff-service lint not configured yet\"",
-    "test": "echo \"user-bff-service tests not configured yet\"",
-    "typecheck": "echo \"user-bff-service typecheck not configured yet\""
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-eventbridge": "^3.1070.0",
+    "@nestjs/common": "^10.3.8",
+    "@nestjs/core": "^10.3.8",
+    "@nestjs/platform-express": "^10.3.8",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   }
 }

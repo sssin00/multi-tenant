@@ -60,6 +60,9 @@
 - Every tenant-scoped request, log, event, audit record, and data access path must carry `tenantId` and `requestId`.
 - Tenant-owned data access must always be constrained by `tenantId`.
 - Redis keys and S3 object keys must include tenant identifiers.
+- Users are separated into `system_admin` and `general_user` user types.
+- `general_user` accounts must always have a tenant value.
+- Tenant-scoped user CRUD APIs create and manage only `general_user` accounts.
 - `system_admin` and `tenant_admin` must remain separate administrative scopes.
 - Tenant isolation tests must cover missing tenant, tenant mismatch, cross-tenant access, inactive tenant access, and event/log tenant propagation.
 - Tenant proxy access is not provided until approval, audit log, and permission restriction rules are defined.
@@ -102,6 +105,7 @@
 - JWT claims include only `sub`, `tenantId`, `type`, `iat`, `exp`, `iss`, and `aud`.
 - Do not put `roles` or `permissions` in JWT claims.
 - `auth-iam-service` is the source of truth for roles and permissions.
+- User type is stored on the auth user record. `system_admin` accounts require a separate system administration/bootstrap flow and must not be mixed into tenant-scoped user APIs.
 - `gateway-service` validates JWT signature/expiration, extracts `sub` and `tenantId`, and blocks basic tenant mismatch.
 - BFF services validate tenant readiness by calling `tenant-service` internal APIs before serving tenant-scoped business/admin/app APIs.
 - BFF services may fetch role/permission summaries for menu and button visibility.
@@ -128,7 +132,7 @@
 - Events must include `eventId`, `eventType`, `schemaVersion`, `tenantId`, `requestId`, `occurredAt`, `source`, and `data`.
 - Optional event fields are `actor`, `correlationId`, `causationId`, and `traceId`.
 - Event payloads contain only the minimum data consumers need. Do not include secrets, tokens, passwords, full user profiles, full permission lists, or large attachments.
-- WMS first events are `wms.inventory.adjusted`, `wms.inbound.confirmed`, `wms.outbound.allocated`, and `wms.outbound.shipped`.
+- WMS first events are `wms.inventory.adjusted`, `wms.inventory.snapshot.generated`, `wms.inbound.confirmed`, `wms.outbound.allocated`, `wms.outbound.packed`, and `wms.outbound.shipped`.
 - Domain state changes and `outbox_events` inserts must happen in the same DB transaction.
 - `outbox-relay-service` publishes pending events to EventBridge or SQS and records published or failed state.
 - Event consumers must be idempotent by `eventId`, retryable, and must not directly modify another service's DB.

@@ -12,7 +12,7 @@ import {
 import { getAppConfig } from "../config/app.config.js";
 import type { AuthIamRequestContext } from "../context/request-context.js";
 import { PrismaService } from "../database/prisma.service.js";
-import { UserStatus } from "../generated/prisma/enums.js";
+import { UserStatus, UserType } from "../generated/prisma/enums.js";
 import { JwtSigner } from "./jwt-signer.js";
 import { PasswordHasher } from "./password-hasher.js";
 
@@ -39,6 +39,7 @@ export interface MeResult {
     tenantId: string;
     email: string;
     displayName: string;
+    userType: UserType;
     status: UserStatus;
     createdAt: string;
     updatedAt: string;
@@ -247,6 +248,7 @@ export class AuthService {
         tenantId: user.tenantId,
         email: user.email,
         displayName: user.displayName,
+        userType: user.userType,
         status: user.status,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString()

@@ -212,6 +212,13 @@
           </ul>
         </article>
         <article>
+          <h3>2026-06-18 사용자 타입 계약 반영</h3>
+          <ul>
+            <li>관리자 사용자 생성 API는 Auth/IAM의 tenant-scoped 사용자 API로 위임하며 <code>general_user</code> 생성/관리만 지원합니다.</li>
+            <li><code>userType</code>을 생략하면 <code>general_user</code>로 저장되고, <code>system_admin</code> 생성 시도는 <code>400 VALIDATION_FAILED</code>로 실패하는 계약을 API 문서와 시스템 테스트 시나리오에 반영했습니다.</li>
+          </ul>
+        </article>
+        <article>
           <h3>2026-06-12 Tenant 상세/Module/Domain API 연결</h3>
           <ul>
             <li><code>GET/PATCH /api/admin/tenants/{tenantId}</code>를 tenant-service 내부 상세/수정 API로 연결했습니다.</li>

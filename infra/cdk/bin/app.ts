@@ -53,6 +53,28 @@ const adminBffCorsAllowedOrigins = readOptionalContextString("adminBffCorsAllowe
 const adminBffAuthInternalAuthSecretArn = readOptionalContextString("adminBffAuthInternalAuthSecretArn");
 const adminBffTenantInternalAuthSecretArn = readOptionalContextString("adminBffTenantInternalAuthSecretArn");
 const adminBffAuditInternalAuthSecretArn = readOptionalContextString("adminBffAuditInternalAuthSecretArn");
+const userBffImageTag = app.node.tryGetContext("userBffImageTag") ?? "latest";
+const userBffDesiredCount = readNonNegativeIntegerContext("userBffDesiredCount", 0);
+const userBffCorsAllowedOrigins = readOptionalContextString("userBffCorsAllowedOrigins");
+const userBffAuthInternalAuthSecretArn = readOptionalContextString("userBffAuthInternalAuthSecretArn");
+const userBffTenantInternalAuthSecretArn = readOptionalContextString("userBffTenantInternalAuthSecretArn");
+const userBffWmsInternalAuthSecretArn = readOptionalContextString("userBffWmsInternalAuthSecretArn");
+const userBffAuditInternalAuthSecretArn = readOptionalContextString("userBffAuditInternalAuthSecretArn");
+const userBffAppAuditPublisherTypeRaw = app.node.tryGetContext("userBffAppAuditPublisherType");
+const userBffAppAuditPublisherType =
+  userBffAppAuditPublisherTypeRaw === "eventbridge" ||
+  userBffAppAuditPublisherTypeRaw === "internal-api" ||
+  userBffAppAuditPublisherTypeRaw === "disabled"
+    ? userBffAppAuditPublisherTypeRaw
+    : undefined;
+const userBffAuditEventBridgeBusName = readOptionalContextString("userBffAuditEventBridgeBusName");
+const wmsImageTag = app.node.tryGetContext("wmsImageTag") ?? "latest";
+const wmsDesiredCount = readNonNegativeIntegerContext("wmsDesiredCount", 0);
+const wmsCorsAllowedOrigins = readOptionalContextString("wmsCorsAllowedOrigins");
+const wmsDatabaseUrlSecretArn = readOptionalContextString("wmsDatabaseUrlSecretArn");
+const wmsInternalAuthSecretArn = readOptionalContextString("wmsInternalAuthSecretArn");
+const wmsAuthInternalAuthSecretArn = readOptionalContextString("wmsAuthInternalAuthSecretArn");
+const wmsTenantInternalAuthSecretArn = readOptionalContextString("wmsTenantInternalAuthSecretArn");
 const auditImageTag = app.node.tryGetContext("auditImageTag") ?? "latest";
 const auditDesiredCount = readNonNegativeIntegerContext("auditDesiredCount", 0);
 const auditCorsAllowedOrigins = readOptionalContextString("auditCorsAllowedOrigins");
@@ -75,8 +97,11 @@ const tenantOutboxDatabaseUrlSecretArn = readOptionalContextString("tenantOutbox
 const wmsOutboxDatabaseUrlSecretArn = readOptionalContextString("wmsOutboxDatabaseUrlSecretArn");
 const auditLogServiceUrl = readOptionalContextString("auditLogServiceUrl");
 const authIamServiceUrl = readOptionalContextString("authIamServiceUrl");
+const authIamApiServiceUrl = readOptionalContextString("authIamApiServiceUrl");
 const adminBffServiceUrl = readOptionalContextString("adminBffServiceUrl");
+const userBffServiceUrl = readOptionalContextString("userBffServiceUrl");
 const tenantServiceUrl = readOptionalContextString("tenantServiceUrl");
+const wmsServiceUrl = readOptionalContextString("wmsServiceUrl");
 
 new GatewayServiceStack(app, `${project}-${envName}-gateway-service-stack`, {
   env: {
@@ -113,6 +138,22 @@ new GatewayServiceStack(app, `${project}-${envName}-gateway-service-stack`, {
   adminBffAuthInternalAuthSecretArn,
   adminBffTenantInternalAuthSecretArn,
   adminBffAuditInternalAuthSecretArn,
+  userBffImageTag,
+  userBffDesiredCount,
+  userBffCorsAllowedOrigins,
+  userBffAuthInternalAuthSecretArn,
+  userBffTenantInternalAuthSecretArn,
+  userBffWmsInternalAuthSecretArn,
+  userBffAuditInternalAuthSecretArn,
+  userBffAppAuditPublisherType,
+  userBffAuditEventBridgeBusName,
+  wmsImageTag,
+  wmsDesiredCount,
+  wmsCorsAllowedOrigins,
+  wmsDatabaseUrlSecretArn,
+  wmsInternalAuthSecretArn,
+  wmsAuthInternalAuthSecretArn,
+  wmsTenantInternalAuthSecretArn,
   auditImageTag,
   auditDesiredCount,
   auditCorsAllowedOrigins,
@@ -133,6 +174,9 @@ new GatewayServiceStack(app, `${project}-${envName}-gateway-service-stack`, {
   wmsOutboxDatabaseUrlSecretArn,
   auditLogServiceUrl,
   authIamServiceUrl,
+  authIamApiServiceUrl,
   adminBffServiceUrl,
-  tenantServiceUrl
+  userBffServiceUrl,
+  tenantServiceUrl,
+  wmsServiceUrl
 });

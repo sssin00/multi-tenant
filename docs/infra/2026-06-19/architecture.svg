@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" role="img" aria-labelledby="title desc">
+  <title id="title">2026-06-19 AWS ECS Architecture Snapshot</title>
+  <desc id="desc">Current CDK stack manages eight backend ECS services, gateway routing, BFF downstream calls including User BFF to WMS, WMS outbox, audit SQS, external database secrets, and later resources.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}
+      .lane{fill:#fff;stroke:#cbd5e1;stroke-width:1.2}
+      .laneTitle{font:700 15px Arial,sans-serif;fill:#475569;letter-spacing:0}
+      .box{fill:#fff;stroke:#334155;stroke-width:2;rx:10;ry:10}
+      .edge{fill:none;stroke:#334155;stroke-width:2.2;marker-end:url(#arrow)}
+      .event{fill:none;stroke:#64748b;stroke-width:2.2;stroke-dasharray:8 6;marker-end:url(#arrowMuted)}
+      .laterEdge{fill:none;stroke:#94a3b8;stroke-width:2;stroke-dasharray:7 7;marker-end:url(#arrowLater)}
+      .client{fill:#e0f2fe;stroke:#0284c7}
+      .entry{fill:#dcfce7;stroke:#16a34a}
+      .bff{fill:#e0f2fe;stroke:#0284c7}
+      .domain{fill:#fef3c7;stroke:#d97706}
+      .platform{fill:#ede9fe;stroke:#7c3aed}
+      .worker{fill:#f1f5f9;stroke:#64748b}
+      .data{fill:#fce7f3;stroke:#db2777}
+      .later{fill:#f8fafc;stroke:#94a3b8;stroke-dasharray:7 5}
+      .title{font:700 26px Arial,sans-serif;fill:#0f172a}
+      .subtitle{font:14px Arial,sans-serif;fill:#475569}
+      .label{font:700 16px Arial,sans-serif;fill:#0f172a}
+      .text{font:13px Arial,sans-serif;fill:#334155}
+      .small{font:12px Arial,sans-serif;fill:#475569}
+      .route{font:700 12px Arial,sans-serif;fill:#0f172a}
+    </style>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L10,3.5 z" fill="#334155"/>
+    </marker>
+    <marker id="arrowMuted" markerWidth="11" markerHeight="11" refX="9" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L10,3.5 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowLater" markerWidth="11" markerHeight="11" refX="9" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L10,3.5 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1060" class="bg"/>
+  <text x="48" y="48" class="title">2026-06-19 AWS ECS / WMS First Architecture</text>
+  <text x="48" y="76" class="subtitle">CDK current: ALB, ECS Fargate, ECR, Cloud Map, Redis, audit SQS/DLQ, CloudWatch Logs, Security Groups for eight backend services. External/later: RDS/Aurora provisioning, Route53 record, S3, EventBridge bus.</text>
+
+  <rect x="40" y="112" width="220" height="780" class="lane"/>
+  <rect x="292" y="112" width="260" height="780" class="lane"/>
+  <rect x="584" y="112" width="330" height="780" class="lane"/>
+  <rect x="946" y="112" width="330" height="780" class="lane"/>
+  <rect x="1308" y="112" width="244" height="780" class="lane"/>
+  <text x="62" y="140" class="laneTitle">Clients</text>
+  <text x="314" y="140" class="laneTitle">Public Entry</text>
+  <text x="606" y="140" class="laneTitle">BFF / Auth</text>
+  <text x="968" y="140" class="laneTitle">Domain / Platform</text>
+  <text x="1330" y="140" class="laneTitle">Data / Async</text>
+
+  <rect x="72" y="190" width="156" height="78" class="box client"/>
+  <text x="105" y="222" class="label">web-admin</text>
+  <text x="100" y="246" class="text">React + Vite</text>
+
+  <rect x="72" y="306" width="156" height="82" class="box client"/>
+  <text x="111" y="338" class="label">web-wms</text>
+  <text x="92" y="362" class="text">WMS user app</text>
+
+  <rect x="72" y="426" width="156" height="88" class="box client"/>
+  <text x="105" y="458" class="label">PDA Web</text>
+  <text x="91" y="482" class="text">scanner UI later</text>
+
+  <rect x="324" y="176" width="196" height="74" class="box later"/>
+  <text x="366" y="206" class="label">External DNS</text>
+  <text x="347" y="230" class="text">Route53 record later</text>
+
+  <rect x="324" y="300" width="196" height="86" class="box entry"/>
+  <text x="384" y="333" class="label">ALB</text>
+  <text x="350" y="357" class="text">HTTP 80 / HTTPS 443</text>
+
+  <rect x="324" y="462" width="196" height="204" class="box entry"/>
+  <text x="362" y="500" class="label">gateway-service</text>
+  <text x="354" y="526" class="text">JWT validation</text>
+  <text x="354" y="550" class="text">tenant mismatch</text>
+  <text x="354" y="574" class="text">rate limit</text>
+  <text x="354" y="610" class="route">/api/auth</text>
+  <text x="354" y="634" class="route">/api/admin</text>
+  <text x="354" y="658" class="route">/api/app</text>
+
+  <rect x="622" y="172" width="238" height="92" class="box domain"/>
+  <text x="672" y="207" class="label">auth-iam-service</text>
+  <text x="654" y="232" class="text">login, JWT, RBAC</text>
+  <text x="638" y="252" class="small">base URL + /api/auth URL split</text>
+
+  <rect x="622" y="316" width="238" height="94" class="box bff"/>
+  <text x="660" y="352" class="label">admin-bff-service</text>
+  <text x="650" y="377" class="text">admin tenant/user/RBAC</text>
+  <text x="666" y="397" class="small">audit read surface</text>
+
+  <rect x="622" y="462" width="238" height="94" class="box bff"/>
+  <text x="666" y="498" class="label">user-bff-service</text>
+  <text x="647" y="523" class="text">/api/app/me, navigation</text>
+  <text x="638" y="543" class="small">/api/app/wms screen APIs</text>
+
+  <rect x="984" y="190" width="238" height="92" class="box platform"/>
+  <text x="1032" y="226" class="label">tenant-service</text>
+  <text x="1018" y="251" class="text">status, modules, domains</text>
+
+  <rect x="984" y="336" width="238" height="134" class="box domain"/>
+  <text x="1041" y="372" class="label">wms-service</text>
+  <text x="1015" y="397" class="text">warehouse, item, inventory</text>
+  <text x="1017" y="421" class="text">inbound, allocation</text>
+  <text x="1016" y="445" class="text">packing, shipment, snapshot</text>
+
+  <rect x="984" y="520" width="238" height="104" class="box platform"/>
+  <text x="1028" y="557" class="label">audit-log-service</text>
+  <text x="1016" y="582" class="text">append-only audit logs</text>
+  <text x="1023" y="602" class="small">SQS consumer + internal API</text>
+
+  <rect x="984" y="674" width="238" height="108" class="box worker"/>
+  <text x="1021" y="712" class="label">outbox-relay-service</text>
+  <text x="1015" y="737" class="text">auth, tenant, wms sources</text>
+  <text x="1022" y="757" class="small">mock/EventBridge/SQS publisher</text>
+
+  <rect x="1340" y="168" width="176" height="84" class="box data"/>
+  <text x="1375" y="202" class="label">Redis</text>
+  <text x="1368" y="227" class="text">rate/cache/session</text>
+
+  <rect x="1340" y="292" width="176" height="124" class="box data"/>
+  <text x="1361" y="328" class="label">PostgreSQL</text>
+  <text x="1357" y="353" class="text">external DB via</text>
+  <text x="1359" y="377" class="text">Secrets Manager</text>
+  <text x="1356" y="397" class="small">RDS/Aurora CDK later</text>
+
+  <rect x="1340" y="458" width="176" height="104" class="box worker"/>
+  <text x="1371" y="495" class="label">Audit SQS</text>
+  <text x="1361" y="520" class="text">queue + DLQ</text>
+  <text x="1354" y="540" class="small">CDK managed default</text>
+
+  <rect x="1340" y="604" width="176" height="96" class="box later"/>
+  <text x="1359" y="640" class="label">EventBridge</text>
+  <text x="1357" y="665" class="text">external bus context</text>
+
+  <rect x="1340" y="742" width="176" height="86" class="box later"/>
+  <text x="1385" y="776" class="label">S3</text>
+  <text x="1369" y="801" class="text">file service later</text>
+
+  <path class="laterEdge" d="M228 229 L324 213"/>
+  <path class="edge" d="M228 347 L324 343"/>
+  <path class="edge" d="M422 386 L422 462"/>
+  <path class="edge" d="M520 610 L622 218"/>
+  <text x="530" y="407" class="small">auth route</text>
+  <path class="edge" d="M520 634 L622 363"/>
+  <text x="531" y="507" class="small">admin route</text>
+  <path class="edge" d="M520 658 L622 509"/>
+  <text x="532" y="606" class="small">app route</text>
+
+  <path class="edge" d="M860 363 L984 236"/>
+  <path class="edge" d="M860 363 L984 572"/>
+  <path class="edge" d="M860 509 L984 236"/>
+  <path class="edge" d="M860 509 L984 403"/>
+  <path class="edge" d="M860 509 L984 572"/>
+  <path class="edge" d="M1222 403 L1340 354"/>
+  <path class="edge" d="M1222 403 L622 218"/>
+  <path class="edge" d="M1222 403 L984 236"/>
+
+  <path class="event" d="M1103 470 L1103 674"/>
+  <path class="event" d="M1222 728 L1340 510"/>
+  <path class="event" d="M1340 510 L1222 572"/>
+  <path class="event" d="M1222 728 L1340 652"/>
+
+  <path class="edge" d="M520 564 L1340 210"/>
+  <text x="760" y="125" class="small">Cloud Map service discovery + security group allowlist inside VPC</text>
+
+  <rect x="48" y="930" width="1504" height="84" class="lane"/>
+  <text x="72" y="960" class="label">Current boundary</text>
+  <text x="72" y="986" class="text">Gateway directly calls only Auth/IAM, Admin BFF, and User BFF. Current BFF downstreams are Auth/IAM, Tenant, WMS, Audit/EventBridge.</text>
+  <text x="72" y="1008" class="text">CDK now includes user-bff-service and wms-service ECS/ECR/Cloud Map/security groups and deployment workflows. Route53 record, RDS/Aurora provisioning, S3, and EventBridge bus remain later or externally supplied resources.</text>
+</svg>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>아키텍처/인프라 상태 (2026-06-19)</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Infra · Architecture Snapshot</p>
+        <h1>아키텍처/인프라 상태</h1>
+        <p class="lead">
+          <code>2026-06-19</code> 기준 AWS CDK와 GitHub Actions 배포 정의가 user-bff-service와 wms-service까지 포함하도록 확장되었습니다.
+          현재 CDK 관리 대상 backend service는 8개이며, gateway는 Auth/IAM, Admin BFF, User BFF만 직접 upstream으로 호출합니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>오늘 변경 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>CDK 서비스 범위</th><td><code>gateway-service</code>, <code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>, <code>user-bff-service</code>, <code>wms-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code>를 같은 ECS/Fargate 스택에서 관리합니다.</td></tr>
+            <tr><th>Gateway upstream</th><td><code>/api/auth/**</code>는 Auth/IAM API prefix, <code>/api/admin/**</code>은 Admin BFF, <code>/api/app/**</code>은 User BFF로 전달합니다. gateway는 tenant-service, wms-service, audit-log-service를 직접 호출하지 않습니다.</td></tr>
+            <tr><th>BFF downstream</th><td>Admin BFF는 Auth/IAM, tenant-service, audit-log-service를 호출합니다. User BFF는 Auth/IAM, tenant-service, wms-service, app audit용 EventBridge 또는 audit-log-service fallback을 호출합니다.</td></tr>
+            <tr><th>Auth URL split</th><td>Gateway/User BFF는 <code>AUTH_IAM_API_SERVICE_URL</code> 또는 <code>.../api/auth</code> prefix를 사용하고, Admin BFF/WMS는 <code>AUTH_IAM_SERVICE_URL</code> base URL을 사용합니다.</td></tr>
+            <tr><th>WMS 배포</th><td>wms-service는 ECS/ECR/Cloud Map/security group, PostgreSQL <code>DATABASE_URL</code> secret, WMS internal auth secret, Auth/Tenant internal auth secret을 CDK context로 받습니다.</td></tr>
+            <tr><th>User BFF 배포</th><td>user-bff-service는 ECS/ECR/Cloud Map/security group과 Auth/Tenant/WMS/Audit internal auth secret을 CDK context로 받으며 gateway <code>USER_BFF_SERVICE_URL</code>에 연결됩니다. WMS 화면 조회 API를 위해 <code>WMS_SERVICE_URL</code>, <code>WMS_INTERNAL_AUTH_SECRET</code>, User BFF → WMS SG ingress가 포함됩니다.</td></tr>
+            <tr><th>Outbox/Audit</th><td>outbox-relay-service는 auth-iam, tenant, wms source를 지원하고, 기본 SQS publisher 대상은 CDK 관리형 audit event queue입니다. audit-log-service는 Admin/User BFF 내부 API와 SQS consumer를 모두 허용합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>구조도</h2>
+        <figure style="margin: 20px 0 0;">
+          <img
+            src="./architecture.svg"
+            alt="2026-06-19 기준 CDK가 8개 backend ECS 서비스를 관리하고 gateway가 Auth/IAM, Admin BFF, User BFF만 직접 호출하는 구조"
+            style="display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff;"
+          />
+          <figcaption style="margin-top: 10px; color: var(--muted); font-size: 13px;">
+            실선은 동기 HTTP 호출, 점선은 outbox/SQS/EventBridge 기반 비동기 흐름, 회색 점선 박스는 CDK 밖 또는 후속 리소스입니다.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section>
+        <h2>CDK 포함 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>포함</strong><p>ALB, ECS Cluster, ECS Fargate service/task definition, ECR repository, Cloud Map, service security group, CloudWatch log group, ElastiCache Redis, audit event SQS queue/DLQ.</p></div>
+          <div class="card"><strong>외부 Secret</strong><p>Auth/IAM, tenant, WMS, audit-log DB URL, source별 outbox DB URL, service-to-service internal auth secret, JWT secret 또는 key pair ARN은 기존 Secrets Manager secret을 참조합니다.</p></div>
+          <div class="card"><strong>스택 밖</strong><p>Route53 record, RDS/Aurora 생성, S3, EventBridge bus 생성, CloudFront, OpenSearch, MSK는 아직 CDK 스택 밖입니다. 필요한 경우 context로 외부 URL/ARN/name을 연결합니다.</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>배포 workflow</h2>
+        <table>
+          <tbody>
+            <tr><th>서비스별 workflow</th><td><code>deploy-gateway-service.yml</code>, <code>deploy-auth-iam-service.yml</code>, <code>deploy-tenant-service.yml</code>, <code>deploy-admin-bff-service.yml</code>, <code>deploy-user-bff-service.yml</code>, <code>deploy-wms-service.yml</code>, <code>deploy-audit-log-service.yml</code>, <code>deploy-outbox-relay-service.yml</code>.</td></tr>
+            <tr><th>공유 스택 보호</th><td>서비스별 workflow는 같은 CDK stack을 갱신하므로 target이 아닌 서비스의 desired count와 image tag를 필수 입력으로 검증합니다. 암묵적 <code>0</code> 또는 <code>latest</code> 덮어쓰기는 허용하지 않습니다.</td></tr>
+            <tr><th>base infra phase</th><td>target 서비스 이미지를 push하기 전에 해당 target desired count를 <code>0</code>으로 둔 base infra 배포를 수행해 ECR repository와 ECS 리소스를 먼저 만듭니다.</td></tr>
+            <tr><th>final deploy phase</th><td>이미지를 ECR에 push한 뒤 target image tag와 desired count를 실제 값으로 넣어 같은 stack을 다시 배포합니다.</td></tr>
+            <tr><th>outbox helper</th><td><code>.github/workflows/scripts/outbox-cdk-context.sh</code>도 user-bff audit과 wms/outbox context, secret override를 포함합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>검증 기준</h2>
+        <pre><code>pnpm --filter @multi-tenant/infra-cdk typecheck
+pnpm --filter user-bff-service typecheck
+pnpm --filter wms-service typecheck
+pnpm --filter @multi-tenant/infra-cdk exec cdk synth</code></pre>
+        <p class="card-subheading">
+          이 문서는 실제 AWS 계정 배포 결과가 아니라 repository의 CDK/workflow 코드 기준 스냅샷입니다.
+          AWS 배포 후에는 CloudFormation output, ECS desired/running count, target health, SQS queue attributes, service log group을 증적으로 추가해야 합니다.
+        </p>
+      </section>
+
+      <p class="footer">작성일: 2026-06-19 · 대상: <code>infra/cdk</code>, <code>.github/workflows</code>, <code>docs/design/smart-factory-aws-ecs.drawio</code></p>
+    </main>
+  </body>
+</html>

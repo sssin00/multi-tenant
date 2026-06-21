@@ -492,7 +492,7 @@
           </div>
           <div class="card">
             <h3>infra/cdk</h3>
-            <p>VPC, ECS, RDS, Redis, S3, EventBridge, SQS, IAM, Security Group을 CDK 코드로 관리합니다.</p>
+            <p>현재는 VPC, ALB, ECS/ECR, Cloud Map, Redis, 감사 SQS/DLQ, IAM, Security Group을 CDK 코드로 관리합니다. RDS/Aurora, S3, EventBridge bus, Route53은 후속 또는 외부 리소스입니다.</p>
           </div>
           <div class="card">
             <h3>docker</h3>
@@ -556,29 +556,30 @@
           <li><span class="item-text"><code>gateway-service</code>는 health/readiness, request context, JWT guard, proxy routing, Redis rate limit까지 1차 구현을 완료했습니다. tenant status check는 BFF로 이관했습니다.</span></li>
           <li><span class="item-text"><code>auth-iam-service</code>는 로그인, token refresh, 사용자, 역할, 권한, internal permission summary/check API를 1차 구현했습니다.</span></li>
           <li><span class="item-text"><code>tenant-service</code>는 health/readiness, tenant status/modules 조회, tenant 생성과 code 자동 생성, outbox 저장, BFF tenant status check 연결을 1차 구현했습니다.</span></li>
-          <li><span class="item-text"><code>admin-bff-service</code>는 tenant, 사용자, role, permission, module 운영 API와 CDK 배포 준비까지 1차 구현했습니다.</span></li>
-          <li><span class="item-text">다음 단계는 <code>audit-log-service</code>를 구현해 Auth/IAM 감사 저장과 Admin BFF 감사 조회를 실제 서비스로 연결하는 것입니다.</span></li>
-          <li><span class="item-text"><code>wms-service</code>는 admin 운영 기반과 감사 로그 기준이 잡힌 뒤 warehouse, location, item, inventory 조회 API부터 WMS MVP를 시작합니다.</span></li>
-          <li><span class="item-text"><code>user-bff-service</code>는 WMS 1차 도메인 조회 API가 준비된 뒤 <code>web-wms</code> 화면 연결 직전에 app shell과 WMS 화면 데이터를 조합합니다.</span></li>
-          <li><span class="item-text">WMS 재고 변경 이벤트가 필요해질 때 Outbox와 <code>outbox-relay-service</code>를 붙입니다.</span></li>
+          <li><span class="item-text"><code>admin-bff-service</code>는 tenant, 사용자, role, permission, module, audit 조회 API와 CDK 배포 준비까지 1차 구현했습니다.</span></li>
+          <li><span class="item-text"><code>audit-log-service</code>는 append-only 저장소, 내부 기록/조회 API, SQS 이벤트 consumer, Admin/User BFF 연동을 1차 구현했습니다.</span></li>
+          <li><span class="item-text"><code>outbox-relay-service</code>는 auth-iam, tenant, wms source polling과 mock/EventBridge/SQS publisher, retry/failed 상태 전환을 구현했습니다.</span></li>
+          <li><span class="item-text"><code>wms-service</code>는 기준정보, 재고 원장/스냅샷, 재고 조정, 입고 확정, 출고 할당, 포장, 출하 내부 API와 outbox event 저장을 구현했습니다.</span></li>
+          <li><span class="item-text"><code>user-bff-service</code>는 app shell과 navigation 기본 API, tenant/permission guard, audit-log best-effort 기록, gateway <code>/api/app/**</code> route를 구현했습니다.</span></li>
+          <li><span class="item-text">다음 단계는 user-bff-service WMS 화면 조합 API와 web-wms 첫 화면 계약을 만드는 것입니다.</span></li>
         </ol>
       </section>
 
       <section>
         <h2>BFF 제작 단계</h2>
         <p>
-          BFF는 한 번에 모두 만들지 않습니다. 현재 순서는 Admin BFF를 먼저 만들어 운영 기반을 확보하고,
-          User BFF는 WMS 1차 API가 안정된 뒤 화면 데이터 조합 계층으로 붙입니다.
+          BFF는 domain service의 업무 규칙을 소유하지 않고 화면 데이터 조합과 tenant readiness를 담당합니다.
+          Admin BFF와 User BFF는 모두 gateway 뒤에 있으며, domain/platform service 직접 노출을 막는 경계 역할을 합니다.
         </p>
         <table class="table">
           <tbody>
             <tr>
               <th>Admin BFF</th>
-              <td><code>admin-bff-service</code>. 2026-06-12 기준 1차 구현과 CDK 배포 준비가 완료되었습니다. 외부 <code>/api/admin/**</code> surface를 소유하고 tenant-service와 auth-iam-service 내부 API로 tenant, 사용자, role, permission, module 관리를 위임합니다.</td>
+              <td><code>admin-bff-service</code>. 외부 <code>/api/admin/**</code> surface를 소유하고 tenant-service, auth-iam-service, audit-log-service, 필요한 WMS 내부 API로 운영 화면 데이터를 조합합니다.</td>
             </tr>
             <tr>
               <th>User BFF</th>
-              <td><code>user-bff-service</code>. WMS 1차 도메인 조회 API 이후 착수합니다. 사용자 정보, 현재 테넌트, 사용 가능 메뉴, WMS dashboard/warehouse/inventory-summary 데이터를 조합합니다.</td>
+              <td><code>user-bff-service</code>. <code>/api/app/me</code>, <code>/api/app/navigation</code> 기본 API는 구현됐고, 다음으로 WMS dashboard/warehouse/material/inventory-summary 데이터를 조합합니다.</td>
             </tr>
             <tr>
               <th>BFF 역할</th>
@@ -618,7 +619,7 @@
           <tbody>
             <tr>
               <th>라우팅</th>
-              <td><code>/api/auth/**</code> → auth-iam-service, <code>/api/admin/**</code> → admin-bff-service. <code>/api/app/**</code> → user-bff-service는 user-bff 구현 시 추가합니다.</td>
+              <td><code>/api/auth/**</code> → auth-iam-service, <code>/api/admin/**</code> → admin-bff-service, <code>/api/app/**</code> → user-bff-service로 전달합니다. gateway-service는 tenant-service, wms-service, audit-log-service를 직접 호출하지 않습니다.</td>
             </tr>
             <tr>
               <th>Tenant 식별</th>
@@ -626,7 +627,7 @@
             </tr>
             <tr>
               <th>Request Context</th>
-              <td><code>request_id</code>, <code>tenant_id</code>, <code>user_id</code>, roles, permissions summary를 내부 요청과 로그에 전파합니다.</td>
+              <td><code>request_id</code>, <code>tenant_id</code>, <code>user_id</code>를 내부 요청과 로그에 전파합니다. JWT에는 role/permission을 넣지 않고 BFF와 domain service가 Auth/IAM permission API를 호출합니다.</td>
             </tr>
             <tr>
               <th>넣지 않을 기능</th>
@@ -679,7 +680,7 @@ pnpm infra:deploy</code></pre>
           <tbody>
             <tr>
               <th>PostgreSQL</th>
-              <td><code>localhost:5432</code>, service DB: <code>auth_iam</code>, <code>tenant</code></td>
+              <td><code>localhost:55432</code>, service DB: <code>auth_iam</code>, <code>tenant</code>, <code>wms</code>, <code>audit_log</code></td>
             </tr>
             <tr>
               <th>Redis</th>
@@ -717,17 +718,17 @@ docs/design/aws-ecs-tech-stack.html,
 docs/design/msa-wms-roadmap.html,
 docs/design/smart-factory-aws-ecs.drawio를 읽고 이어서 작업해줘.
 현재 구조는 pnpm workspace 기반 monorepo이고,
-AWS ECS Fargate + RDS PostgreSQL + Redis + EventBridge/SQS first 전략이야.</code></pre>
+AWS ECS Fargate + 외부 PostgreSQL secret + Redis + EventBridge/SQS first 전략이고, CDK는 현재 8개 backend service를 한 스택에서 관리해.</code></pre>
       </section>
 
       <section>
         <h2>다음 작업 후보</h2>
         <ol class="ordered">
-          <li><span class="item-text"><code>pnpm install</code>로 workspace lockfile 생성</span></li>
-          <li><span class="item-text">NestJS 서비스 템플릿을 <code>gateway-service</code>, <code>wms-service</code>부터 적용</span></li>
-          <li><span class="item-text">Vite 기반 <code>web-wms</code> 앱 생성</span></li>
-          <li><span class="item-text">CDK의 <code>network-stack</code>, <code>database-stack</code>, <code>event-stack</code> 설계 시작</span></li>
-          <li><span class="item-text">Tenant Context, Logger, Events 공통 패키지 실제 구현</span></li>
+          <li><span class="item-text"><code>user-bff-service</code>의 WMS dashboard/warehouse/material/inventory-summary 화면 조합 API 구현</span></li>
+          <li><span class="item-text"><code>web-wms</code> 첫 화면을 gateway <code>/api/app/**</code>와 연결</span></li>
+          <li><span class="item-text">dev AWS에서 Outbox Relay → SQS → audit-log-service end-to-end 증적 확보</span></li>
+          <li><span class="item-text">RDS/Aurora, Route53, S3, EventBridge bus를 CDK 관리 리소스로 추가할지 결정</span></li>
+          <li><span class="item-text">WMS read 권한 분리와 Idempotency-Key 저장 전략 결정</span></li>
         </ol>
       </section>
 

@@ -53,7 +53,7 @@ export function getAppConfig(): AppConfig {
     tenantHeader: readString("TENANT_HEADER", "x-tenant-id"),
     cors: {
       allowedOrigins: readStringList("AUDIT_CORS_ALLOWED_ORIGINS", defaultCorsOrigins()),
-      allowedMethods: readStringList("AUDIT_CORS_ALLOWED_METHODS", ["GET", "OPTIONS"]),
+      allowedMethods: readStringList("AUDIT_CORS_ALLOWED_METHODS", ["GET", "POST", "OPTIONS"]),
       allowedHeaders: readStringList("AUDIT_CORS_ALLOWED_HEADERS", [
         "Authorization",
         "Content-Type",
@@ -76,7 +76,10 @@ export function getAppConfig(): AppConfig {
     internalAuth: {
       enabled: readBoolean("AUDIT_INTERNAL_AUTH_ENABLED", true),
       secret: readOptionalString("AUDIT_INTERNAL_AUTH_SECRET"),
-      allowedServices: readStringList("AUDIT_INTERNAL_AUTH_ALLOWED_SERVICES", ["admin-bff-service"]),
+      allowedServices: readStringList("AUDIT_INTERNAL_AUTH_ALLOWED_SERVICES", [
+        "admin-bff-service",
+        "user-bff-service"
+      ]),
       timestampSkewSeconds: readNumber("AUDIT_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS", 300)
     },
     eventConsumer: {

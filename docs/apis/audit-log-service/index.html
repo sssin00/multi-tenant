@@ -13,7 +13,7 @@
         <h1>audit-log-service API 문서</h1>
         <p class="lead">
           audit-log-service는 append-only 감사 로그 저장과 관리자 조회를 담당합니다.
-          현재 NestJS 실행 구조, PostgreSQL 저장소, 이벤트 기반 저장 consumer, internal auth 기반 내부 조회 API가 구현되어 있습니다.
+          현재 NestJS 실행 구조, PostgreSQL 저장소, 이벤트 기반 저장 consumer, internal auth 기반 내부 조회/기록 API가 구현되어 있습니다.
         </p>
       </header>
 
@@ -21,9 +21,9 @@
         <h2>서비스 상태</h2>
         <table>
           <tbody>
-            <tr><th>상태</th><td><span class="tag done">이벤트 저장 구현</span> NestJS bootstrap, config, health/readiness, request context, access log, security headers, internal auth guard, append-only repository/service, 이벤트 consumer, 조회 API가 있습니다.</td></tr>
+            <tr><th>상태</th><td><span class="tag done">이벤트 저장 구현</span> NestJS bootstrap, config, health/readiness, request context, access log, security headers, internal auth guard, append-only repository/service, 이벤트 consumer, 조회 API, User BFF internal-api fallback 기록 API가 있습니다.</td></tr>
             <tr><th>소유 범위</th><td>감사 로그 저장, 조회, 보존 정책, evidence 추적</td></tr>
-            <tr><th>주요 연동</th><td>저장은 <code>auth-iam-service</code>, <code>wms-service</code>, <code>tenant-service</code>의 outbox 이벤트를 소비합니다. 조회는 <code>admin-bff-service</code>가 내부 API로 호출합니다.</td></tr>
+            <tr><th>주요 연동</th><td>저장은 <code>auth-iam-service</code>, <code>wms-service</code>, <code>tenant-service</code>의 outbox 이벤트와 <code>user-bff-service</code> app shell 이벤트를 소비합니다. User BFF는 EventBridge publisher를 우선 사용할 수 있고, 기존 local/호환 환경에서는 내부 POST API fallback으로 기록합니다. 조회는 <code>admin-bff-service</code>가 내부 API로 호출합니다.</td></tr>
             <tr><th>배포 상태</th><td>CDK 스택에 ECR, ECS Fargate service, CloudWatch log group, 내부 SG, DB secret, audit internal auth secret 구성이 포함되어 있습니다.</td></tr>
           </tbody>
         </table>
@@ -57,6 +57,13 @@
               <td><span class="tag done">구현</span></td>
               <td>운영자 화면에서 tenant, actor, action, 기간 기준으로 감사 로그를 조회합니다.</td>
             </tr>
+            <tr>
+              <td><code>POST</code></td>
+              <td><code>/api/internal/audit/logs</code></td>
+              <td>user-bff-service</td>
+              <td><span class="tag done">구현</span></td>
+              <td>User BFF app shell 감사 이벤트의 internal-api fallback 기록 경로입니다.</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -67,6 +74,7 @@
           <tbody>
             <tr><th>공통 헤더</th><td><code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>, <code>X-Internal-Service-Id</code>, <code>X-Internal-Timestamp</code>, <code>X-Internal-Signature</code></td></tr>
             <tr><th>GET 허용 호출자</th><td><code>admin-bff-service</code></td></tr>
+            <tr><th>POST 허용 호출자</th><td><code>user-bff-service</code></td></tr>
             <tr><th>Tenant 기준</th><td><code>X-Tenant-Id</code>를 우선 사용합니다. 헤더가 없을 때만 query의 <code>tenantId</code>를 보조로 사용합니다.</td></tr>
           </tbody>
         </table>
@@ -74,7 +82,7 @@
 
       <section>
         <h2>Audit 저장 이벤트</h2>
-        <p>업무 행위 완료 후 각 서비스는 같은 DB transaction 안에서 outbox event를 저장하고, relay가 EventBridge/SQS로 발행한 이벤트를 audit-log-service가 소비해 append-only 감사 로그로 기록합니다. AWS dev/staging/prod 기본 경로는 CDK 관리형 audit event SQS queue입니다.</p>
+        <p>업무 행위 완료 후 각 서비스는 같은 DB transaction 안에서 outbox event를 저장하고, relay가 EventBridge/SQS로 발행한 이벤트를 audit-log-service가 소비해 append-only 감사 로그로 기록합니다. User BFF app shell 감사처럼 BFF가 소유한 best-effort 이벤트는 EventBridge 직접 발행을 우선 사용할 수 있고, CDK rule이 audit event SQS queue로 전달하면 기존 SQS consumer가 저장합니다. AWS dev/staging/prod 기본 도메인 이벤트 경로는 CDK 관리형 audit event SQS queue입니다.</p>
         <table>
           <tbody>
             <tr><th>Consumer</th><td><code>AUDIT_EVENT_CONSUMER_ENABLED=true</code>이면 <code>SqsAuditEventWorker</code>가 <code>AUDIT_EVENT_QUEUE_URL</code>을 polling합니다.</td></tr>
@@ -167,6 +175,49 @@
       </section>
 
       <section>
+        <h2>POST /api/internal/audit/logs</h2>
+        <p>User BFF가 자체 DB/outbox 없이 소유하는 app shell 감사 이벤트의 internal-api fallback 기록 경로입니다. EventBridge 모드에서는 User BFF가 이 API를 호출하지 않고 이벤트 bus로 발행합니다. 응답 장애는 User BFF에서 best-effort로 처리해 사용자 API 응답을 막지 않습니다.</p>
+        <table>
+          <tbody>
+            <tr><th>Caller</th><td><code>user-bff-service</code>만 허용합니다.</td></tr>
+            <tr><th>Body</th><td>Audit 저장 이벤트와 같은 <code>AuditEventCommand</code> 형식을 사용합니다.</td></tr>
+            <tr><th>중복 처리</th><td><code>eventId</code> unique key로 중복 기록을 방지합니다.</td></tr>
+            <tr><th>대표 action</th><td><code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code></td></tr>
+          </tbody>
+        </table>
+        <h3 class="card-subheading">요청 예시</h3>
+        <pre><code>{
+  "eventId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "eventType": "userBff.appContext.loaded",
+  "schemaVersion": 1,
+  "tenantId": "11111111-1111-4111-8111-111111111111",
+  "requestId": "req-user-bff-app-context",
+  "occurredAt": "2026-06-18T00:00:00.000Z",
+  "source": "user-bff-service",
+  "aggregateType": "app_context",
+  "aggregateId": "22222222-2222-4222-8222-222222222222",
+  "actor": {
+    "type": "user",
+    "userId": "22222222-2222-4222-8222-222222222222"
+  },
+  "data": {
+    "surface": "app",
+    "endpoint": "/api/app/me"
+  }
+}</code></pre>
+        <h3 class="card-subheading">성공 응답</h3>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-user-bff-app-context",
+  "timestamp": "2026-06-18T00:00:00.000Z",
+  "data": {
+    "auditId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    "recorded": true
+  }
+}</code></pre>
+      </section>
+
+      <section>
         <h2>응답과 오류 기준</h2>
         <table>
           <tbody>
@@ -174,7 +225,7 @@
             <tr><th>List</th><td>목록 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용합니다.</td></tr>
             <tr><th>검증 오류</th><td>요청값 검증 실패는 공통 코드 <code>VALIDATION_FAILED</code>를 사용하고, <code>error.details.fields</code>는 필드명-메시지 객체로 내려줍니다.</td></tr>
             <tr><th>Audit 전용 오류</th><td><code>AUDIT_INTERNAL_AUTH_NOT_READY</code>, <code>AUDIT_INTERNAL_AUTH_REQUIRED</code>, <code>AUDIT_INTERNAL_SERVICE_FORBIDDEN</code>, <code>AUDIT_INTERNAL_SIGNATURE_INVALID</code>, <code>AUDIT_INTERNAL_TIMESTAMP_INVALID</code>, <code>AUDIT_INTERNAL_TIMESTAMP_EXPIRED</code>, <code>AUDIT_LOG_WRITE_FAILED</code>, <code>AUDIT_LOG_QUERY_FAILED</code></td></tr>
-            <tr><th>장애 정책</th><td>저장 실패는 이벤트 consumer/relay의 retry와 DLQ 대상으로 처리합니다. 원 업무 API는 audit-log-service HTTP 응답에 직접 결합하지 않습니다. SQS consumer는 성공 메시지만 삭제합니다.</td></tr>
+            <tr><th>장애 정책</th><td>이벤트 저장 실패는 consumer/relay의 retry와 DLQ 대상으로 처리합니다. User BFF의 EventBridge 발행 또는 내부 POST 저장 실패는 User BFF warning log로 남기고 원 app shell API 응답은 차단하지 않습니다. SQS consumer는 성공 메시지만 삭제합니다.</td></tr>
           </tbody>
         </table>
         <h3 class="card-subheading">오류 코드 매핑</h3>

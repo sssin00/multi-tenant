@@ -6,7 +6,7 @@
 
 Docker Compose 프로젝트 이름은 `multi-tenant-local`로 고정합니다. Docker Desktop이나 `docker compose ls`에서 로컬 개발 스택이 이 이름으로 표시됩니다.
 
-현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `tenant-service`, `audit-log-service`, `outbox-relay-service`, `admin-bff-service`, `gateway-service`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. PostgreSQL 인스턴스는 공유하되 서비스별 database를 분리하며, 로컬에서는 `service-databases-init`이 `auth_iam`, `tenant`, `audit_log` database를 idempotent하게 생성합니다. `auth-iam-db-push`, `tenant-service-db-push`, `audit-log-service-db-push`는 PostgreSQL 준비 후 각 서비스 Prisma schema를 자기 database에 반영하고 종료되는 초기화 작업입니다. 이후 고정 id, camelCase permission code, tenant setting처럼 현재 API가 표현하지 못하는 기준값은 DB seed로 유지하고, tenant status와 module 활성화처럼 API로 가능한 항목은 `scripts/db/seed-local-api.mjs`가 서비스 API를 호출해 반영합니다.
+현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `tenant-service`, `audit-log-service`, `outbox-relay-service`, `admin-bff-service`, `gateway-service`, `wms-service`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. PostgreSQL 인스턴스는 공유하되 서비스별 database를 분리하며, 로컬에서는 `service-databases-init`이 `auth_iam`, `tenant`, `audit_log`, `wms` database를 idempotent하게 생성합니다. `auth-iam-db-push`, `tenant-service-db-push`, `audit-log-service-db-push`, `wms-service-db-push`는 PostgreSQL 준비 후 각 서비스 Prisma schema를 자기 database에 반영하고 종료되는 초기화 작업입니다. 이후 고정 id, camelCase permission code, tenant setting처럼 현재 API가 표현하지 못하는 기준값은 DB seed로 유지하고, tenant status와 module 활성화처럼 API로 가능한 항목은 `scripts/db/seed-local-api.mjs`가 서비스 API를 호출해 반영합니다.
 
 로컬 기본값은 `outbox-relay-service`가 `mock` publisher를 사용하고 `audit-log-service`의 SQS consumer는 꺼둡니다. dev/staging/prod env 파일은 감사 이벤트 저장을 위해 `OUTBOX_PUBLISHER_TYPE=sqs`, `AUDIT_EVENT_CONSUMER_ENABLED=true`를 사용하며, queue URL은 CDK 관리형 audit event queue 또는 환경별 override 값으로 주입합니다.
 
@@ -31,12 +31,14 @@ curl http://localhost:3000/health
 curl http://localhost:3001/health
 curl http://localhost:3002/health
 curl http://localhost:3003/health
+curl http://localhost:3005/health
 curl http://localhost:3006/health
 curl http://localhost:3007/health
 curl http://localhost:3000/ready
 curl http://localhost:3001/ready
 curl http://localhost:3002/ready
 curl http://localhost:3003/ready
+curl http://localhost:3005/ready
 curl http://localhost:3006/ready
 curl http://localhost:3007/ready
 ```
@@ -76,6 +78,14 @@ pnpm test:outbox:sqs:local
 
 이 검증은 PostgreSQL과 LocalStack이 실행 중이어야 합니다. 스크립트는 LocalStack SQS queue를 만들고, `audit-log-service` consumer와 `outbox-relay-service` SQS publisher를 임시 포트에서 실행한 뒤 검증 이벤트가 `auth_iam.outbox_events`에서 `published`로 바뀌고 `audit_log.audit_logs`에 같은 `eventId`로 저장되는지 확인합니다.
 
+WMS 기준정보/재고/입고/출고와 Outbox Relay, LocalStack SQS, Audit Log 연계를 확인:
+
+```bash
+pnpm test:wms:local
+```
+
+이 검증은 `wms-service`, `auth-iam-service`, `tenant-service`, PostgreSQL, LocalStack이 실행 중이어야 합니다. 스크립트는 WMS 내부 API를 `admin-bff-service` caller로 호출하고, WMS outbox event가 SQS를 거쳐 `audit_log.audit_logs`에 저장되는지 5개 시나리오로 확인합니다.
+
 gateway를 통한 로그인 확인:
 
 ```bash
@@ -88,7 +98,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 로그 확인:
 
 ```bash
-docker compose -f docker/local/docker-compose.yml logs -f gateway-service auth-iam-service tenant-service audit-log-service outbox-relay-service admin-bff-service
+docker compose -f docker/local/docker-compose.yml logs -f gateway-service auth-iam-service tenant-service audit-log-service outbox-relay-service admin-bff-service wms-service
 ```
 
 중지:
@@ -117,6 +127,7 @@ NestJS 서비스 이미지는 `docker/services/Dockerfile.nest`를 공통으로 
 auth-iam-service -> auth_iam
 tenant-service -> tenant
 audit-log-service -> audit_log
+wms-service -> wms
 ```
 
 TablePlus 등 host DB client에서 Docker PostgreSQL에 접속할 때는 Mac 로컬 PostgreSQL과 포트가 겹치지 않도록 host port `55432`를 사용합니다.
@@ -126,7 +137,7 @@ Host: 127.0.0.1
 Port: 55432
 User: postgres
 Password: postgres
-Database: auth_iam, tenant 또는 audit_log
+Database: auth_iam, tenant, audit_log 또는 wms
 ```
 
 테넌트별 저장 전략의 Shared DB + `tenantId` 원칙은 각 서비스 database 안에서 tenant-owned data를 구분하는 기준입니다. 서비스 간 database를 공유한다는 의미가 아닙니다.

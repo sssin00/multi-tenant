@@ -437,7 +437,7 @@
             <li><span class="dot"></span>WMS를 첫 메인 서비스로 완성</li>
             <li><span class="dot"></span>초기 WMS는 모듈형 모놀리스로 시작</li>
             <li><span class="dot"></span>서비스별 DB와 Outbox 패턴 유지</li>
-            <li><span class="dot"></span>Admin BFF 이후 WMS, User BFF 순서로 진행</li>
+            <li><span class="dot"></span>Audit/Outbox, WMS, User BFF 순서로 1차 구현 진행</li>
           </ul>
         </aside>
       </div>
@@ -455,7 +455,7 @@
           </div>
           <div class="summary-item">
             <strong>3. WMS 핵심</strong>
-            <p>기준정보 조회, 재고 조회, 재고 조정, 입고/출고 1차 흐름을 구현합니다.</p>
+            <p>기준정보, 재고, 입고/출고, 포장/출하, 일 단위 스냅샷의 1차 흐름을 구현합니다.</p>
           </div>
           <div class="summary-item">
             <strong>4. 화면과 확장</strong>
@@ -469,19 +469,19 @@
         <div class="summary-grid">
           <div class="summary-item">
             <strong>완료/1차 구현</strong>
-            <p>gateway-service, auth-iam-service, tenant-service, admin-bff-service는 1차 구현과 로컬 검증 기준이 잡혀 있습니다.</p>
+            <p>gateway-service, auth-iam-service, tenant-service, admin-bff-service, user-bff-service 기본 구조, wms-service 1차 도메인 API, audit-log-service, outbox-relay-service의 로컬 구현과 검증 기준이 잡혀 있습니다.</p>
           </div>
           <div class="summary-item">
             <strong>배포 준비</strong>
-            <p>CDK 스택과 수동 GitHub Actions는 gateway, auth, tenant, admin-bff까지 반영되어 있습니다.</p>
+            <p>CDK 스택과 수동 GitHub Actions는 gateway, auth, tenant, admin-bff, user-bff, wms, audit-log, outbox-relay까지 반영되어 있습니다.</p>
           </div>
           <div class="summary-item">
             <strong>다음 후보</strong>
-            <p>audit-log-service와 outbox-relay-service의 최소 저장/발행 구조를 먼저 잡습니다.</p>
+            <p>user-bff-service의 WMS 화면 조합 API와 web-wms 첫 화면 계약을 연결합니다.</p>
           </div>
           <div class="summary-item">
             <strong>그 다음</strong>
-            <p>wms-service 1차 API를 구현한 뒤 user-bff-service와 web-wms를 연결합니다.</p>
+            <p>dev AWS outbox/audit 증적, WMS read 권한 분리, Idempotency-Key 저장 전략, 운영 alarm/runbook을 보강합니다.</p>
           </div>
         </div>
       </section>
@@ -557,13 +557,13 @@
             <div class="phase-body">
               <div class="phase-title">
                 <h3>감사 로그와 이벤트 기반</h3>
-                <span class="status progress">다음 구현 후보</span>
+                <span class="status done">1차 구현 완료</span>
               </div>
-              <p>WMS 업무 API를 만들기 전에 변경 이력과 outbox 발행 기반을 먼저 안정화합니다. 1차 relay engine, 감사 저장 consumer, CDK 관리형 audit SQS queue/DLQ 연결은 구현됐고, dev AWS end-to-end 증적과 운영 재처리 정책을 남겨둡니다.</p>
+              <p>변경 이력과 outbox 발행 기반은 1차 구현됐습니다. relay engine, 감사 저장 consumer, CDK 관리형 audit SQS queue/DLQ 연결은 준비됐고, dev AWS end-to-end 증적과 운영 재처리 정책을 남겨둡니다.</p>
               <div class="task-grid">
                 <div class="task"><strong>Audit Log Service</strong><span>outbox 이벤트 기반 저장 consumer, SQS polling worker, <code>GET /api/internal/audit/logs</code> 조회 API 1차 구현을 완료했습니다.</span></div>
                 <div class="task"><strong>Audit 저장소</strong><span>append-only 저장과 Admin BFF 조회 계약은 구현했고, 보존 기간과 archive 기준을 후속으로 확정합니다.</span></div>
-                <div class="task"><strong>Outbox Relay</strong><span>Auth/IAM과 tenant-service pending outbox event polling, lock/retry, mock/EventBridge/SQS publisher, 감사 SQS 기본 발행을 구현했습니다.</span></div>
+                <div class="task"><strong>Outbox Relay</strong><span>Auth/IAM, tenant-service, wms-service pending outbox event polling, lock/retry, mock/EventBridge/SQS publisher, 감사 SQS 기본 발행을 구현했습니다.</span></div>
                 <div class="task"><strong>Retry/DLQ</strong><span>outbox retry/failed와 감사 SQS DLQ는 연결했고, 수동 replay 승인, custom metric/alarm 기준을 정합니다.</span></div>
               </div>
             </div>
@@ -577,14 +577,15 @@
             <div class="phase-body">
               <div class="phase-title">
                 <h3>WMS 핵심 도메인</h3>
-                <span class="status todo">착수 전</span>
+                <span class="status done">1차 구현 완료</span>
               </div>
-              <p>초기 WMS는 서비스 하나 안에서 모듈형 구조로 시작하고, 기준정보 조회와 재고 조회부터 만듭니다.</p>
+              <p>초기 WMS는 서비스 하나 안에서 모듈형 구조로 시작했고, 기준정보, 재고, 입고, 출고, 포장, 출하, 원장 기반 일 단위 스냅샷의 1차 내부 API와 outbox/audit 연계 기준을 구현했습니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>WMS 기본 구조</strong><span>health, ready, request context, tenant isolation, permission check, error envelope를 기존 서비스와 맞춥니다.</span></div>
-                <div class="task"><strong>기준정보 조회</strong><span>warehouse, location, item 목록/상세 조회 API를 먼저 구현합니다.</span></div>
-                <div class="task"><strong>재고 조회</strong><span>inventory 목록, 필터, summary API를 tenantId와 warehouse scope 기준으로 구현합니다.</span></div>
-                <div class="task"><strong>업무 변경 API</strong><span>inventory adjustment, inbound confirm, outbound allocate/ship을 audit/outbox 기준에 맞춰 확장합니다.</span></div>
+                <div class="task"><strong>WMS 기본 구조</strong><span>health, ready, request context, tenant isolation, permission check, error envelope를 기존 서비스와 맞췄습니다.</span></div>
+                <div class="task"><strong>기준정보 API</strong><span>warehouse, location, item 생성과 목록 조회 API를 구현했습니다.</span></div>
+                <div class="task"><strong>재고 API</strong><span>inventory 목록, 필터, adjustment API를 tenantId와 warehouse scope 기준으로 구현했습니다.</span></div>
+                <div class="task"><strong>업무 변경 API</strong><span>inbound confirm, outbound allocate, packing, shipment를 audit/outbox 기준에 맞춰 구현했습니다.</span></div>
+                <div class="task"><strong>스냅샷 API</strong><span>재고 변경 원장과 일 단위 snapshot read model로 과거 보유 수량 조회 정합성을 보장합니다.</span></div>
               </div>
             </div>
           </article>
@@ -597,11 +598,11 @@
             <div class="phase-body">
               <div class="phase-title">
                 <h3>User BFF와 WMS 화면</h3>
-                <span class="status todo">WMS 1차 API 이후</span>
+                <span class="status progress">진행 중</span>
               </div>
-              <p>User BFF는 WMS 1차 조회 API가 준비된 뒤 화면 데이터를 조합하고, web-wms는 BFF를 통해서만 업무 데이터를 조회합니다.</p>
+              <p>User BFF는 app shell과 navigation 기본 API를 구현했고, 다음 단계에서 WMS 화면 데이터를 조합합니다. web-wms는 BFF를 통해서만 업무 데이터를 조회합니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>User BFF</strong><span><code>/api/app/me</code>, <code>/api/app/navigation</code>, WMS dashboard, warehouses, inventory summary를 조합합니다.</span></div>
+                <div class="task"><strong>User BFF</strong><span><code>/api/app/me</code>, <code>/api/app/navigation</code> 기본 구조는 구현됐고, WMS dashboard, warehouses, materials, inventory summary 조합 API를 다음에 구현합니다.</span></div>
                 <div class="task"><strong>web-wms</strong><span>로그인 후 tenant/user/menu context와 WMS 첫 화면을 연결합니다.</span></div>
                 <div class="task"><strong>PDA/현장 화면</strong><span>입고, 재고, 출고 작업 화면은 WMS 1차 API 안정화 후 분리합니다.</span></div>
                 <div class="task"><strong>API 계약</strong><span>WMS API와 User BFF 응답이 달라지면 API 문서와 테스트 시나리오를 함께 갱신합니다.</span></div>
@@ -702,12 +703,13 @@
           <li>완료: admin-bff-service 1차 구현과 tenant/user/role/permission/audit surface</li>
           <li>완료: audit-log-service 저장소, 이벤트 consumer, 내부 조회 API 구현</li>
           <li>완료: outbox-relay-service polling, publish, retry/failed 상태, Docker/CDK/workflow 배포 준비</li>
-          <li>다음: dev AWS Outbox Relay → SQS → audit-log-service end-to-end 증적 확보와 replay 운영 기준 확정</li>
-          <li>다음: DB 규칙과 WMS 도메인 모델 확정</li>
-          <li>다음: wms-service 기본 구조와 기준정보 조회 API 구현</li>
-          <li>다음: WMS 재고 조회와 inventory summary API 구현</li>
-          <li>이후: WMS 재고 조정, 입고 확정, 출고 할당/출고 확정 구현</li>
-          <li>이후: user-bff-service 1차 구현</li>
+          <li>완료: wms-service 기본 구조, 기준정보, 재고, 입고 확정, 출고 할당/포장/출하, 일 단위 스냅샷 내부 API 구현</li>
+          <li>완료: WMS → Outbox Relay → LocalStack SQS → audit-log-service 로컬 연계 검증 5개 시나리오 통과</li>
+          <li>완료: user-bff-service 기본 구조와 <code>/api/app/me</code>, <code>/api/app/navigation</code>, gateway <code>/api/app/**</code> route, audit-log best-effort 기록 연결</li>
+          <li>완료: user-bff-service와 wms-service CDK/ECS/ECR/Cloud Map/security group, 수동 배포 workflow 반영</li>
+          <li>다음: user-bff-service WMS dashboard/warehouse/materials/inventory summary 조합 API</li>
+          <li>다음: WMS 기준정보 read 권한 분리 여부와 Idempotency-Key 저장 전략 결정</li>
+          <li>이후: dev AWS Outbox Relay → SQS → audit-log-service end-to-end 증적 확보와 replay 운영 기준 확정</li>
           <li>이후: web-wms 화면 연결</li>
           <li>이후: 운영 JWT, permission cache, alarm, rollback 보강</li>
           <li>이후: Notification, File, Scheduler, ERP 연동 구현</li>
@@ -748,7 +750,7 @@
         </div>
       </section>
 
-      <p class="footer">최종 업데이트: 2026-06-12 · 프로젝트: multi-tenant smart factory</p>
+      <p class="footer">최종 업데이트: 2026-06-19 · 프로젝트: multi-tenant smart factory</p>
     </main>
   </body>
 </html>

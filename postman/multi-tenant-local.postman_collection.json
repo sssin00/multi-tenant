@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9c093f24-9c94-4680-a7d0-0d4d7b28f2f2",
     "name": "multi-tenant local API test",
-    "description": "Local API collection for gateway, Auth/IAM, tenant-service internal APIs, audit-log-service internal APIs, and Admin BFF. External business/admin requests should use gateway -> BFF routes. Tenant-service and audit-log-service direct requests are internal caller simulations for local debugging only. Run `pnpm db:reset:local` before using the seeded demo account. Seed tenant code follows the tenant-service generation rule and defaults to `DEMO0001` for `demo.localhost`.",
+    "description": "Local API collection for gateway, Auth/IAM, tenant-service internal APIs, audit-log-service internal APIs, wms-service internal APIs, and Admin BFF. External business/admin requests should use gateway -> BFF routes. Tenant-service, audit-log-service, and wms-service direct requests are internal caller simulations for local debugging only. Run `pnpm db:reset:local` before using the seeded demo account. Seed tenant code follows the tenant-service generation rule and defaults to `DEMO0001` for `demo.localhost`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -204,6 +204,161 @@
               }
             }
           }
+        },
+        {
+          "name": "GET app WMS warehouses through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-app-wms-warehouses"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": "{{gatewayBaseUrl}}/api/app/wms/warehouses?page=1&size=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('gateway app WMS warehouses listed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.items).to.be.an('array');",
+                  "  pm.expect(body.data.page).to.eql(1);",
+                  "  pm.expect(body.data).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET app WMS materials through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-app-wms-materials"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": "{{gatewayBaseUrl}}/api/app/wms/materials?page=1&size=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('gateway app WMS materials listed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.items).to.be.an('array');",
+                  "  pm.expect(body.data.page).to.eql(1);",
+                  "  pm.expect(body.data).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET app WMS inventory summary through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-app-wms-inventory-summary"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": "{{gatewayBaseUrl}}/api/app/wms/inventory-summary?page=1&size=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('gateway app WMS inventory summary returned', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.pageTotals.quantity).to.be.a('string');",
+                  "  pm.expect(body.data.inventory.items).to.be.an('array');",
+                  "  pm.expect(body.data.inventory.page).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET app WMS dashboard through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-app-wms-dashboard"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": "{{gatewayBaseUrl}}/api/app/wms/dashboard"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('gateway app WMS dashboard returned', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.inventory.totalBalances).to.be.a('number');",
+                  "  pm.expect(body.data.visibleActions.inventory).to.be.a('boolean');",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -803,6 +958,7 @@
                   "  email: `admin-postman-${suffix}@demo.local`,",
                   "  displayName: 'Admin Postman User',",
                   "  password: 'Test1234!',",
+                  "  userType: 'general_user',",
                   "  status: 'active'",
                   "}));"
                 ]
@@ -1487,7 +1643,7 @@
             "url": "{{gatewayBaseUrl}}/api/admin/roles/{{roleId}}/permissions",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"permissionCodes\": [\n    \"auth.users.read\",\n    \"auth.users.create\",\n    \"auth.users.update\",\n    \"auth.users.updateStatus\",\n    \"auth.users.delete\",\n    \"auth.userRoles.manage\",\n    \"auth.permissions.read\",\n    \"auth.permissions.create\",\n    \"auth.roles.read\",\n    \"auth.roles.create\",\n    \"auth.roles.update\",\n    \"auth.rolePermissions.manage\",\n    \"tenant.tenants.read\",\n    \"tenant.tenants.create\",\n    \"tenant.tenants.update\",\n    \"tenant.tenants.updateStatus\",\n    \"tenant.modules.manage\",\n    \"tenant.domains.read\",\n    \"tenant.domains.manage\",\n    \"audit.logs.read\",\n    \"wms.inventory.read\",\n    \"wms.inventory.adjust\"\n  ]\n}",
+              "raw": "{\n  \"permissionCodes\": [\n    \"auth.users.read\",\n    \"auth.users.create\",\n    \"auth.users.update\",\n    \"auth.users.updateStatus\",\n    \"auth.users.delete\",\n    \"auth.userRoles.manage\",\n    \"auth.permissions.read\",\n    \"auth.permissions.create\",\n    \"auth.roles.read\",\n    \"auth.roles.create\",\n    \"auth.roles.update\",\n    \"auth.rolePermissions.manage\",\n    \"tenant.tenants.read\",\n    \"tenant.tenants.create\",\n    \"tenant.tenants.update\",\n    \"tenant.tenants.updateStatus\",\n    \"tenant.modules.manage\",\n    \"tenant.domains.read\",\n    \"tenant.domains.manage\",\n    \"audit.logs.read\",\n    \"wms.inventory.read\",\n    \"wms.inventory.adjust\",\n    \"wms.warehouses.manage\",\n    \"wms.locations.manage\",\n    \"wms.items.manage\",\n    \"wms.inbound.confirm\",\n    \"wms.outbound.allocate\",\n    \"wms.outbound.pack\",\n    \"wms.outbound.ship\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1563,6 +1719,87 @@
       ]
     },
     {
+      "name": "Gateway User BFF",
+      "item": [
+        {
+          "name": "GET app me through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": "{{gatewayBaseUrl}}/api/app/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('gateway app me succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+                  "  if (pm.response.code !== 204) {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(true);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET app navigation through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": "{{gatewayBaseUrl}}/api/app/navigation"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('gateway app navigation succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+                  "  if (pm.response.code !== 204) {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(true);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Admin BFF direct",
       "item": [
         {
@@ -1590,6 +1827,155 @@
             ],
             "url": "{{adminBffBaseUrl}}/ready"
           }
+        }
+      ]
+    },
+    {
+      "name": "User BFF direct",
+      "item": [
+        {
+          "name": "GET user bff health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-user-bff-health"
+              }
+            ],
+            "url": "{{userBffBaseUrl}}/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('user bff health succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+                  "  if (pm.response.code !== 204) {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(true);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET user bff ready",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-user-bff-ready"
+              }
+            ],
+            "url": "{{userBffBaseUrl}}/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('user bff ready succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+                  "  if (pm.response.code !== 204) {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(true);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET app me direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": "{{userBffBaseUrl}}/api/app/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('direct app me succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+                  "  if (pm.response.code !== 204) {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(true);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET app navigation direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              }
+            ],
+            "url": "{{userBffBaseUrl}}/api/app/navigation"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('direct app navigation succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+                  "  if (pm.response.code !== 204) {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(true);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -1833,6 +2219,7 @@
                   "  email,",
                   "  displayName: 'Postman User',",
                   "  password: 'Test1234!',",
+                  "  userType: 'general_user',",
                   "  status: 'active'",
                   "}));"
                 ]
@@ -2458,7 +2845,7 @@
             "url": "{{authBaseUrl}}/api/auth/roles/{{roleId}}/permissions",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"permissionCodes\": [\n    \"auth.users.read\",\n    \"auth.users.create\",\n    \"auth.users.update\",\n    \"auth.users.updateStatus\",\n    \"auth.users.delete\",\n    \"auth.userRoles.manage\",\n    \"auth.permissions.read\",\n    \"auth.permissions.create\",\n    \"auth.roles.read\",\n    \"auth.roles.create\",\n    \"auth.roles.update\",\n    \"auth.rolePermissions.manage\",\n    \"tenant.tenants.read\",\n    \"tenant.tenants.create\",\n    \"tenant.tenants.update\",\n    \"tenant.tenants.updateStatus\",\n    \"tenant.modules.manage\",\n    \"tenant.domains.read\",\n    \"tenant.domains.manage\",\n    \"audit.logs.read\",\n    \"wms.inventory.read\",\n    \"wms.inventory.adjust\"\n  ]\n}",
+              "raw": "{\n  \"permissionCodes\": [\n    \"auth.users.read\",\n    \"auth.users.create\",\n    \"auth.users.update\",\n    \"auth.users.updateStatus\",\n    \"auth.users.delete\",\n    \"auth.userRoles.manage\",\n    \"auth.permissions.read\",\n    \"auth.permissions.create\",\n    \"auth.roles.read\",\n    \"auth.roles.create\",\n    \"auth.roles.update\",\n    \"auth.rolePermissions.manage\",\n    \"tenant.tenants.read\",\n    \"tenant.tenants.create\",\n    \"tenant.tenants.update\",\n    \"tenant.tenants.updateStatus\",\n    \"tenant.modules.manage\",\n    \"tenant.domains.read\",\n    \"tenant.domains.manage\",\n    \"audit.logs.read\",\n    \"wms.inventory.read\",\n    \"wms.inventory.adjust\",\n    \"wms.warehouses.manage\",\n    \"wms.locations.manage\",\n    \"wms.items.manage\",\n    \"wms.inbound.confirm\",\n    \"wms.outbound.allocate\",\n    \"wms.outbound.pack\",\n    \"wms.outbound.ship\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3523,7 +3910,7 @@
                   "const method = 'GET';",
                   "const requestId = 'postman-audit-list';",
                   "const timestamp = new Date().toISOString();",
-                  "const path = '/api/internal/audit/logs?page=1&size=20&action=postman.audit.recorded';",
+                  "const path = '/api/internal/audit/logs?page=1&size=20';",
                   "const rawBody = '';",
                   "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
                   "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
@@ -3556,9 +3943,1874 @@
               }
             }
           ]
+        },
+        {
+          "name": "POST audit log internal user-bff caller",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "user-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{auditBaseUrl}}/api/internal/audit/logs"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'POST';",
+                  "const path = '/api/internal/audit/logs';",
+                  "const requestId = `postman-user-bff-audit-${Date.now()}`;",
+                  "const timestamp = new Date().toISOString();",
+                  "const body = {",
+                  "  eventId: pm.variables.replaceIn('{{$guid}}'),",
+                  "  eventType: 'userBff.appContext.loaded',",
+                  "  schemaVersion: 1,",
+                  "  tenantId: pm.collectionVariables.get('tenantId'),",
+                  "  requestId,",
+                  "  occurredAt: timestamp,",
+                  "  source: 'user-bff-service',",
+                  "  aggregateType: 'app_context',",
+                  "  aggregateId: pm.collectionVariables.get('userId'),",
+                  "  actor: {",
+                  "    type: 'user',",
+                  "    userId: pm.collectionVariables.get('userId')",
+                  "  },",
+                  "  data: {",
+                  "    surface: 'app',",
+                  "    endpoint: '/api/app/me',",
+                  "    postman: true",
+                  "  }",
+                  "};",
+                  "const rawBody = JSON.stringify(body);",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('auditInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.body.update(rawBody);",
+                  "pm.request.headers.upsert({ key: 'Content-Type', value: 'application/json' });",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'user-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('audit log recorded by user-bff caller', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.recorded).to.eql(true);",
+                  "  pm.expect(body.data.auditId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ],
       "description": "audit-log-service direct checks. Audit writes are event-based through outbox relay/EventBridge/SQS, so this folder keeps health/readiness and internal admin-bff query requests only."
+    },
+    {
+      "name": "WMS internal direct (BFF caller simulation)",
+      "item": [
+        {
+          "name": "GET wms health direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-wms-health"
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/health"
+          }
+        },
+        {
+          "name": "GET wms ready direct",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-wms-ready"
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/ready"
+          }
+        },
+        {
+          "name": "POST wms warehouse create internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/warehouses",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wmsRunCode')) {",
+                  "  pm.collectionVariables.set('wmsRunCode', Date.now().toString(36));",
+                  "}",
+                  "const runCode = pm.collectionVariables.get('wmsRunCode');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-warehouse-create';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/warehouses';",
+                  "const warehouseCode = `pmwh${runCode}`;",
+                  "const rawBody = JSON.stringify({ code: warehouseCode, name: `Postman Warehouse ${runCode}` });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});",
+                  "const warehouseBody = pm.response.json();",
+                  "pm.collectionVariables.set('wmsWarehouseId', warehouseBody.data.warehouseId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET wms warehouses internal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/warehouses"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'GET';",
+                  "const requestId = 'postman-wms-warehouses-list';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/warehouses';",
+                  "const rawBody = '';",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms location create internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/locations",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wmsRunCode')) {",
+                  "  pm.collectionVariables.set('wmsRunCode', Date.now().toString(36));",
+                  "}",
+                  "const runCode = pm.collectionVariables.get('wmsRunCode');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-location-create';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/locations';",
+                  "const locationCode = `pmloc${runCode}`;",
+                  "const rawBody = JSON.stringify({ warehouseId: pm.collectionVariables.get('wmsWarehouseId'), code: locationCode, name: `Postman Location ${runCode}`, type: 'storage' });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});",
+                  "const locationBody = pm.response.json();",
+                  "pm.collectionVariables.set('wmsLocationId', locationBody.data.locationId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET wms locations internal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/locations?warehouseId={{wmsWarehouseId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'GET';",
+                  "const requestId = 'postman-wms-locations-list';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = `/api/internal/wms/locations?warehouseId=${pm.collectionVariables.get('wmsWarehouseId')}`;",
+                  "const rawBody = '';",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms item create internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/items",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wmsRunCode')) {",
+                  "  pm.collectionVariables.set('wmsRunCode', Date.now().toString(36));",
+                  "}",
+                  "const runCode = pm.collectionVariables.get('wmsRunCode');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-item-create';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/items';",
+                  "const sku = `pmsku${runCode}`;",
+                  "const rawBody = JSON.stringify({ sku, name: `Postman Item ${runCode}`, uom: 'ea' });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});",
+                  "const itemBody = pm.response.json();",
+                  "pm.collectionVariables.set('wmsItemId', itemBody.data.itemId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET wms items internal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/items"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'GET';",
+                  "const requestId = 'postman-wms-items-list';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/items';",
+                  "const rawBody = '';",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms inventory adjustment internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/inventory/adjustments",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wmsRunCode')) {",
+                  "  pm.collectionVariables.set('wmsRunCode', Date.now().toString(36));",
+                  "}",
+                  "const runCode = pm.collectionVariables.get('wmsRunCode');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-inventory-adjustment';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/inventory/adjustments';",
+                  "const rawBody = JSON.stringify({ warehouseId: pm.collectionVariables.get('wmsWarehouseId'), locationId: pm.collectionVariables.get('wmsLocationId'), itemId: pm.collectionVariables.get('wmsItemId'), quantityChange: 20, reason: 'cycle-count', referenceNo: `pm-adj-${runCode}` });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms inbound confirmation internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/inbound/confirmations",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wmsRunCode')) {",
+                  "  pm.collectionVariables.set('wmsRunCode', Date.now().toString(36));",
+                  "}",
+                  "const runCode = pm.collectionVariables.get('wmsRunCode');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-inbound-confirmation';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/inbound/confirmations';",
+                  "const rawBody = JSON.stringify({ warehouseId: pm.collectionVariables.get('wmsWarehouseId'), locationId: pm.collectionVariables.get('wmsLocationId'), itemId: pm.collectionVariables.get('wmsItemId'), quantity: 5, referenceNo: `pm-in-${runCode}` });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms outbound allocation internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/outbound/allocations",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wmsRunCode')) {",
+                  "  pm.collectionVariables.set('wmsRunCode', Date.now().toString(36));",
+                  "}",
+                  "const runCode = pm.collectionVariables.get('wmsRunCode');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-outbound-allocation';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/outbound/allocations';",
+                  "const rawBody = JSON.stringify({ orderNo: `pm-so-${runCode}`, warehouseId: pm.collectionVariables.get('wmsWarehouseId'), locationId: pm.collectionVariables.get('wmsLocationId'), itemId: pm.collectionVariables.get('wmsItemId'), quantity: 7 });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});",
+                  "const allocationBody = pm.response.json();",
+                  "pm.collectionVariables.set('wmsAllocationId', allocationBody.data.allocationId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms outbound shipment internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/outbound/shipments",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-outbound-shipment';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/outbound/shipments';",
+                  "const rawBody = JSON.stringify({ allocationId: pm.collectionVariables.get('wmsAllocationId') });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms outbound allocation for packing internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/outbound/allocations",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('wmsRunCode')) {",
+                  "  pm.collectionVariables.set('wmsRunCode', Date.now().toString(36));",
+                  "}",
+                  "const runCode = pm.collectionVariables.get('wmsRunCode');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-outbound-packing-allocation';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/outbound/allocations';",
+                  "const rawBody = JSON.stringify({ orderNo: `pm-so-pack-${runCode}`, warehouseId: pm.collectionVariables.get('wmsWarehouseId'), locationId: pm.collectionVariables.get('wmsLocationId'), itemId: pm.collectionVariables.get('wmsItemId'), quantity: 4 });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});",
+                  "const allocationBody = pm.response.json();",
+                  "pm.collectionVariables.set('wmsPackingAllocationId', allocationBody.data.allocationId);",
+                  "pm.collectionVariables.set('wmsPackingOutboundOrderId', allocationBody.data.outboundOrderId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms outbound packing create internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/outbound/packings",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-outbound-packing-create';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/outbound/packings';",
+                  "const rawBody = JSON.stringify({ outboundOrderId: pm.collectionVariables.get('wmsPackingOutboundOrderId'), allocationIds: [pm.collectionVariables.get('wmsPackingAllocationId')], memo: 'postman packing flow' });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});",
+                  "const packingBody = pm.response.json();",
+                  "pm.collectionVariables.set('wmsPackingId', packingBody.data.packingId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET wms outbound packings internal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/outbound/packings?outboundOrderId={{wmsPackingOutboundOrderId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'GET';",
+                  "const requestId = 'postman-wms-outbound-packings-list';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = `/api/internal/wms/outbound/packings?outboundOrderId=${pm.collectionVariables.get('wmsPackingOutboundOrderId')}`;",
+                  "const rawBody = '';",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms outbound package create internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/outbound/packings/{{wmsPackingId}}/packages",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runCode = pm.collectionVariables.get('wmsRunCode');",
+                  "const packingId = pm.collectionVariables.get('wmsPackingId');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-outbound-package-create';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = `/api/internal/wms/outbound/packings/${packingId}/packages`;",
+                  "const rawBody = JSON.stringify({ packageNo: `PM-PKG-${runCode}-001`, boxType: 'small', weight: 1.25, width: 300, height: 200, depth: 150, items: [{ allocationId: pm.collectionVariables.get('wmsPackingAllocationId'), itemId: pm.collectionVariables.get('wmsItemId'), quantity: 4 }] });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});",
+                  "const packageBody = pm.response.json();",
+                  "pm.collectionVariables.set('wmsPackageId', packageBody.data.packageId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms outbound packing confirm internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/outbound/packings/{{wmsPackingId}}/confirm"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const packingId = pm.collectionVariables.get('wmsPackingId');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-outbound-packing-confirm';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = `/api/internal/wms/outbound/packings/${packingId}/confirm`;",
+                  "const rawBody = '';",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.status).to.eql('confirmed');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms outbound packing shipment internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/outbound/shipments",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runCode = pm.collectionVariables.get('wmsRunCode');",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-outbound-packing-shipment';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/outbound/shipments';",
+                  "const rawBody = JSON.stringify({ packingId: pm.collectionVariables.get('wmsPackingId'), carrierCode: 'local-carrier', trackingNo: `PM-TRK-${runCode}` });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.packingId).to.eql(pm.collectionVariables.get('wmsPackingId'));",
+                  "});",
+                  "const shipmentBody = pm.response.json();",
+                  "pm.collectionVariables.set('wmsPackingShipmentId', shipmentBody.data.shipmentId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET wms inventory internal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/inventory?warehouseId={{wmsWarehouseId}}&locationId={{wmsLocationId}}&itemId={{wmsItemId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const method = 'GET';",
+                  "const requestId = 'postman-wms-inventory-list';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = `/api/internal/wms/inventory?warehouseId=${pm.collectionVariables.get('wmsWarehouseId')}&locationId=${pm.collectionVariables.get('wmsLocationId')}&itemId=${pm.collectionVariables.get('wmsItemId')}`;",
+                  "const rawBody = '';",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST wms inventory snapshot generate internal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/inventory/snapshots/generate",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const snapshotDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);",
+                  "pm.collectionVariables.set('wmsSnapshotDate', snapshotDate);",
+                  "const method = 'POST';",
+                  "const requestId = 'postman-wms-inventory-snapshot-generate';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = '/api/internal/wms/inventory/snapshots/generate';",
+                  "const rawBody = JSON.stringify({ snapshotDate, mode: 'generate', warehouseId: pm.collectionVariables.get('wmsWarehouseId') });",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('wmsSnapshotRunId', body.data.runId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET wms inventory snapshots internal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{requestId}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-Internal-Service-Id",
+                "value": "admin-bff-service"
+              },
+              {
+                "key": "X-Internal-Timestamp",
+                "value": ""
+              },
+              {
+                "key": "X-Internal-Signature",
+                "value": ""
+              }
+            ],
+            "url": "{{wmsBaseUrl}}/api/internal/wms/inventory/snapshots?snapshotDate={{wmsSnapshotDate}}&warehouseId={{wmsWarehouseId}}&locationId={{wmsLocationId}}&itemId={{wmsItemId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const snapshotDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);",
+                  "pm.collectionVariables.set('wmsSnapshotDate', snapshotDate);",
+                  "const method = 'GET';",
+                  "const requestId = 'postman-wms-inventory-snapshots-list';",
+                  "const timestamp = new Date().toISOString();",
+                  "const path = `/api/internal/wms/inventory/snapshots?snapshotDate=${snapshotDate}&warehouseId=${pm.collectionVariables.get('wmsWarehouseId')}&locationId=${pm.collectionVariables.get('wmsLocationId')}&itemId=${pm.collectionVariables.get('wmsItemId')}`;",
+                  "const rawBody = '';",
+                  "if (pm.request.body && rawBody.length > 0) {",
+                  "  pm.request.body.update(rawBody);",
+                  "}",
+                  "const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);",
+                  "const payload = [method, path, timestamp, requestId, bodyHash].join('\\n');",
+                  "const signature = CryptoJS.HmacSHA256(payload, pm.collectionVariables.get('wmsInternalAuthSecret')).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('requestId', requestId);",
+                  "pm.request.headers.upsert({ key: 'X-Request-Id', value: requestId });",
+                  "pm.request.headers.upsert({ key: 'X-Tenant-Id', value: pm.collectionVariables.get('tenantId') });",
+                  "pm.request.headers.upsert({ key: 'X-User-Id', value: pm.collectionVariables.get('userId') });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Service-Id', value: 'admin-bff-service' });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Timestamp', value: timestamp });",
+                  "pm.request.headers.upsert({ key: 'X-Internal-Signature', value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "const first = body.data.items?.[0];",
+                  "if (first) {",
+                  "  pm.collectionVariables.set('wmsSnapshotId', first.snapshotId);",
+                  "  pm.collectionVariables.set('wmsSnapshotSourceLedgerId', first.sourceLedgerId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Outbox Relay direct",
@@ -3769,6 +6021,46 @@
     {
       "key": "outboxRelayBaseUrl",
       "value": "http://localhost:3007"
+    },
+    {
+      "key": "wmsBaseUrl",
+      "value": "http://localhost:3005",
+      "type": "string"
+    },
+    {
+      "key": "wmsInternalAuthSecret",
+      "value": "replace-with-local-wms-internal-secret-32chars",
+      "type": "string"
+    },
+    {
+      "key": "wmsRunCode",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wmsWarehouseId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wmsLocationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wmsItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wmsAllocationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userBffBaseUrl",
+      "value": "http://localhost:3004",
+      "type": "string"
     }
   ]
 }

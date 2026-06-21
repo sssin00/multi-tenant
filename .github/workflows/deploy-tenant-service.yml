@@ -38,6 +38,12 @@ jobs:
       ADMIN_BFF_DESIRED_COUNT_INPUT: ${{ vars.ADMIN_BFF_DESIRED_COUNT }}
       ADMIN_BFF_IMAGE_TAG_INPUT: ${{ vars.ADMIN_BFF_IMAGE_TAG }}
       ADMIN_BFF_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.ADMIN_BFF_CORS_ALLOWED_ORIGINS }}
+      USER_BFF_DESIRED_COUNT_INPUT: ${{ vars.USER_BFF_DESIRED_COUNT }}
+      USER_BFF_IMAGE_TAG_INPUT: ${{ vars.USER_BFF_IMAGE_TAG }}
+      USER_BFF_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.USER_BFF_CORS_ALLOWED_ORIGINS }}
+      WMS_DESIRED_COUNT_INPUT: ${{ vars.WMS_DESIRED_COUNT }}
+      WMS_IMAGE_TAG_INPUT: ${{ vars.WMS_IMAGE_TAG }}
+      WMS_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.WMS_CORS_ALLOWED_ORIGINS }}
       AUDIT_DESIRED_COUNT_INPUT: ${{ vars.AUDIT_DESIRED_COUNT }}
       AUDIT_IMAGE_TAG_INPUT: ${{ vars.AUDIT_IMAGE_TAG }}
       AUDIT_CORS_ALLOWED_ORIGINS_INPUT: ${{ vars.AUDIT_CORS_ALLOWED_ORIGINS }}
@@ -54,6 +60,9 @@ jobs:
       OUTBOX_SQS_QUEUE_URL_INPUT: ${{ vars.OUTBOX_SQS_QUEUE_URL }}
       AUTH_IAM_SERVICE_URL_INPUT: ${{ vars.AUTH_IAM_SERVICE_URL }}
       ADMIN_BFF_SERVICE_URL_INPUT: ${{ vars.ADMIN_BFF_SERVICE_URL }}
+      AUTH_IAM_API_SERVICE_URL_INPUT: ${{ vars.AUTH_IAM_API_SERVICE_URL }}
+      USER_BFF_SERVICE_URL_INPUT: ${{ vars.USER_BFF_SERVICE_URL }}
+      WMS_SERVICE_URL_INPUT: ${{ vars.WMS_SERVICE_URL }}
       TENANT_SERVICE_URL_INPUT: ${{ vars.TENANT_SERVICE_URL }}
       GATEWAY_JWT_SECRET_ARN_INPUT: ${{ secrets.GATEWAY_JWT_SECRET_ARN }}
       AUTH_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.AUTH_DATABASE_URL_SECRET_ARN }}
@@ -66,6 +75,14 @@ jobs:
       ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN }}
       ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN }}
       ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN }}
+      USER_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.USER_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN }}
+      USER_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.USER_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN }}
+      USER_BFF_WMS_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.USER_BFF_WMS_INTERNAL_AUTH_SECRET_ARN }}
+      USER_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.USER_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN }}
+      WMS_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.WMS_DATABASE_URL_SECRET_ARN }}
+      WMS_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.WMS_INTERNAL_AUTH_SECRET_ARN }}
+      WMS_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.WMS_AUTH_INTERNAL_AUTH_SECRET_ARN }}
+      WMS_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.WMS_TENANT_INTERNAL_AUTH_SECRET_ARN }}
       AUDIT_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.AUDIT_DATABASE_URL_SECRET_ARN }}
       AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT: ${{ secrets.AUDIT_INTERNAL_AUTH_SECRET_ARN }}
       AUTH_IAM_OUTBOX_DATABASE_URL_SECRET_ARN_INPUT: ${{ secrets.AUTH_IAM_OUTBOX_DATABASE_URL_SECRET_ARN }}
@@ -109,11 +126,15 @@ jobs:
           tenant_image_tag="${deploy_env}-${GITHUB_SHA::12}"
           admin_bff_desired_count="${ADMIN_BFF_DESIRED_COUNT_INPUT:-}"
           admin_bff_image_tag="${ADMIN_BFF_IMAGE_TAG_INPUT:-}"
+          user_bff_desired_count="${USER_BFF_DESIRED_COUNT_INPUT:-}"
+          user_bff_image_tag="${USER_BFF_IMAGE_TAG_INPUT:-}"
+          wms_desired_count="${WMS_DESIRED_COUNT_INPUT:-}"
+          wms_image_tag="${WMS_IMAGE_TAG_INPUT:-}"
           audit_desired_count="${AUDIT_DESIRED_COUNT_INPUT:-}"
           audit_image_tag="${AUDIT_IMAGE_TAG_INPUT:-}"
           outbox_desired_count="${OUTBOX_DESIRED_COUNT_INPUT:-}"
           outbox_image_tag="${OUTBOX_IMAGE_TAG_INPUT:-}"
-          outbox_sources="${OUTBOX_SOURCES_INPUT:-auth-iam,tenant}"
+          outbox_sources="${OUTBOX_SOURCES_INPUT:-auth-iam,tenant,wms}"
           outbox_worker_enabled="${OUTBOX_WORKER_ENABLED_INPUT:-true}"
           outbox_publisher_type="${OUTBOX_PUBLISHER_TYPE_INPUT:-sqs}"
           auth_jwt_algorithm="${AUTH_JWT_ALGORITHM_INPUT:-HS256}"
@@ -132,6 +153,10 @@ jobs:
             echo "tenant-image-tag=${tenant_image_tag}"
             echo "admin-bff-desired-count=${admin_bff_desired_count}"
             echo "admin-bff-image-tag=${admin_bff_image_tag}"
+            echo "user-bff-desired-count=${user_bff_desired_count}"
+            echo "user-bff-image-tag=${user_bff_image_tag}"
+            echo "wms-desired-count=${wms_desired_count}"
+            echo "wms-image-tag=${wms_image_tag}"
             echo "audit-desired-count=${audit_desired_count}"
             echo "audit-image-tag=${audit_image_tag}"
             echo "outbox-desired-count=${outbox_desired_count}"
@@ -166,6 +191,18 @@ jobs:
             fi
           }
 
+          validate_any_required() {
+            local name="$1"
+            shift
+            for value in "$@"; do
+              if [[ -n "${value}" ]]; then
+                return 0
+              fi
+            done
+            echo "${name} is required." >&2
+            exit 1
+          }
+
           validate_outbox_source_secret() {
             local source="$1"
             case "${source}" in
@@ -197,6 +234,35 @@ jobs:
           validate_required "ADMIN_BFF_SERVICE_DESIRED_COUNT" "${{ steps.context.outputs.admin-bff-desired-count }}"
           validate_desired_count "ADMIN_BFF_SERVICE_DESIRED_COUNT" "${{ steps.context.outputs.admin-bff-desired-count }}"
           validate_required "ADMIN_BFF_SERVICE_IMAGE_TAG" "${{ steps.context.outputs.admin-bff-image-tag }}"
+          validate_required "USER_BFF_SERVICE_DESIRED_COUNT" "${{ steps.context.outputs.user-bff-desired-count }}"
+          validate_desired_count "USER_BFF_SERVICE_DESIRED_COUNT" "${{ steps.context.outputs.user-bff-desired-count }}"
+          validate_required "USER_BFF_SERVICE_IMAGE_TAG" "${{ steps.context.outputs.user-bff-image-tag }}"
+          validate_required "WMS_SERVICE_DESIRED_COUNT" "${{ steps.context.outputs.wms-desired-count }}"
+          validate_desired_count "WMS_SERVICE_DESIRED_COUNT" "${{ steps.context.outputs.wms-desired-count }}"
+          validate_required "WMS_SERVICE_IMAGE_TAG" "${{ steps.context.outputs.wms-image-tag }}"
+
+          if [[ "${{ steps.context.outputs.user-bff-desired-count }}" != "0" ]]; then
+            validate_any_required "USER_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN or AUTH_INTERNAL_AUTH_SECRET_ARN" "${USER_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}" "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+            validate_any_required "USER_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN or TENANT_INTERNAL_AUTH_SECRET_ARN" "${USER_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}" "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+            validate_any_required "USER_BFF_WMS_INTERNAL_AUTH_SECRET_ARN or WMS_INTERNAL_AUTH_SECRET_ARN" "${USER_BFF_WMS_INTERNAL_AUTH_SECRET_ARN_INPUT}" "${WMS_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+            validate_any_required "USER_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN or AUDIT_INTERNAL_AUTH_SECRET_ARN" "${USER_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}" "${AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+            if [[ -z "${WMS_SERVICE_URL_INPUT}" && "${{ steps.context.outputs.wms-desired-count }}" == "0" ]]; then
+              echo "WMS_SERVICE_URL is required when user-bff-service runs while wms-service desired count is 0." >&2
+              exit 1
+            fi
+            if [[ -z "${AUDIT_LOG_SERVICE_URL_INPUT}" && "${{ steps.context.outputs.audit-desired-count }}" == "0" ]]; then
+              echo "AUDIT_LOG_SERVICE_URL is required when user-bff-service runs while audit-log-service desired count is 0." >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "${{ steps.context.outputs.wms-desired-count }}" != "0" ]]; then
+            validate_required "WMS_DATABASE_URL_SECRET_ARN" "${WMS_DATABASE_URL_SECRET_ARN_INPUT}"
+            validate_required "WMS_INTERNAL_AUTH_SECRET_ARN" "${WMS_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+            validate_any_required "WMS_AUTH_INTERNAL_AUTH_SECRET_ARN or AUTH_INTERNAL_AUTH_SECRET_ARN" "${WMS_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}" "${AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+            validate_any_required "WMS_TENANT_INTERNAL_AUTH_SECRET_ARN or TENANT_INTERNAL_AUTH_SECRET_ARN" "${WMS_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}" "${TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          fi
+
           validate_required "AUDIT_LOG_SERVICE_DESIRED_COUNT" "${{ steps.context.outputs.audit-desired-count }}"
           validate_desired_count "AUDIT_LOG_SERVICE_DESIRED_COUNT" "${{ steps.context.outputs.audit-desired-count }}"
           validate_required "AUDIT_LOG_SERVICE_IMAGE_TAG" "${{ steps.context.outputs.audit-image-tag }}"
@@ -336,6 +402,10 @@ jobs:
             -c "tenantImageTag=${{ steps.context.outputs.tenant-image-tag }}"
             -c "adminBffDesiredCount=${{ steps.context.outputs.admin-bff-desired-count }}"
             -c "adminBffImageTag=${{ steps.context.outputs.admin-bff-image-tag }}"
+            -c "userBffDesiredCount=${{ steps.context.outputs.user-bff-desired-count }}"
+            -c "userBffImageTag=${{ steps.context.outputs.user-bff-image-tag }}"
+            -c "wmsDesiredCount=${{ steps.context.outputs.wms-desired-count }}"
+            -c "wmsImageTag=${{ steps.context.outputs.wms-image-tag }}"
             -c "auditDesiredCount=${{ steps.context.outputs.audit-desired-count }}"
             -c "auditImageTag=${{ steps.context.outputs.audit-image-tag }}"
             -c "outboxDesiredCount=${{ steps.context.outputs.outbox-desired-count }}"
@@ -370,6 +440,16 @@ jobs:
           append_context "adminBffAuthInternalAuthSecretArn" "${ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "adminBffTenantInternalAuthSecretArn" "${ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "adminBffAuditInternalAuthSecretArn" "${ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "userBffCorsAllowedOrigins" "${USER_BFF_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "userBffAuthInternalAuthSecretArn" "${USER_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "userBffTenantInternalAuthSecretArn" "${USER_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "userBffWmsInternalAuthSecretArn" "${USER_BFF_WMS_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "userBffAuditInternalAuthSecretArn" "${USER_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "wmsCorsAllowedOrigins" "${WMS_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "wmsDatabaseUrlSecretArn" "${WMS_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "wmsInternalAuthSecretArn" "${WMS_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "wmsAuthInternalAuthSecretArn" "${WMS_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "wmsTenantInternalAuthSecretArn" "${WMS_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "auditCorsAllowedOrigins" "${AUDIT_CORS_ALLOWED_ORIGINS_INPUT}"
           append_context "auditDatabaseUrlSecretArn" "${AUDIT_DATABASE_URL_SECRET_ARN_INPUT}"
           append_context "auditInternalAuthSecretArn" "${AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
@@ -381,8 +461,11 @@ jobs:
           append_context "tenantOutboxDatabaseUrlSecretArn" "${TENANT_OUTBOX_DATABASE_URL_SECRET_ARN_INPUT}"
           append_context "wmsOutboxDatabaseUrlSecretArn" "${WMS_OUTBOX_DATABASE_URL_SECRET_ARN_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
+          append_context "authIamApiServiceUrl" "${AUTH_IAM_API_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
+          append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
           append_context "tenantServiceUrl" "${TENANT_SERVICE_URL_INPUT}"
+          append_context "wmsServiceUrl" "${WMS_SERVICE_URL_INPUT}"
 
           pnpm --filter @multi-tenant/infra-cdk exec cdk deploy \
             --require-approval never \
@@ -439,6 +522,10 @@ jobs:
             -c "tenantImageTag=${{ steps.context.outputs.tenant-image-tag }}"
             -c "adminBffDesiredCount=${{ steps.context.outputs.admin-bff-desired-count }}"
             -c "adminBffImageTag=${{ steps.context.outputs.admin-bff-image-tag }}"
+            -c "userBffDesiredCount=${{ steps.context.outputs.user-bff-desired-count }}"
+            -c "userBffImageTag=${{ steps.context.outputs.user-bff-image-tag }}"
+            -c "wmsDesiredCount=${{ steps.context.outputs.wms-desired-count }}"
+            -c "wmsImageTag=${{ steps.context.outputs.wms-image-tag }}"
             -c "auditDesiredCount=${{ steps.context.outputs.audit-desired-count }}"
             -c "auditImageTag=${{ steps.context.outputs.audit-image-tag }}"
             -c "outboxDesiredCount=${{ steps.context.outputs.outbox-desired-count }}"
@@ -473,6 +560,16 @@ jobs:
           append_context "adminBffAuthInternalAuthSecretArn" "${ADMIN_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "adminBffTenantInternalAuthSecretArn" "${ADMIN_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "adminBffAuditInternalAuthSecretArn" "${ADMIN_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "userBffCorsAllowedOrigins" "${USER_BFF_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "userBffAuthInternalAuthSecretArn" "${USER_BFF_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "userBffTenantInternalAuthSecretArn" "${USER_BFF_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "userBffWmsInternalAuthSecretArn" "${USER_BFF_WMS_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "userBffAuditInternalAuthSecretArn" "${USER_BFF_AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "wmsCorsAllowedOrigins" "${WMS_CORS_ALLOWED_ORIGINS_INPUT}"
+          append_context "wmsDatabaseUrlSecretArn" "${WMS_DATABASE_URL_SECRET_ARN_INPUT}"
+          append_context "wmsInternalAuthSecretArn" "${WMS_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "wmsAuthInternalAuthSecretArn" "${WMS_AUTH_INTERNAL_AUTH_SECRET_ARN_INPUT}"
+          append_context "wmsTenantInternalAuthSecretArn" "${WMS_TENANT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
           append_context "auditCorsAllowedOrigins" "${AUDIT_CORS_ALLOWED_ORIGINS_INPUT}"
           append_context "auditDatabaseUrlSecretArn" "${AUDIT_DATABASE_URL_SECRET_ARN_INPUT}"
           append_context "auditInternalAuthSecretArn" "${AUDIT_INTERNAL_AUTH_SECRET_ARN_INPUT}"
@@ -484,8 +581,11 @@ jobs:
           append_context "tenantOutboxDatabaseUrlSecretArn" "${TENANT_OUTBOX_DATABASE_URL_SECRET_ARN_INPUT}"
           append_context "wmsOutboxDatabaseUrlSecretArn" "${WMS_OUTBOX_DATABASE_URL_SECRET_ARN_INPUT}"
           append_context "authIamServiceUrl" "${AUTH_IAM_SERVICE_URL_INPUT}"
+          append_context "authIamApiServiceUrl" "${AUTH_IAM_API_SERVICE_URL_INPUT}"
           append_context "adminBffServiceUrl" "${ADMIN_BFF_SERVICE_URL_INPUT}"
+          append_context "userBffServiceUrl" "${USER_BFF_SERVICE_URL_INPUT}"
           append_context "tenantServiceUrl" "${TENANT_SERVICE_URL_INPUT}"
+          append_context "wmsServiceUrl" "${WMS_SERVICE_URL_INPUT}"
 
           pnpm --filter @multi-tenant/infra-cdk exec cdk deploy \
             --require-approval never \
@@ -505,5 +605,7 @@ jobs:
             echo "- Auth/IAM desired count applied: `${{ steps.context.outputs.auth-desired-count }}`"
             echo "- Tenant desired count applied: `${{ steps.context.outputs.tenant-desired-count }}`"
             echo "- Admin BFF desired count applied: `${{ steps.context.outputs.admin-bff-desired-count }}`"
+            echo "- User BFF desired count applied: `${{ steps.context.outputs.user-bff-desired-count }}`"
+            echo "- WMS desired count applied: `${{ steps.context.outputs.wms-desired-count }}`"
             echo "- Audit Log desired count applied: `${{ steps.context.outputs.audit-desired-count }}`"
           } >> "${GITHUB_STEP_SUMMARY}"

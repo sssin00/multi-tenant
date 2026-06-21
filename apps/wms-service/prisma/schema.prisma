@@ -1,0 +1,497 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WarehouseStatus {
+  active
+  inactive
+}
+
+enum LocationStatus {
+  active
+  inactive
+}
+
+enum LocationType {
+  storage
+  receiving
+  shipping
+  staging
+}
+
+enum ItemStatus {
+  active
+  inactive
+}
+
+enum OutboundOrderStatus {
+  draft
+  allocated
+  shipped
+  cancelled
+}
+
+enum OutboundAllocationStatus {
+  allocated
+  shipped
+  cancelled
+}
+
+enum OutboundPackingStatus {
+  packing
+  confirmed
+  shipped
+  cancelled
+}
+
+enum InventoryLedgerMovementType {
+  baseline
+  adjustment
+  inbound
+  allocation
+  shipment
+  correction
+}
+
+enum InventoryLedgerSourceType {
+  baseline
+  inventory_adjustment
+  inbound_receipt
+  outbound_allocation
+  outbound_shipment
+}
+
+enum InventorySnapshotRunMode {
+  generate
+  rebuild
+}
+
+enum InventorySnapshotRunStatus {
+  running
+  completed
+  failed
+}
+
+enum OutboxStatus {
+  pending
+  published
+  failed
+}
+
+model Warehouse {
+  id        String          @id @default(uuid()) @db.Uuid
+  tenantId  String          @map("tenant_id") @db.Uuid
+  code      String
+  name      String
+  status    WarehouseStatus @default(active)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  locations            Location[]
+  inventoryBalances    InventoryBalance[]
+  inventoryAdjustments InventoryAdjustment[]
+  inventoryLedgers     InventoryLedger[]
+  inventorySnapshots   InventoryDailySnapshot[]
+  inboundReceipts      InboundReceipt[]
+  outboundOrders       OutboundOrder[]
+  outboundAllocations  OutboundAllocation[]
+  outboundPackings     OutboundPacking[]
+  outboundShipments    OutboundShipment[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+  @@map("wms_warehouses")
+}
+
+model Location {
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String         @map("tenant_id") @db.Uuid
+  warehouseId String         @map("warehouse_id") @db.Uuid
+  code        String
+  name        String?
+  type        LocationType   @default(storage)
+  status      LocationStatus @default(active)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  warehouse            Warehouse                @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  inventoryBalances    InventoryBalance[]
+  inventoryAdjustments InventoryAdjustment[]
+  inventoryLedgers     InventoryLedger[]
+  inventorySnapshots   InventoryDailySnapshot[]
+  inboundReceipts      InboundReceipt[]
+  outboundAllocations  OutboundAllocation[]
+
+  @@unique([tenantId, warehouseId, code])
+  @@index([tenantId, warehouseId])
+  @@index([tenantId, status])
+  @@map("wms_locations")
+}
+
+model Item {
+  id        String     @id @default(uuid()) @db.Uuid
+  tenantId  String     @map("tenant_id") @db.Uuid
+  sku       String
+  name      String
+  uom       String
+  status    ItemStatus @default(active)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  inventoryBalances    InventoryBalance[]
+  inventoryAdjustments InventoryAdjustment[]
+  inventoryLedgers     InventoryLedger[]
+  inventorySnapshots   InventoryDailySnapshot[]
+  inboundReceipts      InboundReceipt[]
+  outboundAllocations  OutboundAllocation[]
+  outboundPackageItems OutboundPackageItem[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, status])
+  @@map("wms_items")
+}
+
+model InventoryBalance {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  warehouseId       String   @map("warehouse_id") @db.Uuid
+  locationId        String   @map("location_id") @db.Uuid
+  itemId            String   @map("item_id") @db.Uuid
+  quantity          Decimal  @default(0) @db.Decimal(18, 3)
+  allocatedQuantity Decimal  @default(0) @map("allocated_quantity") @db.Decimal(18, 3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  location  Location  @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, warehouseId, locationId, itemId])
+  @@index([tenantId, itemId])
+  @@index([tenantId, warehouseId, itemId])
+  @@map("wms_inventory_balances")
+}
+
+model InventoryAdjustment {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  warehouseId       String   @map("warehouse_id") @db.Uuid
+  locationId        String   @map("location_id") @db.Uuid
+  itemId            String   @map("item_id") @db.Uuid
+  quantityChange    Decimal  @map("quantity_change") @db.Decimal(18, 3)
+  reason            String
+  referenceNo       String?  @map("reference_no")
+  memo              String?
+  adjustedBy        String?  @map("adjusted_by") @db.Uuid
+  effectiveDate     DateTime @default(dbgenerated("(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date")) @map("effective_date") @db.Date
+  correctedLedgerId String?  @map("corrected_ledger_id") @db.Uuid
+  correctionReason  String?  @map("correction_reason")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  location  Location  @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, itemId, createdAt])
+  @@index([tenantId, warehouseId, locationId])
+  @@map("wms_inventory_adjustments")
+}
+
+model InventoryLedger {
+  id                            String                      @id @default(uuid()) @db.Uuid
+  tenantId                      String                      @map("tenant_id") @db.Uuid
+  warehouseId                   String                      @map("warehouse_id") @db.Uuid
+  locationId                    String                      @map("location_id") @db.Uuid
+  itemId                        String                      @map("item_id") @db.Uuid
+  movementType                  InventoryLedgerMovementType @map("movement_type")
+  sourceType                    InventoryLedgerSourceType   @map("source_type")
+  sourceId                      String?                     @map("source_id") @db.Uuid
+  quantityChange                Decimal                     @map("quantity_change") @db.Decimal(18, 3)
+  allocatedQuantityChange       Decimal                     @map("allocated_quantity_change") @db.Decimal(18, 3)
+  balanceQuantityAfter          Decimal                     @map("balance_quantity_after") @db.Decimal(18, 3)
+  balanceAllocatedQuantityAfter Decimal                     @map("balance_allocated_quantity_after") @db.Decimal(18, 3)
+  effectiveDate                 DateTime                    @map("effective_date") @db.Date
+  occurredAt                    DateTime                    @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  correctedLedgerId             String?                     @map("corrected_ledger_id") @db.Uuid
+  correctionReason              String?                     @map("correction_reason")
+  requestId                     String                      @map("request_id")
+
+  warehouse         Warehouse                @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  location          Location                 @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  item              Item                     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  correctedLedger   InventoryLedger?         @relation("InventoryLedgerCorrections", fields: [correctedLedgerId], references: [id], onDelete: SetNull)
+  correctionLedgers InventoryLedger[]        @relation("InventoryLedgerCorrections")
+  snapshots         InventoryDailySnapshot[]
+
+  @@index([tenantId, effectiveDate, warehouseId, locationId, itemId])
+  @@index([tenantId, occurredAt])
+  @@index([tenantId, sourceType, sourceId])
+  @@index([tenantId, correctedLedgerId])
+  @@map("wms_inventory_ledger")
+}
+
+model InventorySnapshotRun {
+  id             String                     @id @default(uuid()) @db.Uuid
+  tenantId       String                     @map("tenant_id") @db.Uuid
+  snapshotDate   DateTime                   @map("snapshot_date") @db.Date
+  snapshotAt     DateTime                   @map("snapshot_at") @db.Timestamptz(6)
+  warehouseId    String?                    @map("warehouse_id") @db.Uuid
+  mode           InventorySnapshotRunMode
+  status         InventorySnapshotRunStatus @default(running)
+  generatedCount Int                        @default(0) @map("generated_count")
+  unchangedCount Int                        @default(0) @map("unchanged_count")
+  errorCode      String?                    @map("error_code")
+  createdBy      String?                    @map("created_by") @db.Uuid
+  requestId      String                     @map("request_id")
+  startedAt      DateTime                   @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt     DateTime?                  @map("finished_at") @db.Timestamptz(6)
+
+  snapshots InventoryDailySnapshot[]
+
+  @@index([tenantId, snapshotDate, status])
+  @@index([tenantId, warehouseId, snapshotDate])
+  @@map("wms_inventory_snapshot_runs")
+}
+
+model InventoryDailySnapshot {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  snapshotDate       DateTime @map("snapshot_date") @db.Date
+  snapshotAt         DateTime @map("snapshot_at") @db.Timestamptz(6)
+  warehouseId        String   @map("warehouse_id") @db.Uuid
+  locationId         String   @map("location_id") @db.Uuid
+  itemId             String   @map("item_id") @db.Uuid
+  quantity           Decimal  @db.Decimal(18, 3)
+  allocatedQuantity  Decimal  @map("allocated_quantity") @db.Decimal(18, 3)
+  availableQuantity  Decimal  @map("available_quantity") @db.Decimal(18, 3)
+  sourceLedgerId     String?  @map("source_ledger_id") @db.Uuid
+  runId              String   @map("run_id") @db.Uuid
+  previousSnapshotId String?  @map("previous_snapshot_id") @db.Uuid
+  isCurrent          Boolean  @default(true) @map("is_current")
+  generatedAt        DateTime @default(now()) @map("generated_at") @db.Timestamptz(6)
+
+  warehouse        Warehouse                @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  location         Location                 @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  item             Item                     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  sourceLedger     InventoryLedger?         @relation(fields: [sourceLedgerId], references: [id], onDelete: SetNull)
+  run              InventorySnapshotRun     @relation(fields: [runId], references: [id], onDelete: Restrict)
+  previousSnapshot InventoryDailySnapshot?  @relation("InventorySnapshotVersions", fields: [previousSnapshotId], references: [id], onDelete: SetNull)
+  nextSnapshots    InventoryDailySnapshot[] @relation("InventorySnapshotVersions")
+
+  @@unique([tenantId, snapshotDate, warehouseId, locationId, itemId, runId])
+  @@index([tenantId, snapshotDate, isCurrent])
+  @@index([tenantId, warehouseId, snapshotDate])
+  @@index([tenantId, itemId, snapshotDate])
+  @@index([tenantId, previousSnapshotId])
+  @@map("wms_inventory_daily_snapshots")
+}
+
+model InboundReceipt {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  warehouseId String   @map("warehouse_id") @db.Uuid
+  locationId  String   @map("location_id") @db.Uuid
+  itemId      String   @map("item_id") @db.Uuid
+  quantity    Decimal  @db.Decimal(18, 3)
+  referenceNo String?  @map("reference_no")
+  confirmedBy String?  @map("confirmed_by") @db.Uuid
+  confirmedAt DateTime @default(now()) @map("confirmed_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  location  Location  @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, itemId, confirmedAt])
+  @@index([tenantId, warehouseId, locationId])
+  @@map("wms_inbound_receipts")
+}
+
+model OutboundOrder {
+  id          String              @id @default(uuid()) @db.Uuid
+  tenantId    String              @map("tenant_id") @db.Uuid
+  warehouseId String              @map("warehouse_id") @db.Uuid
+  orderNo     String              @map("order_no")
+  status      OutboundOrderStatus @default(draft)
+  shippedAt   DateTime?           @map("shipped_at") @db.Timestamptz(6)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  warehouse   Warehouse            @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  allocations OutboundAllocation[]
+  packings    OutboundPacking[]
+  shipments   OutboundShipment[]
+
+  @@unique([tenantId, orderNo])
+  @@index([tenantId, status])
+  @@index([tenantId, warehouseId])
+  @@map("wms_outbound_orders")
+}
+
+model OutboundAllocation {
+  id              String                   @id @default(uuid()) @db.Uuid
+  tenantId        String                   @map("tenant_id") @db.Uuid
+  outboundOrderId String                   @map("outbound_order_id") @db.Uuid
+  warehouseId     String                   @map("warehouse_id") @db.Uuid
+  locationId      String                   @map("location_id") @db.Uuid
+  itemId          String                   @map("item_id") @db.Uuid
+  quantity        Decimal                  @db.Decimal(18, 3)
+  status          OutboundAllocationStatus @default(allocated)
+  allocatedBy     String?                  @map("allocated_by") @db.Uuid
+  allocatedAt     DateTime                 @default(now()) @map("allocated_at") @db.Timestamptz(6)
+  shippedBy       String?                  @map("shipped_by") @db.Uuid
+  shippedAt       DateTime?                @map("shipped_at") @db.Timestamptz(6)
+
+  outboundOrder OutboundOrder               @relation(fields: [outboundOrderId], references: [id], onDelete: Restrict)
+  warehouse     Warehouse                   @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  location      Location                    @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  item          Item                        @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  packings      OutboundPackingAllocation[]
+  packageItems  OutboundPackageItem[]
+  shipments     OutboundShipment[]
+
+  @@index([tenantId, outboundOrderId])
+  @@index([tenantId, status])
+  @@index([tenantId, itemId])
+  @@map("wms_outbound_allocations")
+}
+
+model OutboundPacking {
+  id              String                @id @default(uuid()) @db.Uuid
+  tenantId        String                @map("tenant_id") @db.Uuid
+  outboundOrderId String                @map("outbound_order_id") @db.Uuid
+  warehouseId     String                @map("warehouse_id") @db.Uuid
+  status          OutboundPackingStatus @default(packing)
+  memo            String?
+  packedBy        String?               @map("packed_by") @db.Uuid
+  confirmedBy     String?               @map("confirmed_by") @db.Uuid
+  confirmedAt     DateTime?             @map("confirmed_at") @db.Timestamptz(6)
+  shippedAt       DateTime?             @map("shipped_at") @db.Timestamptz(6)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  outboundOrder OutboundOrder               @relation(fields: [outboundOrderId], references: [id], onDelete: Restrict)
+  warehouse     Warehouse                   @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  allocations   OutboundPackingAllocation[]
+  packages      OutboundPackage[]
+  shipments     OutboundShipment[]
+
+  @@index([tenantId, outboundOrderId])
+  @@index([tenantId, status])
+  @@index([tenantId, warehouseId])
+  @@map("wms_outbound_packings")
+}
+
+model OutboundPackingAllocation {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  packingId    String   @map("packing_id") @db.Uuid
+  allocationId String   @map("allocation_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  packing    OutboundPacking    @relation(fields: [packingId], references: [id], onDelete: Restrict)
+  allocation OutboundAllocation @relation(fields: [allocationId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, packingId, allocationId])
+  @@unique([tenantId, allocationId])
+  @@index([tenantId, packingId])
+  @@map("wms_outbound_packing_allocations")
+}
+
+model OutboundPackage {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  packingId String   @map("packing_id") @db.Uuid
+  packageNo String   @map("package_no")
+  boxType   String?  @map("box_type")
+  weight    Decimal? @db.Decimal(18, 3)
+  width     Decimal? @db.Decimal(18, 3)
+  height    Decimal? @db.Decimal(18, 3)
+  depth     Decimal? @db.Decimal(18, 3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  packing OutboundPacking       @relation(fields: [packingId], references: [id], onDelete: Restrict)
+  items   OutboundPackageItem[]
+
+  @@unique([tenantId, packingId, packageNo])
+  @@index([tenantId, packingId])
+  @@map("wms_outbound_packages")
+}
+
+model OutboundPackageItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  packageId    String   @map("package_id") @db.Uuid
+  allocationId String   @map("allocation_id") @db.Uuid
+  itemId       String   @map("item_id") @db.Uuid
+  quantity     Decimal  @db.Decimal(18, 3)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  package    OutboundPackage    @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  allocation OutboundAllocation @relation(fields: [allocationId], references: [id], onDelete: Restrict)
+  item       Item               @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, packageId])
+  @@index([tenantId, allocationId])
+  @@index([tenantId, itemId])
+  @@map("wms_outbound_package_items")
+}
+
+model OutboundShipment {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  packingId       String?  @map("packing_id") @db.Uuid
+  allocationId    String?  @map("allocation_id") @db.Uuid
+  outboundOrderId String   @map("outbound_order_id") @db.Uuid
+  warehouseId     String   @map("warehouse_id") @db.Uuid
+  carrierCode     String?  @map("carrier_code")
+  trackingNo      String?  @map("tracking_no")
+  shippedBy       String?  @map("shipped_by") @db.Uuid
+  shippedAt       DateTime @default(now()) @map("shipped_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  packing       OutboundPacking?    @relation(fields: [packingId], references: [id], onDelete: Restrict)
+  allocation    OutboundAllocation? @relation(fields: [allocationId], references: [id], onDelete: Restrict)
+  outboundOrder OutboundOrder       @relation(fields: [outboundOrderId], references: [id], onDelete: Restrict)
+  warehouse     Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, outboundOrderId])
+  @@index([tenantId, packingId])
+  @@index([tenantId, allocationId])
+  @@index([tenantId, trackingNo])
+  @@map("wms_outbound_shipments")
+}
+
+model OutboxEvent {
+  id              String       @id @default(uuid()) @map("outbox_id") @db.Uuid
+  eventId         String       @unique @map("event_id") @db.Uuid
+  eventType       String       @map("event_type")
+  schemaVersion   Int          @map("schema_version")
+  tenantId        String       @map("tenant_id") @db.Uuid
+  requestId       String       @map("request_id")
+  source          String
+  aggregateType   String       @map("aggregate_type")
+  aggregateId     String       @map("aggregate_id")
+  payload         Json
+  status          OutboxStatus @default(pending)
+  retryCount      Int          @default(0) @map("retry_count")
+  lockedAt        DateTime?    @map("locked_at") @db.Timestamptz(6)
+  lockedBy        String?      @map("locked_by")
+  nextRetryAt     DateTime?    @map("next_retry_at") @db.Timestamptz(6)
+  lastError       String?      @map("last_error")
+  publishedTarget String?      @map("published_target")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  publishedAt     DateTime?    @map("published_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+  @@index([status, nextRetryAt, createdAt])
+  @@index([lockedAt])
+  @@index([tenantId, eventType])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}

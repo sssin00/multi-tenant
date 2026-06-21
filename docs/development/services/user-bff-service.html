@@ -19,8 +19,9 @@
           <tr><th>위치</th><td><code>apps/user-bff-service</code></td></tr>
           <tr><th>카테고리</th><td>Backend Service · BFF</td></tr>
           <tr><th>책임</th><td>사용자 정보, 현재 테넌트, 사용 가능 메뉴, WMS 화면 초기 데이터, 대시보드 응답 조합</td></tr>
-          <tr><th>제작 시점</th><td><code>wms-service</code> 1차 도메인 조회 API가 잡힌 뒤, <code>web-wms</code> 화면 연결 직전에 시작</td></tr>
+          <tr><th>제작 시점</th><td>2026-06-18에 app shell과 navigation 기본 구조를 구현했고, 2026-06-19에 프론트 제작용 WMS 화면 조회 API를 추가했습니다.</td></tr>
           <tr><th>Tenant 연동</th><td>업무 API 처리 전 tenant-service의 <code>GET /internal/tenants/{tenantId}/status</code>로 <code>active</code> 상태를 확인하고, 화면 구성에는 module/context API를 사용합니다.</td></tr>
+          <tr><th>Audit 연동</th><td>User BFF가 소유한 app shell 이벤트는 <code>USER_BFF_APP_AUDIT_PUBLISHER_TYPE</code> 설정에 따라 EventBridge 또는 기존 audit-log-service 내부 기록 API로 best-effort 저장합니다. 감사 저장 실패는 사용자 응답을 차단하지 않고 warning log로 남깁니다.</td></tr>
           <tr><th>주의</th><td>재고 차감, 입고 완료, 출고 할당 정책 같은 도메인 업무 로직은 WMS에 둡니다. BFF는 직접 DB에 접근하지 않습니다.</td></tr>
         </table>
       </section>
@@ -32,6 +33,7 @@
             <tr><th>Navigation</th><td>tenant module과 Auth/IAM permission summary를 기준으로 WMS 사용자 메뉴와 버튼 노출 기준을 구성합니다.</td></tr>
             <tr><th>WMS 화면 API</th><td>dashboard, warehouse selector, inventory summary 등 화면 중심 응답을 wms-service 조회 API로부터 조합합니다.</td></tr>
             <tr><th>Tenant 보호</th><td>업무 API 처리 전 tenant-service 상태 확인을 수행하고 requestId, tenantId, userId를 downstream으로 전파합니다.</td></tr>
+            <tr><th>감사 로그</th><td><code>/api/app/me</code>, <code>/api/app/navigation</code> 성공 시 <code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code> 이벤트를 생성합니다. EventBridge bus가 설정된 환경은 EventBridge로 발행하고, 기존 local/호환 환경은 내부 기록 API로 저장합니다.</td></tr>
             <tr><th>장애 처리</th><td>downstream 장애를 표준 error envelope로 변환하고 사용자 화면에서 처리 가능한 오류로 정리합니다.</td></tr>
             <tr><th>제외 범위</th><td>WMS 재고 계산, 입출고 상태 전이, 권한 원장 관리, 직접 DB 접근은 담당하지 않습니다.</td></tr>
           </tbody>
@@ -40,75 +42,251 @@
       <section>
         <h2>구현 상태</h2>
         <table>
-          <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>
-          <tr><th>준비 완료</th><td>Auth/IAM permission summary/check, tenant status/module 조회 기준</td></tr>
-          <tr><th>남은 준비</th><td>실행 가능한 user-bff-service 구현 후 gateway <code>/api/app/**</code> proxy route, env, rate limit 기준을 추가합니다.</td></tr>
-          <tr><th>선행 조건</th><td><code>wms-service</code> 조회 API와 첫 <code>web-wms</code> 화면 데이터 형태 확정</td></tr>
-          <tr><th>API 문서</th><td>착수 시 <code>docs/apis/user-bff-service/index.html</code>을 생성합니다.</td></tr>
+          <tr><th>상태</th><td><span class="tag done">App shell + WMS 화면 조회 API 구현</span></td></tr>
+          <tr><th>준비 완료</th><td>실행 가능한 NestJS 기본 구조, health/readiness, request context, internal clients, tenant/permission guard, app audit EventBridge/internal-api publisher, <code>/api/app/me</code>, <code>/api/app/navigation</code>, <code>/api/app/wms/warehouses</code>, <code>/api/app/wms/materials</code>, <code>/api/app/wms/inventory-summary</code>, <code>/api/app/wms/dashboard</code>, gateway <code>/api/app/**</code> proxy, local compose/env</td></tr>
+          <tr><th>남은 준비</th><td>web-wms 첫 화면 UI 구현, warehouse scope별 selector 필터링, 단일 screen-data API 필요 여부 결정, dev AWS 배포 증적 확보</td></tr>
+          <tr><th>선행 조건</th><td><code>wms-service</code> 1차 API와 User BFF WMS 화면 조회 API가 준비되었습니다. frontend는 gateway 경유 <code>/api/app/wms/**</code>를 기준으로 제작할 수 있습니다.</td></tr>
+          <tr><th>API 문서</th><td><a href="../../apis/user-bff-service/index.html"><code>docs/apis/user-bff-service/index.html</code></a></td></tr>
         </table>
       </section>
       <section>
         <h2>착수 조건</h2>
         <div class="checklist">
-          <p><label><input type="checkbox" disabled /> <code>wms-service</code>에 warehouse, location, item, inventory 조회 API가 준비되어 있습니다.</label></p>
+          <p><label><input type="checkbox" checked disabled /> <code>wms-service</code>에 warehouse, location, item, inventory 조회 API가 준비되어 있습니다.</label></p>
           <p><label><input type="checkbox" checked disabled /> <code>auth-iam-service</code>의 permission summary/check API로 메뉴와 버튼 표시 판단을 할 수 있습니다.</label></p>
           <p><label><input type="checkbox" checked disabled /> <code>tenant-service</code>의 tenant status/module 조회 API로 사용 가능 모듈을 확인할 수 있습니다.</label></p>
-          <p><label><input type="checkbox" disabled /> 첫 <code>web-wms</code> 화면의 데이터 형태가 정리되어 있습니다.</label></p>
-          <p><label><input type="checkbox" disabled /> <code>gateway-service</code>의 <code>/api/app/**</code> proxy route가 <code>user-bff-service</code>로 연결됩니다.</label></p>
+          <p><label><input type="checkbox" checked disabled /> 첫 <code>web-wms</code> 화면의 데이터 형태를 User BFF 1차 API 계약으로 고정합니다.</label></p>
+          <p><label><input type="checkbox" checked disabled /> <code>gateway-service</code>의 <code>/api/app/**</code> proxy route가 <code>user-bff-service</code>로 연결됩니다.</label></p>
         </div>
       </section>
       <section>
-        <h2>첫 구현 범위</h2>
+        <h2>구현/후속 범위</h2>
         <div class="grid">
-          <div class="card"><strong>GET /api/app/me</strong><p>사용자, tenant, role/permission summary</p></div>
-          <div class="card"><strong>GET /api/app/navigation</strong><p>사용 가능 메뉴, tenant module, 화면 권한</p></div>
-          <div class="card"><strong>GET /api/app/wms/dashboard</strong><p>WMS 첫 화면의 요약 지표와 알림</p></div>
-          <div class="card"><strong>GET /api/app/wms/warehouses</strong><p>창고/로케이션 선택용 조회 데이터</p></div>
-          <div class="card"><strong>GET /api/app/wms/inventory-summary</strong><p>재고 요약, 입출고 대기 건수, 작업 현황</p></div>
+          <div class="card"><strong>GET /api/app/me</strong><p>구현 완료: 사용자, tenant, role/permission summary</p></div>
+          <div class="card"><strong>GET /api/app/navigation</strong><p>구현 완료: 사용 가능 메뉴, tenant module, 화면 권한</p></div>
+          <div class="card"><strong>GET /api/app/wms/dashboard</strong><p>구현 완료: WMS 첫 화면 재고 지표와 action visibility</p></div>
+          <div class="card"><strong>GET /api/app/wms/warehouses</strong><p>구현 완료: 창고 목록과 selector용 조회 데이터</p></div>
+          <div class="card"><strong>GET /api/app/wms/inventory-summary</strong><p>구현 완료: 현재고 목록과 현재 페이지 기준 수량 합계</p></div>
+        </div>
+      </section>
+      <section>
+        <h2>개발 순서</h2>
+        <div class="flow-list">
+          <div class="flow-item">
+            <span class="step-number">1</span>
+            <div>
+              <strong>NestJS 서비스 골격</strong>
+              <p><code>apps/user-bff-service</code>를 <code>admin-bff-service</code> 패턴과 맞춰 config, health, readiness, context, access log, error filter, security headers부터 만듭니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">2</span>
+            <div>
+              <strong>Downstream client와 Guard</strong>
+              <p>Auth/IAM, tenant-service, WMS internal client를 만들고 tenant active check와 app permission check를 전역 guard로 연결합니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">3</span>
+            <div>
+              <strong>App Context API</strong>
+              <p><code>/api/app/me</code>, <code>/api/app/navigation</code>을 먼저 구현해 web-wms app shell이 사용자, tenant, module, permission context를 받을 수 있게 합니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">4</span>
+            <div>
+              <strong>WMS 화면 조합 API</strong>
+              <p>WMS 내부 조회 API를 사용해 warehouse selector, dashboard, inventory summary를 조합합니다. BFF에는 재고 계산과 입출고 상태 전이를 넣지 않습니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">5</span>
+            <div>
+              <strong>Gateway와 Local Compose 연결</strong>
+              <p><code>/api/app/**</code> proxy, <code>USER_BFF_SERVICE_URL</code>, route group rate limit, compose service와 포트를 추가합니다.</p>
+            </div>
+          </div>
+          <div class="flow-item">
+            <span class="step-number">6</span>
+            <div>
+              <strong>문서와 시나리오 검증</strong>
+              <p>API 문서, 개발 문서, gateway 문서, 테스트 시나리오를 갱신하고 로컬 전체 시스템 검증에 User BFF 항목을 추가합니다.</p>
+            </div>
+          </div>
         </div>
       </section>
       <section>
         <h2>TODO</h2>
-        <p>user-bff-service TODO는 완료 항목과 남은 작업을 분리해 갱신합니다.</p>
+        <p>user-bff-service TODO는 설계 완료 항목, 1차 구현 작업, 연동 작업, 후속 작업을 분리해 갱신합니다.</p>
         <div class="grid two">
           <div class="card">
             <h3>완료</h3>
-            <p>아직 완료된 구현 TODO는 없습니다.</p>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> 사용자용 업무 API surface를 <code>/api/app/**</code>로 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> gateway-service는 user-bff-service까지만 호출하고 domain service를 직접 호출하지 않는 기준 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> User BFF가 tenant status check를 수행하는 BFF 책임 기준 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> BFF는 화면 데이터 조합만 담당하고 WMS 업무 규칙을 소유하지 않는 경계 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> Auth/IAM permission summary/check를 메뉴와 버튼 표시 기준으로 사용하는 방향 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> WMS 1차 내부 API는 app shell과 분리하고, 화면 조회 API에서만 호출하는 것으로 정리</label></p>
+              <p><label><input type="checkbox" checked disabled /> User BFF app shell 2개 API와 WMS 화면 조회 API 범위 분리</label></p>
+            </div>
           </div>
           <div class="card">
-            <h3>남은 작업</h3>
+            <h3>P0 1차 구현</h3>
             <div class="task-list">
-              <p><label><input type="checkbox" disabled /> <code>apps/user-bff-service</code> NestJS 기본 구조 생성</label></p>
-              <p><label><input type="checkbox" disabled /> Auth/IAM permission summary client 구현</label></p>
-              <p><label><input type="checkbox" disabled /> Tenant context/module client 구현</label></p>
-              <p><label><input type="checkbox" disabled /> WMS 조회 API client 구현</label></p>
-              <p><label><input type="checkbox" disabled /> <code>/api/app/me</code>, <code>/api/app/navigation</code> 구현</label></p>
-              <p><label><input type="checkbox" disabled /> WMS dashboard와 inventory summary 조합 API 구현</label></p>
-              <p><label><input type="checkbox" disabled /> <code>docs/apis/user-bff-service/index.html</code>에 API 계약 작성</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>apps/user-bff-service</code> NestJS 기본 구조 생성</label></p>
+              <p><label><input type="checkbox" checked disabled /> package scripts, TypeScript ESM 설정, 공용 Nest Dockerfile 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>USER_BFF_PORT</code>, downstream URL, internal auth secret config 구성</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /health</code>, <code>GET /ready</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> request context middleware와 <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code> 응답 header 전파</label></p>
+              <p><label><input type="checkbox" checked disabled /> JSON access log, security headers, CORS, global exception filter 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> HMAC internal auth signer 구현 또는 admin-bff 패턴 재사용</label></p>
+              <p><label><input type="checkbox" checked disabled /> Auth/IAM permission summary/check internal client 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> Tenant status/modules internal client 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> WMS warehouses, locations, materials, inventory 조회 client 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> App shell 감사 이벤트 publisher 구현: EventBridge, internal-api, disabled 전략 지원</label></p>
+              <p><label><input type="checkbox" checked disabled /> Tenant status guard로 active tenant만 통과</label></p>
+              <p><label><input type="checkbox" checked disabled /> App permission guard와 route별 permission mapping 기반 구현</label></p>
+            </div>
+          </div>
+          <div class="card">
+            <h3>P0 API 구현</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> <code>GET /api/app/me</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /api/app/navigation</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> app shell 성공 요청의 <code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code> 이벤트 발행/감사 기록</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /api/app/wms/warehouses</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /api/app/wms/materials</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /api/app/wms/inventory-summary</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>GET /api/app/wms/dashboard</code> 1차 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> list 응답은 <code>data.items</code>, <code>page</code>, <code>size</code>, <code>total</code> 규칙 준수</label></p>
+              <p><label><input type="checkbox" checked disabled /> downstream 장애를 <code>DOWNSTREAM_UNAVAILABLE</code>, gateway 경유 시 <code>GATEWAY_TIMEOUT</code> 계열 표준 envelope로 변환</label></p>
+              <p><label><input type="checkbox" checked disabled /> mutation API는 1차 범위에서 제외하고 조회 API 중심으로 고정</label></p>
+            </div>
+          </div>
+          <div class="card">
+            <h3>P0 연동과 검증</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> gateway-service <code>/api/app/**</code> proxy route 추가</label></p>
+              <p><label><input type="checkbox" checked disabled /> gateway route key <code>app</code>, timeout, safe method retry, rate limit 설정 추가</label></p>
+              <p><label><input type="checkbox" checked disabled /> local compose에 user-bff-service 추가</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>USER_BFF_SERVICE_URL</code>, <code>WMS_SERVICE_URL</code>, <code>AUDIT_LOG_SERVICE_URL</code>, <code>USER_BFF_APP_AUDIT_PUBLISHER_TYPE</code>, <code>USER_BFF_AUDIT_EVENTBRIDGE_BUS_NAME</code>, internal auth secrets env 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> Postman local collection에 User BFF 기본 요청 추가</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>pnpm --filter user-bff-service typecheck</code>, <code>build</code> 통과</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>docs/apis/user-bff-service/index.html</code> API 문서 생성과 허브 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> Postman local collection에 WMS 화면 API 요청 추가</label></p>
+              <p><label><input type="checkbox" checked disabled /> 로컬 compose 배포 후 <code>/ready</code>와 gateway proxy 경유 app shell/WMS 화면 API 검증</label></p>
+              <p><label><input type="checkbox" checked disabled /> 전체 시스템 테스트 시나리오에 User BFF WMS 화면 API 항목 추가</label></p>
+            </div>
+          </div>
+          <div class="card">
+            <h3>P1 후속 작업</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" disabled /> <code>GET /api/app/wms/screen-data</code> 단일 초기화 API 필요 여부 결정</label></p>
+              <p><label><input type="checkbox" disabled /> warehouse scope 권한별 메뉴/창고 selector 필터링</label></p>
+              <p><label><input type="checkbox" disabled /> PDA Web용 경량 응답 shape 분리 여부 결정</label></p>
+              <p><label><input type="checkbox" disabled /> WMS 작업 지시, lot/serial, picking/packing 기능 추가 시 API 확장</label></p>
+              <p><label><input type="checkbox" checked disabled /> user-bff-service CDK/ECS 리소스와 수동 배포 workflow 추가</label></p>
+              <p><label><input type="checkbox" disabled /> dev AWS 환경 evidence 문서화</label></p>
             </div>
           </div>
         </div>
       </section>
       <section>
         <h2>기능별 작업 내역</h2>
-        <table>
-          <tr><th>App Context</th><td><code>/api/app/me</code>와 navigation API는 Auth/IAM permission summary와 tenant module 정보를 조합합니다.</td></tr>
-          <tr><th>WMS Dashboard</th><td>WMS 요약 지표, 입출고 대기, 작업 현황은 wms-service 조회 API를 통해 가져옵니다.</td></tr>
-          <tr><th>Tenant Boundary</th><td>BFF는 JWT/header tenant context를 전파하고 tenant status check를 수행합니다. WMS 업무 규칙과 tenant business rule은 소유하지 않습니다.</td></tr>
-          <tr><th>API Client</th><td>Auth/IAM, tenant-service, wms-service 내부 client는 requestId, tenantId, userId를 downstream으로 전파합니다.</td></tr>
-        </table>
+        <p>User BFF 기능 TODO를 기준으로 구현할 작업, 관련 코드, 문서화 기준을 정리합니다.</p>
+        <div class="detail-list">
+          <details open>
+            <summary>App Context와 Navigation</summary>
+            <div class="detail-body">
+              <table>
+                <tbody>
+                  <tr><th>구현</th><td><code>/api/app/me</code>와 <code>/api/app/navigation</code>은 Auth/IAM permission summary와 tenant module 정보를 조합합니다.</td></tr>
+                  <tr><th>권한</th><td>JWT에는 role/permission을 넣지 않고, User BFF가 permission summary를 조회해 메뉴와 action availability를 계산합니다.</td></tr>
+                  <tr><th>관련 코드</th><td><code>src/app-context</code>, <code>src/navigation</code>, <code>src/internal-clients/auth-iam-internal.client.ts</code>, <code>src/internal-clients/tenant-internal.client.ts</code></td></tr>
+                  <tr><th>문서</th><td><code>docs/apis/user-bff-service/index.html</code>, <code>docs/development/services/web-wms.html</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+          <details>
+            <summary>WMS 화면 조합</summary>
+            <div class="detail-body">
+              <table>
+                <tbody>
+                  <tr><th>구현</th><td><code>/api/app/wms/warehouses</code>, <code>/materials</code>, <code>/inventory-summary</code>, <code>/dashboard</code>는 WMS 내부 조회 API를 호출해 화면 중심 응답으로 재구성합니다.</td></tr>
+                  <tr><th>경계</th><td>재고 계산, 입고 확정, 출고 할당/출하 상태 전이는 wms-service에 두고 BFF는 읽기/조합만 수행합니다.</td></tr>
+                  <tr><th>관련 코드</th><td><code>src/wms</code>, <code>src/internal-clients/wms-internal.client.ts</code></td></tr>
+                  <tr><th>문서</th><td><code>docs/apis/wms-service/index.html</code>, <code>docs/apis/user-bff-service/index.html</code>, <code>docs/test-scenarios/system-test-scenarios.html</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+          <details>
+            <summary>Tenant Boundary와 Downstream 전파</summary>
+            <div class="detail-body">
+              <table>
+                <tbody>
+                  <tr><th>Tenant</th><td>업무 API 처리 전 tenant-service의 status API로 <code>active</code> tenant만 통과시키고 module 목록에 <code>wms</code>가 있는지 확인합니다.</td></tr>
+                  <tr><th>전파</th><td>Auth/IAM, tenant-service, wms-service 내부 client는 <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>와 internal auth header를 downstream으로 전파합니다.</td></tr>
+                  <tr><th>장애</th><td>downstream timeout/unavailable은 표준 error envelope로 변환하고 원본 secret, SQL, stack trace를 응답에 포함하지 않습니다.</td></tr>
+                  <tr><th>검증</th><td>응답 JSON, access log, downstream log, requestId, tenantId propagation을 evidence로 남깁니다.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
       </section>
       <section>
         <h2>테스트 시나리오</h2>
-        <table>
-          <tr><th>USER-BFF-001</th><td>활성 tenant 사용자는 <code>/api/app/me</code>에서 사용자, tenant, permission summary를 받을 수 있다.</td></tr>
-          <tr><th>USER-BFF-002</th><td>비활성 module 또는 권한이 없는 메뉴는 navigation 응답에서 제외된다.</td></tr>
-          <tr><th>USER-BFF-003</th><td>WMS dashboard API는 downstream 장애 시 표준 error envelope와 requestId를 반환한다.</td></tr>
-        </table>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>목적</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>USER-BFF-001</code></td>
+                <td>활성 tenant 사용자는 <code>/api/app/me</code>에서 사용자, tenant, enabled module, role/permission summary를 받을 수 있다.</td>
+                <td>response JSON, decoded JWT context, Auth/IAM summary requestId, tenant status requestId</td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-002</code></td>
+                <td>활성 tenant 사용자는 <code>/api/app/navigation</code>에서 module과 permission summary 기준의 메뉴를 받을 수 있다.</td>
+                <td>navigation response, permission summary, tenant modules response, requestId</td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-003</code></td>
+                <td>비활성 tenant는 app 업무 API에서 <code>TENANT_NOT_READY</code> 계열 오류로 차단된다.</td>
+                <td>error envelope, tenant status response, access log</td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-004</code></td>
+                <td>WMS 화면 데이터 API는 WMS 내부 API를 호출해 dashboard, warehouse, materials, inventory summary를 조합한다.</td>
+                <td>BFF response, WMS internal response, pageTotals, visibleActions, propagated requestId</td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-005</code></td>
+                <td><code>/api/app/me</code>와 <code>/api/app/navigation</code> 성공 요청은 app shell 감사 이벤트를 best-effort로 남긴다.</td>
+                <td>EventBridge PutEvents 성공 또는 audit log row, action <code>userBff.appContext.loaded</code>/<code>userBff.navigation.loaded</code>, requestId, warning log 없음</td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-006</code></td>
+                <td>EventBridge 전환 설정에서 app audit routing이 CDK에 합성된다.</td>
+                <td>CDK synth output, <code>UserBffAppAuditToSqsRule</code>, detail-type filter, audit SQS target, <code>events:PutEvents</code> grant</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
       <section>
         <h2>후속 작업</h2>
-        <p>현재 User BFF 착수 전 이어서 확정할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
+        <p>현재 User BFF 착수와 1차 구현 이후 이어서 확정할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
         <div class="wide-table">
           <table>
             <thead>
@@ -123,10 +301,24 @@
             <tbody>
               <tr>
                 <td><code>P0</code></td>
-                <td>WMS Contract 확정</td>
-                <td>wms-service 1차 API 계약이 확정되면 dashboard와 inventory summary 조합 규칙을 구체화합니다.</td>
-                <td>User BFF가 mock 응답 없이 실제 WMS 조회 API를 조합하고 tenant/user context를 downstream으로 전파합니다.</td>
+                <td>User BFF WMS 화면 API 운영 검증</td>
+                <td><code>/api/app/wms/**</code> dashboard, warehouse selector, inventory summary의 요청/응답/에러/권한 계약을 실제 구현과 맞춥니다.</td>
+                <td>User BFF가 mock 응답 없이 실제 WMS 조회 API를 조합하고 전체 시스템 테스트에서 gateway 경유로 검증됩니다.</td>
+                <td>user-bff-service API 문서, WMS API 문서, postman collection</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td>WMS 화면 조합 계약 고도화</td>
+                <td>wms-service 1차 API 기반으로 dashboard, warehouse selector, inventory summary 조합 규칙을 구체화합니다.</td>
+                <td>전체 합계 aggregate, warehouse scope selector, 단일 screen-data API 필요 여부를 확정합니다.</td>
                 <td>wms-service 개발 문서, user-bff-service API 문서, web-wms 개발 문서</td>
+              </tr>
+              <tr>
+                <td><code>P0</code></td>
+                <td>Gateway App Route 회귀 검증</td>
+                <td>gateway-service의 <code>/api/app/**</code> proxy route, route group, timeout, retry, rate limit 기준을 User BFF WMS 화면 API까지 확장 검증합니다.</td>
+                <td>gateway를 통해 <code>/api/app/me</code>, <code>/api/app/navigation</code>, WMS 조회 API가 호출되고 tenant mismatch가 gateway에서 차단됩니다.</td>
+                <td>gateway-service 개발 문서, gateway API 문서, docker compose, postman collection</td>
               </tr>
               <tr>
                 <td><code>P0</code></td>
@@ -142,12 +334,50 @@
                 <td>JWT에 roles/permissions를 넣지 않고 BFF 응답으로 화면 권한 표시를 제어합니다.</td>
                 <td>Auth/IAM 개발 문서, user-bff-service 개발 문서, auth 규칙</td>
               </tr>
+              <tr>
+                <td><code>P1</code></td>
+                <td>dev AWS 배포 증적 확보</td>
+                <td>CDK와 수동 GitHub Actions workflow로 user-bff-service를 실제 dev 환경에 배포하고 Cloud Map, security group, log group, gateway route를 확인합니다.</td>
+                <td>dev 환경에서 desired/running count, target health, gateway app route, CloudWatch log evidence가 문서화됩니다.</td>
+                <td>AWS ECS 기술 스택 문서, infra snapshot, deployment rules, GitHub workflow 문서</td>
+              </tr>
             </tbody>
           </table>
         </div>
       </section>
       <section>
         <h2>개발 기록</h2>
+        <article>
+          <h3>2026-06-19 WMS 화면 조회 API 구현</h3>
+          <ul>
+            <li><code>WmsInternalClient</code>를 실제 화면 API 의존성으로 추가해 <code>GET /api/internal/wms/warehouses</code>, <code>/items</code>, <code>/inventory</code>를 호출하도록 했습니다.</li>
+            <li><code>WmsScreenController</code>와 <code>WmsScreenService</code>를 추가해 <code>GET /api/app/wms/warehouses</code>, <code>/materials</code>, <code>/inventory-summary</code>, <code>/dashboard</code>를 구현했습니다.</li>
+            <li>WMS 도메인 규칙은 wms-service에 유지하고, User BFF는 frontend 명칭 매핑, 현재 페이지 기준 재고 합계, 화면 action visibility 조합만 담당합니다.</li>
+            <li>User BFF readiness와 Docker/CDK 설정에 <code>WMS_SERVICE_URL</code>, <code>WMS_INTERNAL_AUTH_SECRET</code>, User BFF → WMS security group ingress를 반영했습니다.</li>
+            <li><code>USER-BFF-004</code> 시스템 시나리오를 추가해 WMS 통합 플로우 후 gateway 경유 WMS 화면 API, list envelope, tenant_user 권한 제한을 검증하도록 보강했습니다.</li>
+            <li>2026-06-21 로컬 Docker compose reset 후 <code>pnpm test:system:local</code>을 실행해 전체 33개 시나리오 통과 로그를 <code>docs/test-logs/2026-06-21/frontend-wms-api-verification.html</code>에 남겼습니다.</li>
+            <li>이전 cleanup에서 제거한 WMS client scaffold는 미사용 코드였고, 이번 변경은 실제 endpoint에서 사용하는 의존성으로 재도입한 것입니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-19 App Audit EventBridge 전환</h3>
+          <ul>
+            <li><code>AppAuditService</code>가 audit-log-service 내부 POST client를 직접 호출하지 않고 <code>AppAuditPublisher</code>를 통해 감사 이벤트를 발행하도록 분리했습니다.</li>
+            <li><code>USER_BFF_APP_AUDIT_PUBLISHER_TYPE</code>은 <code>eventbridge</code>, <code>internal-api</code>, <code>disabled</code>를 지원합니다. 값이 없으면 <code>USER_BFF_AUDIT_EVENTBRIDGE_BUS_NAME</code>이 있을 때 EventBridge, 없을 때 기존 내부 API를 사용합니다.</li>
+            <li>EventBridge 모드는 <code>USER_BFF_AUDIT_EVENTBRIDGE_BUS_NAME</code>, <code>USER_BFF_AUDIT_EVENT_SOURCE_PREFIX</code>, 선택적 <code>USER_BFF_AUDIT_EVENTBRIDGE_ENDPOINT</code>를 사용해 <code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code>를 <code>PutEvents</code>로 발행합니다.</li>
+            <li>CDK에 <code>userBffAppAuditPublisherType</code>, <code>userBffAuditEventBridgeBusName</code> context, User BFF task role의 <code>events:PutEvents</code> grant, EventBridge rule → audit event SQS target 연결을 추가했습니다. 기본 context는 기존 배포 호환을 위해 <code>internal-api</code>로 유지합니다.</li>
+            <li>전체 시스템 테스트에 <code>OBS-AUDIT-003</code>을 추가해 EventBridge 전환 설정의 CDK synth, detail-type routing, audit SQS target, <code>events:PutEvents</code> 권한을 함께 검증합니다.</li>
+            <li><code>pnpm --filter user-bff-service typecheck</code>, <code>pnpm --filter @multi-tenant/infra-cdk typecheck</code>로 설정 타입과 CDK 합성을 위한 타입 계약을 검증했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-19 CDK/ECS 배포 정의 반영</h3>
+          <ul>
+            <li><code>infra/cdk</code>에 user-bff-service ECR repository, ECS task/service, Cloud Map service, security group, CloudWatch log group을 추가했습니다.</li>
+            <li><code>deploy-user-bff-service.yml</code> 수동 workflow를 추가하고, 공유 CDK 스택의 비대상 서비스 desired count와 image tag를 필수 검증하도록 맞췄습니다.</li>
+            <li>gateway-service task env에 <code>USER_BFF_SERVICE_URL</code>이 주입되어 AWS 배포에서도 <code>/api/app/**</code> route가 User BFF를 가리키는 기준을 문서화했습니다.</li>
+          </ul>
+        </article>
 
         <article>
           <h3>2026-06-11 BFF 경계 최신화</h3>
@@ -162,7 +392,7 @@
           <ul>
             <li>Auth/IAM permission summary/check, tenant status/module 조회 조건은 준비된 상태로 체크했습니다.</li>
             <li>gateway <code>/api/app/**</code> proxy 조건은 실행 가능한 user-bff-service 구현 시 함께 추가하는 남은 준비 항목으로 되돌렸습니다.</li>
-            <li>남은 착수 조건은 WMS 조회 API와 첫 <code>web-wms</code> 화면 데이터 형태 정리입니다.</li>
+            <li>남은 착수 조건은 첫 <code>web-wms</code> 화면 데이터 형태 정리입니다. WMS 1차 내부 API는 구현과 로컬 연계 검증이 완료되었습니다.</li>
             <li>gateway-service는 user-bff-service까지만 호출하고, user-bff-service가 tenant-service와 WMS 같은 downstream service를 호출하는 구조를 기준으로 유지합니다.</li>
           </ul>
         </article>
@@ -170,8 +400,36 @@
           <h3>2026-06-12 전역 BFF 경유 원칙 확정</h3>
           <ul>
             <li>사용자용 업무 API는 <code>/api/app/**</code>로 받고, gateway-service는 user-bff-service까지만 proxy합니다.</li>
-            <li>User BFF는 업무 API 처리 전 tenant-service 내부 status API로 <code>active</code> tenant를 확인한 뒤 WMS 같은 downstream service를 호출합니다.</li>
+            <li>User BFF는 업무 API 처리 전 tenant-service 내부 status API로 <code>active</code> tenant를 확인합니다. WMS 화면 API가 추가될 때 wms-service downstream 호출을 연결합니다.</li>
             <li>이후 WMS, PDA, 현장 작업 API가 늘어나도 gateway-service에서 domain service로 직접 route를 만들지 않고 User BFF 계약을 확장합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-18 착수 계획과 TODO 보강</h3>
+          <ul>
+            <li><code>admin-bff-service</code>, <code>gateway-service</code>, <code>tenant-service</code>, <code>wms-service</code> 개발 문서 형식에 맞춰 개발 순서, TODO, 기능별 작업 내역, 테스트 시나리오, 후속 작업 표를 보강했습니다.</li>
+            <li>TODO를 설계 완료 항목, P0 1차 구현, P0 API 구현, P0 연동과 검증, P1 후속 작업으로 분리해 구현 중 진행 상태를 체크할 수 있게 했습니다.</li>
+            <li>1차 구현 대상은 <code>/api/app/me</code>, <code>/api/app/navigation</code>으로 좁히고, WMS warehouse selector, inventory summary, dashboard 조회 API는 후속 화면 조합 범위로 분리했습니다.</li>
+            <li>gateway <code>/api/app/**</code> proxy, local compose, Postman, API 문서, 전체 시스템 테스트 시나리오 갱신을 User BFF 착수 범위에 포함했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-18 Audit Log 연동</h3>
+          <ul>
+            <li><code>audit-log-service</code>에 <code>POST /api/internal/audit/logs</code> 내부 기록 API를 추가하고 <code>user-bff-service</code> caller만 허용했습니다.</li>
+            <li>User BFF에 <code>AuditLogInternalClient</code>와 <code>AppAuditService</code>를 추가해 <code>/api/app/me</code> 성공 시 <code>userBff.appContext.loaded</code>, <code>/api/app/navigation</code> 성공 시 <code>userBff.navigation.loaded</code>를 best-effort로 기록합니다.</li>
+            <li><code>AUDIT_LOG_SERVICE_URL</code>, <code>AUDIT_INTERNAL_AUTH_SECRET</code> env와 로컬 compose 의존성을 추가하고, audit-log-service 허용 서비스에 <code>user-bff-service</code>를 포함했습니다.</li>
+            <li>User BFF 내부 인증 signer를 <code>X-Internal-Service-Id</code>와 requestId/bodyHash 기반 signature로 맞춰 auth/tenant/audit 내부 서비스 규칙과 정합성을 맞췄습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-18 NestJS 기본 구조 생성</h3>
+          <ul>
+            <li><code>apps/user-bff-service</code>에 NestJS app module, bootstrap, health/readiness, request context, access log, security headers, global exception filter를 추가했습니다.</li>
+            <li>Auth/IAM, tenant-service internal client와 HMAC internal auth signer를 추가하고, tenant active guard와 app permission guard를 준비했습니다. 사용되지 않던 WMS client scaffold는 2026-06-19 정리에서 제거했습니다.</li>
+            <li><code>GET /api/app/me</code>, <code>GET /api/app/navigation</code>을 구현해 사용자, tenant, module, permission summary 기반 app shell 데이터를 반환하도록 했습니다.</li>
+            <li>local compose에 <code>user-bff-service</code>를 <code>localhost:3004</code>로 추가하고 gateway <code>/api/app/**</code> proxy, <code>USER_BFF_SERVICE_URL</code>, app route rate limit 설정을 연결했습니다.</li>
+            <li><a href="../../apis/user-bff-service/index.html"><code>docs/apis/user-bff-service/index.html</code></a>을 생성하고 API 문서 허브에서 접근 가능하게 했습니다.</li>
           </ul>
         </article>
       </section>

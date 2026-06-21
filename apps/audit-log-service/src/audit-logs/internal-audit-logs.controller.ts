@@ -1,6 +1,7 @@
-import { Controller, Get, Inject, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Post, Query, Req } from "@nestjs/common";
 
 import type { AuditRequest } from "../context/request-context.js";
+import type { AuditEventCommand } from "../audit-events/audit-event.contract.js";
 import { InternalService } from "../internal-auth/internal-service.decorator.js";
 import { AuditLogsService } from "./audit-logs.service.js";
 
@@ -17,6 +18,18 @@ export class InternalAuditLogsController {
     const result = await this.auditLogsService.list({
       ...query,
       tenantId: req.context.tenantId ?? this.readString(query.tenantId)
+    });
+
+    return this.success(req, result);
+  }
+
+  @InternalService({ allowedServices: ["user-bff-service"] })
+  @Post()
+  async record(@Body() body: AuditEventCommand, @Req() req: AuditRequest) {
+    const result = await this.auditLogsService.recordFromEvent({
+      ...body,
+      tenantId: body.tenantId ?? req.context.tenantId,
+      requestId: body.requestId ?? req.context.requestId
     });
 
     return this.success(req, result);

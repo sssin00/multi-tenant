@@ -6,6 +6,8 @@ import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as elasticache from "aws-cdk-lib/aws-elasticache";
 import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import * as events from "aws-cdk-lib/aws-events";
+import * as eventTargets from "aws-cdk-lib/aws-events-targets";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
@@ -43,6 +45,22 @@ export interface GatewayServiceStackProps extends cdk.StackProps {
   adminBffAuthInternalAuthSecretArn?: string;
   adminBffTenantInternalAuthSecretArn?: string;
   adminBffAuditInternalAuthSecretArn?: string;
+  userBffImageTag: string;
+  userBffDesiredCount: number;
+  userBffCorsAllowedOrigins?: string;
+  userBffAuthInternalAuthSecretArn?: string;
+  userBffTenantInternalAuthSecretArn?: string;
+  userBffWmsInternalAuthSecretArn?: string;
+  userBffAuditInternalAuthSecretArn?: string;
+  userBffAppAuditPublisherType?: "eventbridge" | "internal-api" | "disabled";
+  userBffAuditEventBridgeBusName?: string;
+  wmsImageTag: string;
+  wmsDesiredCount: number;
+  wmsCorsAllowedOrigins?: string;
+  wmsDatabaseUrlSecretArn?: string;
+  wmsInternalAuthSecretArn?: string;
+  wmsAuthInternalAuthSecretArn?: string;
+  wmsTenantInternalAuthSecretArn?: string;
   auditImageTag: string;
   auditDesiredCount: number;
   auditCorsAllowedOrigins?: string;
@@ -63,8 +81,11 @@ export interface GatewayServiceStackProps extends cdk.StackProps {
   wmsOutboxDatabaseUrlSecretArn?: string;
   auditLogServiceUrl?: string;
   authIamServiceUrl?: string;
+  authIamApiServiceUrl?: string;
   adminBffServiceUrl?: string;
+  userBffServiceUrl?: string;
   tenantServiceUrl?: string;
+  wmsServiceUrl?: string;
 }
 
 export class GatewayServiceStack extends cdk.Stack {
@@ -76,6 +97,8 @@ export class GatewayServiceStack extends cdk.Stack {
     const authServiceName = "auth-iam-service";
     const tenantServiceName = "tenant-service";
     const adminBffServiceName = "admin-bff-service";
+    const userBffServiceName = "user-bff-service";
+    const wmsServiceName = "wms-service";
     const auditServiceName = "audit-log-service";
     const outboxServiceName = "outbox-relay-service";
     const cloudMapNamespaceName = `${props.envName}.${props.project}.local`;
@@ -93,6 +116,14 @@ export class GatewayServiceStack extends cdk.Stack {
     const adminBffCorsAllowedOrigins =
       props.adminBffCorsAllowedOrigins ??
       (props.envName === "prod" ? "https://admin.example.com" : "https://dev.example.com");
+    const userBffCorsAllowedOrigins =
+      props.userBffCorsAllowedOrigins ??
+      (props.envName === "prod" ? "https://app.example.com" : "https://dev.example.com");
+    const userBffAppAuditPublisherType =
+      props.userBffAppAuditPublisherType ?? (props.userBffAuditEventBridgeBusName ? "eventbridge" : "internal-api");
+    const wmsCorsAllowedOrigins =
+      props.wmsCorsAllowedOrigins ??
+      (props.envName === "prod" ? "https://app.example.com,https://admin.example.com" : "https://dev.example.com");
     const auditCorsAllowedOrigins =
       props.auditCorsAllowedOrigins ??
       (props.envName === "prod" ? "https://admin.example.com" : "https://dev.example.com");
@@ -143,6 +174,54 @@ export class GatewayServiceStack extends cdk.Stack {
           this,
           "AdminBffAuditInternalAuthSecret",
           props.adminBffAuditInternalAuthSecretArn
+        )
+      : undefined;
+    const userBffAuthInternalAuthSecret = props.userBffAuthInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "UserBffAuthInternalAuthSecret",
+          props.userBffAuthInternalAuthSecretArn
+        )
+      : undefined;
+    const userBffTenantInternalAuthSecret = props.userBffTenantInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "UserBffTenantInternalAuthSecret",
+          props.userBffTenantInternalAuthSecretArn
+        )
+      : undefined;
+    const userBffWmsInternalAuthSecret = props.userBffWmsInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "UserBffWmsInternalAuthSecret",
+          props.userBffWmsInternalAuthSecretArn
+        )
+      : undefined;
+    const userBffAuditInternalAuthSecret = props.userBffAuditInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "UserBffAuditInternalAuthSecret",
+          props.userBffAuditInternalAuthSecretArn
+        )
+      : undefined;
+    const wmsDatabaseUrlSecret = props.wmsDatabaseUrlSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "WmsDatabaseUrlSecret", props.wmsDatabaseUrlSecretArn)
+      : undefined;
+    const wmsInternalAuthSecret = props.wmsInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(this, "WmsInternalAuthSecret", props.wmsInternalAuthSecretArn)
+      : undefined;
+    const wmsAuthInternalAuthSecret = props.wmsAuthInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "WmsAuthInternalAuthSecret",
+          props.wmsAuthInternalAuthSecretArn
+        )
+      : undefined;
+    const wmsTenantInternalAuthSecret = props.wmsTenantInternalAuthSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          "WmsTenantInternalAuthSecret",
+          props.wmsTenantInternalAuthSecretArn
         )
       : undefined;
     const auditDatabaseUrlSecret = props.auditDatabaseUrlSecretArn
@@ -225,6 +304,32 @@ export class GatewayServiceStack extends cdk.Stack {
       emptyOnDelete: props.envName !== "prod"
     });
 
+    const userBffRepository = new ecr.Repository(this, "UserBffServiceRepository", {
+      repositoryName: `${namePrefix}-${userBffServiceName}`,
+      imageScanOnPush: true,
+      lifecycleRules: [
+        {
+          maxImageCount: 20,
+          description: "Keep the latest 20 user-bff-service images"
+        }
+      ],
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+      emptyOnDelete: props.envName !== "prod"
+    });
+
+    const wmsRepository = new ecr.Repository(this, "WmsServiceRepository", {
+      repositoryName: `${namePrefix}-${wmsServiceName}`,
+      imageScanOnPush: true,
+      lifecycleRules: [
+        {
+          maxImageCount: 20,
+          description: "Keep the latest 20 wms-service images"
+        }
+      ],
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+      emptyOnDelete: props.envName !== "prod"
+    });
+
     const auditRepository = new ecr.Repository(this, "AuditLogServiceRepository", {
       repositoryName: `${namePrefix}-${auditServiceName}`,
       imageScanOnPush: true,
@@ -269,6 +374,24 @@ export class GatewayServiceStack extends cdk.Stack {
     });
     const resolvedAuditEventQueueUrl = props.auditEventQueueUrl ?? auditEventQueue.queueUrl;
     const resolvedOutboxSqsQueueUrl = props.outboxSqsQueueUrl ?? auditEventQueue.queueUrl;
+
+    if (userBffAppAuditPublisherType === "eventbridge" && props.userBffAuditEventBridgeBusName) {
+      const userBffAuditEventBus = events.EventBus.fromEventBusName(
+        this,
+        "UserBffAuditEventBus",
+        props.userBffAuditEventBridgeBusName
+      );
+
+      new events.Rule(this, "UserBffAppAuditToSqsRule", {
+        eventBus: userBffAuditEventBus,
+        ruleName: `${namePrefix}-user-bff-app-audit-to-sqs`,
+        eventPattern: {
+          source: [`${props.project}.${props.envName}.${userBffServiceName}`],
+          detailType: ["userBff.appContext.loaded", "userBff.navigation.loaded"]
+        },
+        targets: [new eventTargets.SqsQueue(auditEventQueue)]
+      });
+    }
 
     const vpc = new ec2.Vpc(this, "Vpc", {
       vpcName: `${namePrefix}-vpc`,
@@ -350,10 +473,59 @@ export class GatewayServiceStack extends cdk.Stack {
       ec2.Port.tcp(3000),
       "Allow gateway-service to admin-bff-service"
     );
+    authServiceSecurityGroup.addIngressRule(
+      adminBffServiceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow admin-bff-service to auth-iam-service"
+    );
     tenantServiceSecurityGroup.addIngressRule(
       adminBffServiceSecurityGroup,
       ec2.Port.tcp(3000),
       "Allow admin-bff-service to tenant-service"
+    );
+
+    const userBffServiceSecurityGroup = new ec2.SecurityGroup(this, "UserBffServiceSecurityGroup", {
+      vpc,
+      securityGroupName: `${namePrefix}-${userBffServiceName}-sg`,
+      description: "Allow gateway-service traffic to user-bff-service",
+      allowAllOutbound: true
+    });
+    userBffServiceSecurityGroup.addIngressRule(
+      serviceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow gateway-service to user-bff-service"
+    );
+    authServiceSecurityGroup.addIngressRule(
+      userBffServiceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow user-bff-service to auth-iam-service"
+    );
+    tenantServiceSecurityGroup.addIngressRule(
+      userBffServiceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow user-bff-service to tenant-service"
+    );
+
+    const wmsServiceSecurityGroup = new ec2.SecurityGroup(this, "WmsServiceSecurityGroup", {
+      vpc,
+      securityGroupName: `${namePrefix}-${wmsServiceName}-sg`,
+      description: "Allow internal wms-service traffic",
+      allowAllOutbound: true
+    });
+    authServiceSecurityGroup.addIngressRule(
+      wmsServiceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow wms-service to auth-iam-service"
+    );
+    tenantServiceSecurityGroup.addIngressRule(
+      wmsServiceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow wms-service to tenant-service"
+    );
+    wmsServiceSecurityGroup.addIngressRule(
+      userBffServiceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow user-bff-service to wms-service"
     );
 
     const auditServiceSecurityGroup = new ec2.SecurityGroup(this, "AuditLogServiceSecurityGroup", {
@@ -366,6 +538,11 @@ export class GatewayServiceStack extends cdk.Stack {
       adminBffServiceSecurityGroup,
       ec2.Port.tcp(3000),
       "Allow admin-bff-service to audit-log-service"
+    );
+    auditServiceSecurityGroup.addIngressRule(
+      userBffServiceSecurityGroup,
+      ec2.Port.tcp(3000),
+      "Allow user-bff-service to audit-log-service"
     );
 
     const outboxServiceSecurityGroup = new ec2.SecurityGroup(this, "OutboxRelayServiceSecurityGroup", {
@@ -431,9 +608,13 @@ export class GatewayServiceStack extends cdk.Stack {
       ":",
       redisCluster.attrRedisEndpointPort
     ]);
-    const authIamInternalUrl = `http://${authServiceName}.${cloudMapNamespaceName}:3000/api/auth`;
+    const authIamBaseInternalUrl = `http://${authServiceName}.${cloudMapNamespaceName}:3000`;
+    const authIamApiInternalUrl = `${authIamBaseInternalUrl}/api/auth`;
     const tenantInternalUrl = `http://${tenantServiceName}.${cloudMapNamespaceName}:3000`;
     const adminBffInternalUrl = `http://${adminBffServiceName}.${cloudMapNamespaceName}:3000/api/admin`;
+    const userBffInternalUrl = `http://${userBffServiceName}.${cloudMapNamespaceName}:3000/api/app`;
+    const userBffBaseInternalUrl = `http://${userBffServiceName}.${cloudMapNamespaceName}:3000`;
+    const wmsInternalUrl = `http://${wmsServiceName}.${cloudMapNamespaceName}:3000`;
     const auditInternalUrl = `http://${auditServiceName}.${cloudMapNamespaceName}:3000`;
     const outboxInternalUrl = `http://${outboxServiceName}.${cloudMapNamespaceName}:3007`;
     const resolvedAuditLogServiceUrl = props.auditLogServiceUrl ?? (props.auditDesiredCount > 0 ? auditInternalUrl : "");
@@ -504,6 +685,18 @@ export class GatewayServiceStack extends cdk.Stack {
       removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
     });
 
+    const userBffLogGroup = new logs.LogGroup(this, "UserBffServiceLogGroup", {
+      logGroupName: `/${props.project}/${props.envName}/${userBffServiceName}`,
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
+    });
+
+    const wmsLogGroup = new logs.LogGroup(this, "WmsServiceLogGroup", {
+      logGroupName: `/${props.project}/${props.envName}/${wmsServiceName}`,
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: props.envName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY
+    });
+
     const auditLogGroup = new logs.LogGroup(this, "AuditLogServiceLogGroup", {
       logGroupName: `/${props.project}/${props.envName}/${auditServiceName}`,
       retention: logs.RetentionDays.ONE_MONTH,
@@ -561,8 +754,10 @@ export class GatewayServiceStack extends cdk.Stack {
         GATEWAY_RATE_LIMIT_WINDOW_SECONDS: "60",
         GATEWAY_RATE_LIMIT_AUTH_PER_WINDOW: "60",
         GATEWAY_RATE_LIMIT_ADMIN_PER_WINDOW: "300",
-        AUTH_IAM_SERVICE_URL: props.authIamServiceUrl ?? authIamInternalUrl,
-        ADMIN_BFF_SERVICE_URL: props.adminBffServiceUrl ?? adminBffInternalUrl
+        GATEWAY_RATE_LIMIT_APP_PER_WINDOW: "600",
+        AUTH_IAM_SERVICE_URL: props.authIamApiServiceUrl ?? authIamApiInternalUrl,
+        ADMIN_BFF_SERVICE_URL: props.adminBffServiceUrl ?? adminBffInternalUrl,
+        USER_BFF_SERVICE_URL: props.userBffServiceUrl ?? userBffInternalUrl
       },
       secrets: Object.keys(gatewayContainerSecrets).length > 0 ? gatewayContainerSecrets : undefined,
       logging: ecs.LogDrivers.awsLogs({
@@ -840,7 +1035,7 @@ export class GatewayServiceStack extends cdk.Stack {
         AWS_REGION: cdk.Stack.of(this).region,
         REQUEST_ID_HEADER: "x-request-id",
         TENANT_HEADER: "x-tenant-id",
-        AUTH_IAM_SERVICE_URL: props.authIamServiceUrl ?? authIamInternalUrl,
+        AUTH_IAM_SERVICE_URL: props.authIamServiceUrl ?? authIamBaseInternalUrl,
         TENANT_SERVICE_URL: props.tenantServiceUrl ?? tenantInternalUrl,
         AUDIT_LOG_SERVICE_URL: resolvedAuditLogServiceUrl,
         ADMIN_BFF_SECURITY_HEADERS_ENABLED: "true",
@@ -893,6 +1088,228 @@ export class GatewayServiceStack extends cdk.Stack {
       cloudMapOptions: {
         cloudMapNamespace,
         name: adminBffServiceName
+      },
+      enableExecuteCommand: props.envName !== "prod"
+    });
+
+    const userBffTaskDefinition = new ecs.FargateTaskDefinition(this, "UserBffTaskDefinition", {
+      family: `${namePrefix}-${userBffServiceName}`,
+      cpu: 256,
+      memoryLimitMiB: 512,
+      runtimePlatform: {
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        cpuArchitecture: ecs.CpuArchitecture.X86_64
+      }
+    });
+
+    if (userBffAppAuditPublisherType === "eventbridge" && props.userBffAuditEventBridgeBusName) {
+      userBffTaskDefinition.addToTaskRolePolicy(
+        new iam.PolicyStatement({
+          actions: ["events:PutEvents"],
+          resources: [
+            cdk.Stack.of(this).formatArn({
+              service: "events",
+              resource: "event-bus",
+              resourceName: props.userBffAuditEventBridgeBusName
+            })
+          ]
+        })
+      );
+    }
+
+    const userBffContainerSecrets: Record<string, ecs.Secret> = {};
+    const resolvedUserBffAuthInternalAuthSecret = userBffAuthInternalAuthSecret ?? authInternalAuthSecret;
+    const resolvedUserBffTenantInternalAuthSecret = userBffTenantInternalAuthSecret ?? tenantInternalAuthSecret;
+    const resolvedUserBffWmsInternalAuthSecret = userBffWmsInternalAuthSecret ?? wmsInternalAuthSecret;
+    const resolvedUserBffAuditInternalAuthSecret = userBffAuditInternalAuthSecret ?? auditInternalAuthSecret;
+    if (resolvedUserBffAuthInternalAuthSecret) {
+      userBffContainerSecrets.AUTH_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(
+        resolvedUserBffAuthInternalAuthSecret
+      );
+    }
+    if (resolvedUserBffTenantInternalAuthSecret) {
+      userBffContainerSecrets.TENANT_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(
+        resolvedUserBffTenantInternalAuthSecret
+      );
+    }
+    if (resolvedUserBffWmsInternalAuthSecret) {
+      userBffContainerSecrets.WMS_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(
+        resolvedUserBffWmsInternalAuthSecret
+      );
+    }
+    if (resolvedUserBffAuditInternalAuthSecret) {
+      userBffContainerSecrets.AUDIT_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(
+        resolvedUserBffAuditInternalAuthSecret
+      );
+    }
+
+    const userBffContainer = userBffTaskDefinition.addContainer("UserBffContainer", {
+      containerName: userBffServiceName,
+      image: ecs.ContainerImage.fromEcrRepository(userBffRepository, props.userBffImageTag),
+      essential: true,
+      environment: {
+        NODE_ENV: "production",
+        APP_ENV: props.envName,
+        SERVICE_NAME: userBffServiceName,
+        USER_BFF_PORT: "3000",
+        LOG_LEVEL: "info",
+        AWS_REGION: cdk.Stack.of(this).region,
+        REQUEST_ID_HEADER: "x-request-id",
+        TENANT_HEADER: "x-tenant-id",
+        USER_BFF_SECURITY_HEADERS_ENABLED: "true",
+        USER_BFF_CORS_ALLOWED_ORIGINS: userBffCorsAllowedOrigins,
+        USER_BFF_CORS_ALLOWED_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        USER_BFF_CORS_ALLOWED_HEADERS: "Authorization,Content-Type,Accept,X-Request-Id,X-Tenant-Id,X-User-Id,Idempotency-Key",
+        USER_BFF_CORS_EXPOSED_HEADERS: "X-Request-Id,X-Tenant-Id",
+        USER_BFF_CORS_CREDENTIALS: "true",
+        USER_BFF_CORS_MAX_AGE_SECONDS: "600",
+        AUTH_IAM_SERVICE_URL: props.authIamApiServiceUrl ?? authIamApiInternalUrl,
+        TENANT_SERVICE_URL: props.tenantServiceUrl ?? tenantInternalUrl,
+        WMS_SERVICE_URL: props.wmsServiceUrl ?? wmsInternalUrl,
+        AUDIT_LOG_SERVICE_URL: resolvedAuditLogServiceUrl,
+        USER_BFF_DOWNSTREAM_TIMEOUT_MS: "5000",
+        USER_BFF_SAFE_METHOD_RETRIES: "1",
+        USER_BFF_APP_AUDIT_PUBLISHER_TYPE: userBffAppAuditPublisherType,
+        USER_BFF_AUDIT_EVENTBRIDGE_BUS_NAME: props.userBffAuditEventBridgeBusName ?? "",
+        USER_BFF_AUDIT_EVENT_SOURCE_PREFIX: `${props.project}.${props.envName}`,
+        USER_BFF_INTERNAL_AUTH_ENABLED: "true",
+        USER_BFF_INTERNAL_SERVICE_ID: userBffServiceName,
+        USER_BFF_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS: "300"
+      },
+      secrets: Object.keys(userBffContainerSecrets).length > 0 ? userBffContainerSecrets : undefined,
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: userBffLogGroup,
+        streamPrefix: userBffServiceName
+      }),
+      healthCheck: {
+        command: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"],
+        interval: Duration.seconds(30),
+        timeout: Duration.seconds(5),
+        retries: 3,
+        startPeriod: Duration.seconds(15)
+      }
+    });
+    userBffContainer.addPortMappings({
+      containerPort: 3000,
+      protocol: ecs.Protocol.TCP
+    });
+
+    new ecs.FargateService(this, "UserBffFargateService", {
+      serviceName: `${namePrefix}-${userBffServiceName}`,
+      cluster,
+      taskDefinition: userBffTaskDefinition,
+      desiredCount: props.userBffDesiredCount,
+      circuitBreaker: {
+        rollback: true
+      },
+      minHealthyPercent: 100,
+      maxHealthyPercent: 200,
+      assignPublicIp: !props.gatewayUseNatGateway,
+      securityGroups: [userBffServiceSecurityGroup],
+      vpcSubnets: {
+        subnetType: props.gatewayUseNatGateway ? ec2.SubnetType.PRIVATE_WITH_EGRESS : ec2.SubnetType.PUBLIC
+      },
+      cloudMapOptions: {
+        cloudMapNamespace,
+        name: userBffServiceName
+      },
+      enableExecuteCommand: props.envName !== "prod"
+    });
+
+    const wmsTaskDefinition = new ecs.FargateTaskDefinition(this, "WmsTaskDefinition", {
+      family: `${namePrefix}-${wmsServiceName}`,
+      cpu: 512,
+      memoryLimitMiB: 1024,
+      runtimePlatform: {
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        cpuArchitecture: ecs.CpuArchitecture.X86_64
+      }
+    });
+
+    const wmsContainerSecrets: Record<string, ecs.Secret> = {};
+    const resolvedWmsAuthInternalAuthSecret = wmsAuthInternalAuthSecret ?? authInternalAuthSecret;
+    const resolvedWmsTenantInternalAuthSecret = wmsTenantInternalAuthSecret ?? tenantInternalAuthSecret;
+    if (wmsDatabaseUrlSecret) {
+      wmsContainerSecrets.DATABASE_URL = ecs.Secret.fromSecretsManager(wmsDatabaseUrlSecret);
+    }
+    if (wmsInternalAuthSecret) {
+      wmsContainerSecrets.WMS_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(wmsInternalAuthSecret);
+    }
+    if (resolvedWmsAuthInternalAuthSecret) {
+      wmsContainerSecrets.AUTH_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(resolvedWmsAuthInternalAuthSecret);
+    }
+    if (resolvedWmsTenantInternalAuthSecret) {
+      wmsContainerSecrets.TENANT_INTERNAL_AUTH_SECRET = ecs.Secret.fromSecretsManager(
+        resolvedWmsTenantInternalAuthSecret
+      );
+    }
+
+    const wmsContainer = wmsTaskDefinition.addContainer("WmsContainer", {
+      containerName: wmsServiceName,
+      image: ecs.ContainerImage.fromEcrRepository(wmsRepository, props.wmsImageTag),
+      essential: true,
+      environment: {
+        NODE_ENV: "production",
+        APP_ENV: props.envName,
+        SERVICE_NAME: wmsServiceName,
+        WMS_PORT: "3000",
+        LOG_LEVEL: "info",
+        AWS_REGION: cdk.Stack.of(this).region,
+        REQUEST_ID_HEADER: "x-request-id",
+        TENANT_HEADER: "x-tenant-id",
+        WMS_SECURITY_HEADERS_ENABLED: "true",
+        WMS_CORS_ALLOWED_ORIGINS: wmsCorsAllowedOrigins,
+        WMS_CORS_ALLOWED_METHODS: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        WMS_CORS_ALLOWED_HEADERS:
+          "Authorization,Content-Type,Accept,X-Request-Id,X-Tenant-Id,X-User-Id,Idempotency-Key,X-Internal-Service-Id,X-Internal-Timestamp,X-Internal-Signature",
+        WMS_CORS_EXPOSED_HEADERS: "X-Request-Id,X-Tenant-Id",
+        WMS_CORS_CREDENTIALS: "true",
+        WMS_CORS_MAX_AGE_SECONDS: "600",
+        WMS_INTERNAL_AUTH_ENABLED: "true",
+        WMS_INTERNAL_AUTH_ALLOWED_SERVICES: "admin-bff-service,user-bff-service",
+        WMS_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS: "300",
+        WMS_INTERNAL_SERVICE_ID: wmsServiceName,
+        AUTH_IAM_SERVICE_URL: props.authIamServiceUrl ?? authIamBaseInternalUrl,
+        TENANT_SERVICE_URL: props.tenantServiceUrl ?? tenantInternalUrl,
+        WMS_DOWNSTREAM_TIMEOUT_MS: "5000",
+        WMS_SAFE_METHOD_RETRIES: "1"
+      },
+      secrets: Object.keys(wmsContainerSecrets).length > 0 ? wmsContainerSecrets : undefined,
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: wmsLogGroup,
+        streamPrefix: wmsServiceName
+      }),
+      healthCheck: {
+        command: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"],
+        interval: Duration.seconds(30),
+        timeout: Duration.seconds(5),
+        retries: 3,
+        startPeriod: Duration.seconds(15)
+      }
+    });
+    wmsContainer.addPortMappings({
+      containerPort: 3000,
+      protocol: ecs.Protocol.TCP
+    });
+
+    new ecs.FargateService(this, "WmsFargateService", {
+      serviceName: `${namePrefix}-${wmsServiceName}`,
+      cluster,
+      taskDefinition: wmsTaskDefinition,
+      desiredCount: props.wmsDesiredCount,
+      circuitBreaker: {
+        rollback: true
+      },
+      minHealthyPercent: 100,
+      maxHealthyPercent: 200,
+      assignPublicIp: !props.gatewayUseNatGateway,
+      securityGroups: [wmsServiceSecurityGroup],
+      vpcSubnets: {
+        subnetType: props.gatewayUseNatGateway ? ec2.SubnetType.PRIVATE_WITH_EGRESS : ec2.SubnetType.PUBLIC
+      },
+      cloudMapOptions: {
+        cloudMapNamespace,
+        name: wmsServiceName
       },
       enableExecuteCommand: props.envName !== "prod"
     });
@@ -950,7 +1367,7 @@ export class GatewayServiceStack extends cdk.Stack {
         AUDIT_CORS_CREDENTIALS: "true",
         AUDIT_CORS_MAX_AGE_SECONDS: "600",
         AUDIT_INTERNAL_AUTH_ENABLED: "true",
-        AUDIT_INTERNAL_AUTH_ALLOWED_SERVICES: "admin-bff-service",
+        AUDIT_INTERNAL_AUTH_ALLOWED_SERVICES: "admin-bff-service,user-bff-service",
         AUDIT_INTERNAL_AUTH_TIMESTAMP_SKEW_SECONDS: "300",
         AUDIT_EVENT_CONSUMER_ENABLED: auditEventConsumerEnabled,
         AUDIT_EVENT_QUEUE_URL: resolvedAuditEventQueueUrl,
@@ -1069,7 +1486,7 @@ export class GatewayServiceStack extends cdk.Stack {
         OUTBOX_CORS_CREDENTIALS: "true",
         OUTBOX_CORS_MAX_AGE_SECONDS: "600",
         OUTBOX_WORKER_ENABLED: props.outboxWorkerEnabled ?? "true",
-        OUTBOX_SOURCES: props.outboxSources ?? "auth-iam,tenant",
+        OUTBOX_SOURCES: props.outboxSources ?? "auth-iam,tenant,wms",
         OUTBOX_POLL_INTERVAL_MS: "5000",
         OUTBOX_BATCH_SIZE: "20",
         OUTBOX_MAX_RETRY_COUNT: "5",
@@ -1144,6 +1561,16 @@ export class GatewayServiceStack extends cdk.Stack {
       description: "ECR repository URI for admin-bff-service"
     });
 
+    new cdk.CfnOutput(this, "UserBffServiceRepositoryUri", {
+      value: userBffRepository.repositoryUri,
+      description: "ECR repository URI for user-bff-service"
+    });
+
+    new cdk.CfnOutput(this, "WmsServiceRepositoryUri", {
+      value: wmsRepository.repositoryUri,
+      description: "ECR repository URI for wms-service"
+    });
+
     new cdk.CfnOutput(this, "AuditLogServiceRepositoryUri", {
       value: auditRepository.repositoryUri,
       description: "ECR repository URI for audit-log-service"
@@ -1179,6 +1606,16 @@ export class GatewayServiceStack extends cdk.Stack {
       description: "Image tag used by the admin-bff-service ECS task definition"
     });
 
+    new cdk.CfnOutput(this, "UserBffServiceImageTag", {
+      value: props.userBffImageTag,
+      description: "Image tag used by the user-bff-service ECS task definition"
+    });
+
+    new cdk.CfnOutput(this, "WmsServiceImageTag", {
+      value: props.wmsImageTag,
+      description: "Image tag used by the wms-service ECS task definition"
+    });
+
     new cdk.CfnOutput(this, "AuditLogServiceImageTag", {
       value: props.auditImageTag,
       description: "Image tag used by the audit-log-service ECS task definition"
@@ -1204,6 +1641,16 @@ export class GatewayServiceStack extends cdk.Stack {
       description: "Current desired count for admin-bff-service"
     });
 
+    new cdk.CfnOutput(this, "UserBffServiceDesiredCount", {
+      value: String(props.userBffDesiredCount),
+      description: "Current desired count for user-bff-service"
+    });
+
+    new cdk.CfnOutput(this, "WmsServiceDesiredCount", {
+      value: String(props.wmsDesiredCount),
+      description: "Current desired count for wms-service"
+    });
+
     new cdk.CfnOutput(this, "AuditLogServiceDesiredCount", {
       value: String(props.auditDesiredCount),
       description: "Current desired count for audit-log-service"
@@ -1215,8 +1662,13 @@ export class GatewayServiceStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, "AuthIamServiceInternalUrl", {
-      value: authIamInternalUrl,
-      description: "Cloud Map internal URL used by gateway-service to reach auth-iam-service"
+      value: authIamBaseInternalUrl,
+      description: "Cloud Map internal base URL used by internal services to reach auth-iam-service"
+    });
+
+    new cdk.CfnOutput(this, "AuthIamServiceApiInternalUrl", {
+      value: authIamApiInternalUrl,
+      description: "Cloud Map internal API URL used by gateway-service and user-bff-service to reach auth-iam-service"
     });
 
     new cdk.CfnOutput(this, "TenantServiceInternalUrl", {
@@ -1227,6 +1679,21 @@ export class GatewayServiceStack extends cdk.Stack {
     new cdk.CfnOutput(this, "AdminBffServiceInternalUrl", {
       value: adminBffInternalUrl,
       description: "Cloud Map internal URL used by gateway-service to reach admin-bff-service"
+    });
+
+    new cdk.CfnOutput(this, "UserBffServiceInternalUrl", {
+      value: userBffBaseInternalUrl,
+      description: "Cloud Map internal base URL for user-bff-service"
+    });
+
+    new cdk.CfnOutput(this, "UserBffServiceApiInternalUrl", {
+      value: userBffInternalUrl,
+      description: "Cloud Map internal URL used by gateway-service to reach user-bff-service"
+    });
+
+    new cdk.CfnOutput(this, "WmsServiceInternalUrl", {
+      value: wmsInternalUrl,
+      description: "Cloud Map internal URL used by BFF services to reach wms-service"
     });
 
     new cdk.CfnOutput(this, "AuditLogServiceInternalUrl", {

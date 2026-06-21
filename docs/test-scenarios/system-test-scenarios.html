@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>전체 시스템 테스트 시나리오</title>
+    <link rel="stylesheet" href="../assets-docs.css" />
+    <style>
+      .scenario-nav {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 20px;
+      }
+
+      .scenario-nav a {
+        display: block;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .scenario-nav a:hover {
+        border-color: var(--primary);
+      }
+
+      .scenario-nav strong {
+        display: block;
+        color: var(--primary-dark);
+      }
+
+      .scenario-nav span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .status-cell {
+        min-width: 104px;
+      }
+
+      @media (max-width: 900px) {
+        .scenario-nav {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">System Test Scenarios</p>
+        <h1>전체 시스템 테스트 시나리오</h1>
+        <p class="lead">
+          로컬 seed 데이터 준비부터 tenant 생성, 사용자 생성, 권한 관리, WMS 창고/로케이션/자재/재고 업무까지 전체 흐름을 검증하기 위한 시나리오 문서입니다.
+          1차 테스트는 자동 E2E 코드보다 시나리오 기반 AI 검증을 우선하며, 성공 판정에는 응답 JSON, requestId, DB row, outbox event, audit log 같은 증거를 남깁니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>문서 기준</h2>
+        <table>
+          <tbody>
+            <tr><th>대상 환경</th><td>기본은 local compose와 local DB, LocalStack SQS입니다. dev AWS 검증은 별도 evidence가 준비된 시나리오에서만 수행합니다.</td></tr>
+            <tr><th>실행 원칙</th><td>시나리오는 <code>SETUP</code> → <code>TENANT</code> → <code>AUTH</code> → <code>ACCESS</code> → <code>WMS</code> → <code>OBS</code> 순서로 실행합니다.</td></tr>
+            <tr><th>공통 Headers</th><td><code>Authorization</code>, <code>Content-Type</code>, <code>Accept</code>, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, mutation에는 <code>Idempotency-Key</code>를 사용합니다.</td></tr>
+            <tr><th>응답 Envelope</th><td>모든 API 응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>를 포함하고 성공은 <code>data</code>, 실패는 <code>error.code</code>를 포함해야 합니다.</td></tr>
+            <tr><th>상태 표시</th><td><span class="tag done">Implemented</span>는 현재 API/스크립트가 있는 항목, <span class="tag todo">Manual</span>은 기능은 있으나 자동 시나리오에 아직 묶지 않은 항목, <span class="tag todo">Planned</span>는 화면 또는 후속 기능 구현 후 실행할 항목입니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>검증 영역</h2>
+        <div class="scenario-nav">
+          <a href="#setup"><strong>Seed Data</strong><span>로컬 DB 초기화, seed tenant/user/module, service readiness</span></a>
+          <a href="#gateway-bff"><strong>Gateway/BFF</strong><span>auth, admin, app route와 BFF downstream 연결</span></a>
+          <a href="#tenant"><strong>Tenant</strong><span>tenant 생성, 상태, module, domain, tenant 격리</span></a>
+          <a href="#auth"><strong>User/Auth</strong><span>로그인, token refresh, logout, 사용자 CRUD, 상태 변경</span></a>
+          <a href="#access"><strong>Access Control</strong><span>permission, role, role-permission, user-role, scope check</span></a>
+          <a href="#user-bff"><strong>User BFF</strong><span>app shell, 사용자 context, 메뉴 권한 조합, WMS 화면 조회 API</span></a>
+          <a href="#wms-master"><strong>WMS Master</strong><span>창고, 로케이션, 품목/자재 기준정보</span></a>
+          <a href="#wms-flow"><strong>WMS Flow</strong><span>재고 조회/조정, 입고 확정, 출고 할당, 포장, 출하, 스냅샷</span></a>
+          <a href="#observability"><strong>Events/Audit</strong><span>outbox, SQS, audit log, system log, requestId 추적</span></a>
+          <a href="#negative"><strong>Negative</strong><span>tenant mismatch, 권한 없음, validation, idempotency, 재고 부족</span></a>
+        </div>
+      </section>
+
+      <section>
+        <h2>전체 실행 순서</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>순서</th>
+                <th>단계</th>
+                <th>대표 명령/API</th>
+                <th>완료 기준</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>로컬 데이터 초기화</td><td><code>pnpm db:reset:local</code>, <code>pnpm seed:local</code></td><td>seed tenant가 active이고 <code>auth</code>, <code>tenant</code>, <code>wms</code> module이 활성화됩니다.</td></tr>
+              <tr><td>2</td><td>서비스 readiness</td><td><code>/ready</code> on gateway, admin-bff, auth-iam, tenant, wms, audit, outbox-relay</td><td>각 서비스가 <code>ready</code>를 반환하고 requestId가 로그에 남습니다.</td></tr>
+              <tr><td>3</td><td>Gateway/BFF 연결</td><td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code></td><td>gateway route map은 Auth/IAM, Admin BFF, User BFF upstream으로 구성되고 domain/platform service는 BFF 내부 호출 경로로 연결됩니다.</td></tr>
+              <tr><td>4</td><td>관리자 로그인</td><td><code>POST /api/auth/login</code></td><td>JWT claim이 규칙에 맞고 refresh token이 발급됩니다.</td></tr>
+              <tr><td>5</td><td>Tenant 관리</td><td><code>/api/admin/tenants/**</code></td><td>tenant 생성, 상세, 상태, module, domain 변경이 envelope와 audit/outbox 기준을 만족합니다.</td></tr>
+              <tr><td>6</td><td>사용자/권한 관리</td><td><code>/api/admin/users/**</code>, <code>/api/admin/roles/**</code>, <code>/api/admin/permissions/**</code></td><td>사용자 생성, role/permission 구성, user-role 부여/회수가 tenant scope 안에서 동작합니다.</td></tr>
+              <tr><td>7</td><td>User BFF app shell</td><td><code>GET /api/app/me</code>, <code>GET /api/app/navigation</code></td><td>gateway를 경유해 사용자, tenant, module, permission 기반 app shell 데이터가 반환됩니다.</td></tr>
+              <tr><td>8</td><td>WMS 기준정보</td><td><code>/api/internal/wms/warehouses</code>, <code>/locations</code>, <code>/items</code></td><td>창고, 로케이션, 품목이 tenant 범위에서 생성되고 목록 조회됩니다.</td></tr>
+              <tr><td>9</td><td>WMS 업무 흐름</td><td><code>pnpm test:wms:local</code></td><td>재고 조정, 입고 확정, 출고 할당, direct 출하, 포장 작업, 포장 확정, 포장 기반 출하와 outbox/audit 연계가 통과합니다. 원장 기반 일 단위 스냅샷 조회와 empty filter 회귀 시나리오를 포함합니다.</td></tr>
+              <tr><td>10</td><td>User BFF WMS 화면 API</td><td><code>GET /api/app/wms/warehouses</code>, <code>/materials</code>, <code>/inventory-summary</code>, <code>/dashboard</code></td><td>WMS 업무 플로우가 만든 데이터를 gateway 경유 화면 API로 조회하고, list envelope와 권한별 접근 제한이 유지됩니다.</td></tr>
+              <tr><td>11</td><td>격리/오류 회귀</td><td>tenant mismatch, 권한 없음, validation, 재고 부족, 중복 idempotency</td><td>정해진 HTTP status와 <code>error.code</code>로 실패하며 민감 정보가 노출되지 않습니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="gateway-bff">
+        <h2>Gateway와 BFF 연결</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>GWBFF-CONN-001</code></td>
+                <td>gateway route map 정적 검증</td>
+                <td><code>P0</code></td>
+                <td>gateway-service 소스와 환경 파일을 확인할 수 있습니다.</td>
+                <td><code>apps/gateway-service/src/config/app.config.ts</code>와 <code>docker/env/gateway-service/.env.*</code>를 확인합니다.</td>
+                <td>gateway route key는 <code>auth</code>, <code>admin</code>, <code>app</code>만 존재하고 각각 <code>/api/auth</code>, <code>/api/admin</code>, <code>/api/app</code>로 매핑됩니다.</td>
+                <td>config diff, env file values, route key list</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GWBFF-CONN-002</code></td>
+                <td>gateway에서 Admin BFF 경유 확인</td>
+                <td><code>P0</code></td>
+                <td>gateway, admin-bff-service, auth-iam-service, tenant-service가 ready이고 관리자 access token이 있습니다.</td>
+                <td>gateway 경유로 <code>GET /api/admin/access-control/screen-data</code> 또는 <code>GET /api/admin/tenants</code>를 호출합니다.</td>
+                <td>gateway는 <code>ADMIN_BFF_SERVICE_URL</code> upstream으로만 전달하고 Admin BFF가 auth-iam-service와 tenant-service 내부 API를 호출합니다.</td>
+                <td>gateway access log, admin-bff access log, auth/tenant downstream requestId, response JSON</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GWBFF-CONN-003</code></td>
+                <td>gateway에서 User BFF 경유 확인</td>
+                <td><code>P0</code></td>
+                <td>gateway, user-bff-service, auth-iam-service, tenant-service, audit-log-service가 ready이고 사용자 access token이 있습니다.</td>
+                <td>gateway 경유로 <code>GET /api/app/me</code>와 <code>GET /api/app/navigation</code>을 호출합니다.</td>
+                <td>gateway는 <code>USER_BFF_SERVICE_URL</code> upstream으로만 전달하고 User BFF가 auth-iam-service, tenant-service, audit-log-service 내부 API를 호출합니다.</td>
+                <td>gateway access log, user-bff access log, auth/tenant downstream requestId, audit log row, response JSON</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GWBFF-CONN-004</code></td>
+                <td>BFF downstream 연결 정합성</td>
+                <td><code>P0</code></td>
+                <td>admin-bff-service와 user-bff-service 환경 파일을 확인할 수 있습니다.</td>
+                <td>BFF별 env와 readiness check를 확인하고 직접 <code>/ready</code>를 호출합니다.</td>
+                <td>Admin BFF는 auth-iam, tenant, audit-log를 downstream으로 사용하고 User BFF는 auth-iam, tenant, wms, audit-log를 downstream으로 사용합니다. domain/platform service는 BFF 또는 worker 내부 호출 경로로 연결됩니다.</td>
+                <td>BFF env values, <code>/ready</code> response JSON, service logs</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GWBFF-CONN-005</code></td>
+                <td>domain/platform service 연결 경로 확인</td>
+                <td><code>P0</code></td>
+                <td>gateway route map, gateway env, BFF downstream env를 확인할 수 있습니다.</td>
+                <td>gateway upstream key와 BFF downstream key를 함께 확인합니다.</td>
+                <td>gateway upstream은 Auth/IAM, Admin BFF, User BFF로 구성되고 tenant-service, wms-service, audit-log-service, outbox-relay-service는 BFF 또는 내부 worker 경로에서 사용됩니다.</td>
+                <td>config grep result, env grep result, proxy route API 문서</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GWBFF-CONN-006</code></td>
+                <td>local compose gateway-BFF 의존성</td>
+                <td><code>P0</code></td>
+                <td>Docker compose 설정 파일을 확인할 수 있습니다.</td>
+                <td><code>docker compose -f docker/local/docker-compose.yml config --quiet</code>를 실행하고 gateway depends_on을 확인합니다.</td>
+                <td>admin-bff-service와 user-bff-service가 compose에 정의되어 있고 gateway-service는 두 BFF의 healthy 상태 이후 시작합니다.</td>
+                <td>compose config output, service dependency list</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="setup">
+        <h2>Seed Data와 환경 준비</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>SETUP-SEED-001</code></td>
+                <td>로컬 DB 초기화와 서비스별 schema 생성</td>
+                <td><code>P0</code></td>
+                <td>Docker와 pnpm이 사용 가능하고 운영 리소스를 호출하지 않습니다.</td>
+                <td><code>pnpm db:reset:local</code>을 실행하고 PostgreSQL service database 생성 로그를 확인합니다.</td>
+                <td>tenant, auth_iam, wms, audit_log DB가 준비되고 Prisma push가 실패 없이 완료됩니다.</td>
+                <td>명령 출력, DB 목록, 실패 시 request/log id</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>SETUP-SEED-002</code></td>
+                <td>seed tenant status와 module 활성화</td>
+                <td><code>P0</code></td>
+                <td>tenant-service가 ready 상태입니다.</td>
+                <td><code>pnpm seed:local</code>을 실행하고 tenant status/modules 내부 API를 조회합니다.</td>
+                <td>seed tenant는 <code>active</code>이고 <code>auth</code>, <code>tenant</code>, <code>wms</code> module이 활성화됩니다.</td>
+                <td>tenantId, enabledModules 응답 JSON, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>SETUP-SEED-003</code></td>
+                <td>seed 관리자 사용자와 기본 권한 확인</td>
+                <td><code>P0</code></td>
+                <td>auth-iam-service가 ready이고 seed 계정이 생성되어 있습니다.</td>
+                <td>seed 관리자 계정으로 로그인한 뒤 <code>/api/auth/me</code> 또는 permission summary를 조회합니다.</td>
+                <td>사용자 tenantId가 seed tenant와 같고 관리자 role/permission summary가 반환됩니다.</td>
+                <td>login response, JWT decoded claims, permission summary</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>SETUP-READY-001</code></td>
+                <td>전체 서비스 readiness 확인</td>
+                <td><code>P0</code></td>
+                <td>local compose 또는 개별 dev server가 실행 중입니다.</td>
+                <td>gateway, admin-bff, user-bff, auth-iam, tenant, wms, audit-log, outbox-relay의 <code>/ready</code>를 호출합니다.</td>
+                <td>모든 서비스가 ready 또는 명확한 not_ready check를 반환하고 로그에 requestId가 기록됩니다.</td>
+                <td>ready 응답 JSON, service log, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tenant">
+        <h2>Tenant 관리</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>TENANT-ADM-001</code></td>
+                <td>tenant 목록 조회</td>
+                <td><code>P0</code></td>
+                <td>관리자 access token과 <code>tenant.tenants.read</code> 성격의 권한이 있습니다.</td>
+                <td><code>GET /api/admin/tenants?page=1&amp;size=20</code>를 호출합니다.</td>
+                <td>목록 envelope가 <code>data.items</code>, <code>page</code>, <code>size</code>, <code>total</code>만 포함하고 seed tenant가 조회됩니다.</td>
+                <td>response JSON, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>TENANT-ADM-002</code></td>
+                <td>tenant 신규 생성</td>
+                <td><code>P0</code></td>
+                <td>중복되지 않는 tenant name/domain과 idempotency key가 있습니다.</td>
+                <td><code>POST /api/admin/tenants</code>를 호출하고 생성된 tenant 상세를 조회합니다.</td>
+                <td><code>201</code> 또는 성공 envelope를 반환하고 tenant code가 자동 생성되며 <code>tenant.created</code> outbox가 저장됩니다.</td>
+                <td>tenantId, code, response JSON, outbox row, audit row</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>TENANT-ADM-003</code></td>
+                <td>tenant 기본 정보 수정</td>
+                <td><code>P1</code></td>
+                <td>생성된 tenant가 존재합니다.</td>
+                <td><code>PATCH /api/admin/tenants/{tenantId}</code>로 이름을 수정하고 상세를 다시 조회합니다.</td>
+                <td>수정된 이름과 updatedAt이 반영되고 tenant scope 밖 데이터는 변경되지 않습니다.</td>
+                <td>before/after response, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>TENANT-ADM-004</code></td>
+                <td>tenant 상태 변경</td>
+                <td><code>P0</code></td>
+                <td>상태 변경 대상 tenant가 있습니다.</td>
+                <td><code>PATCH /api/admin/tenants/{tenantId}/status</code>로 <code>suspended</code>와 <code>active</code>를 순서대로 적용합니다.</td>
+                <td>상태가 변경되고 suspended 상태에서는 BFF 업무 API가 <code>TENANT_NOT_READY</code> 계열 오류로 차단됩니다.</td>
+                <td>status response, blocked API response, audit/outbox evidence</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>TENANT-ADM-005</code></td>
+                <td>tenant module 교체</td>
+                <td><code>P0</code></td>
+                <td>대상 tenant가 active입니다.</td>
+                <td><code>PUT /api/admin/tenants/{tenantId}/modules</code>로 <code>wms</code>를 제거한 뒤 WMS API를 호출하고, 다시 추가합니다.</td>
+                <td><code>wms</code> 제거 중 WMS API는 <code>WMS_MODULE_NOT_ENABLED</code>로 실패하고 복구 후 성공합니다.</td>
+                <td>modules response, WMS error response, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>TENANT-ADM-006</code></td>
+                <td>tenant domain 추가와 비활성화</td>
+                <td><code>P1</code></td>
+                <td>중복되지 않는 domain이 있습니다.</td>
+                <td><code>POST /api/admin/tenants/{tenantId}/domains</code>로 추가하고 목록 조회 후 <code>DELETE</code>로 비활성화합니다.</td>
+                <td>domain이 정규화되어 저장되고 비활성화 후 목록/상세 상태가 기대대로 바뀝니다.</td>
+                <td>domainId, list response, audit/outbox evidence</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="auth">
+        <h2>사용자와 인증</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>AUTH-LOGIN-001</code></td>
+                <td>정상 로그인</td>
+                <td><code>P0</code></td>
+                <td>active tenant와 active user가 있습니다.</td>
+                <td><code>POST /api/auth/login</code>에 email, password, tenantId를 보냅니다.</td>
+                <td>access token과 refresh token이 발급되고 JWT claim은 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</td>
+                <td>login response, decoded JWT claims, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>AUTH-LOGIN-002</code></td>
+                <td>tenant header/body mismatch 차단</td>
+                <td><code>P0</code></td>
+                <td>서로 다른 tenantId 두 개가 있습니다.</td>
+                <td><code>X-Tenant-Id</code>와 body tenantId를 다르게 보내 로그인합니다.</td>
+                <td><code>403 TENANT_MISMATCH</code>로 실패하고 access token이 발급되지 않습니다.</td>
+                <td>error response, requestId, auth log</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>AUTH-TOKEN-001</code></td>
+                <td>refresh token rotation</td>
+                <td><code>P0</code></td>
+                <td>로그인으로 발급받은 refresh token이 있습니다.</td>
+                <td><code>POST /api/auth/token/refresh</code>를 호출한 뒤 기존 refresh token으로 한 번 더 호출합니다.</td>
+                <td>첫 호출은 새 token을 발급하고, 기존 token 재사용은 실패합니다.</td>
+                <td>old/new token hash 상태, response JSON</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>AUTH-USER-001</code></td>
+                <td>사용자 생성</td>
+                <td><code>P0</code></td>
+                <td>관리자 권한과 고유 email이 있습니다.</td>
+                <td><code>POST /api/admin/users</code>로 사용자를 생성하고 목록/상세를 조회합니다.</td>
+                <td>사용자가 tenant scope에 <code>general_user</code>로 생성되고 응답의 <code>data.id</code>가 이후 수정/상태 변경에 사용할 수 있는 식별자로 반환됩니다. password/secret은 응답이나 로그에 노출되지 않습니다.</td>
+                <td>id, userType, tenantId, response JSON, masked logs, audit/outbox row</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>AUTH-USER-001A</code></td>
+                <td>일반 사용자 tenant 필수와 system_admin 생성 차단</td>
+                <td><code>P0</code></td>
+                <td>관리자 권한과 active tenant가 있습니다.</td>
+                <td><code>POST /api/admin/users</code>에서 <code>userType</code> 생략, <code>general_user</code>, <code>system_admin</code>을 각각 시도합니다.</td>
+                <td>생략 또는 <code>general_user</code> 요청은 tenantId를 가진 <code>general_user</code>로 저장되고, <code>system_admin</code> 요청은 <code>400 VALIDATION_FAILED</code>로 실패합니다.</td>
+                <td>response JSON, <code>auth_users.user_type</code>, <code>auth_users.tenant_id</code>, validation error fields</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>AUTH-USER-002</code></td>
+                <td>사용자 정보 수정</td>
+                <td><code>P1</code></td>
+                <td>수정 대상 사용자가 있습니다.</td>
+                <td><code>PATCH /api/admin/users/{userId}</code>로 displayName 또는 email을 수정합니다.</td>
+                <td>수정 값이 상세 조회에 반영되고 같은 email 중복은 <code>CONFLICT</code> 계열 오류로 실패합니다.</td>
+                <td>before/after response, error response if duplicate</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>AUTH-USER-003</code></td>
+                <td>사용자 상태 변경과 로그인 차단</td>
+                <td><code>P0</code></td>
+                <td>active 사용자가 있습니다.</td>
+                <td><code>PATCH /api/admin/users/{userId}/status</code>로 <code>locked</code> 또는 <code>inactive</code> 처리 후 로그인합니다.</td>
+                <td>상태 변경 후 로그인은 <code>AUTH_ACCOUNT_LOCKED</code> 또는 권한 규칙에 맞는 오류로 차단됩니다.</td>
+                <td>status response, login error response, audit row</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>AUTH-USER-004</code></td>
+                <td>사용자 비활성 삭제</td>
+                <td><code>P1</code></td>
+                <td>삭제 대상 사용자가 있습니다.</td>
+                <td><code>DELETE /api/admin/users/{userId}</code> 또는 상태 변경 API로 사용자를 비활성화합니다.</td>
+                <td>hard delete가 아니라 inactive 상태로 전환되고 로그인/권한 check가 실패합니다.</td>
+                <td>user detail response, login failure, audit row</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="access">
+        <h2>권한 관리</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>ACCESS-PERM-001</code></td>
+                <td>permission 생성과 목록 조회</td>
+                <td><code>P0</code></td>
+                <td>tenant 관리자 권한과 고유 permission code가 있습니다.</td>
+                <td><code>POST /api/admin/permissions</code>로 permission을 생성하고 <code>GET /api/admin/permissions</code>로 조회합니다.</td>
+                <td>permission code가 tenant scope에 생성되고 목록 envelope가 표준 구조를 따릅니다.</td>
+                <td>permissionId, list response, outbox/audit row</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>ACCESS-PERM-002</code></td>
+                <td>permission code camelCase 보존</td>
+                <td><code>P0</code></td>
+                <td><code>auth.users.updateStatus</code>, <code>auth.userRoles.manage</code>처럼 action/resource segment가 camelCase인 권한이 seed에 포함되어 있습니다.</td>
+                <td>camelCase 권한을 가진 tenant_admin으로 해당 관리자 API를 호출하고, 새 permission도 <code>scenario.permission.verifyN</code> 형식으로 생성합니다.</td>
+                <td>권한 check가 code를 소문자로 변환하지 않고 통과하며, 생성된 permission은 <code>{domain}.{resource}.{action}</code> 형식을 만족합니다.</td>
+                <td>permission code, protected API response, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>ACCESS-ROLE-001</code></td>
+                <td>role 생성</td>
+                <td><code>P0</code></td>
+                <td>role에 연결할 permission code 목록이 있습니다.</td>
+                <td><code>POST /api/admin/roles</code>로 role을 생성하고 상세를 조회합니다.</td>
+                <td>role과 permission mapping이 생성되고 system permission은 tenant role에 연결되지 않습니다.</td>
+                <td>roleId, permission codes, response JSON</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>ACCESS-ROLE-002</code></td>
+                <td>role permission 교체</td>
+                <td><code>P0</code></td>
+                <td>기존 role과 대체 permission code 목록이 있습니다.</td>
+                <td><code>PUT /api/admin/roles/{roleId}/permissions</code>로 mapping을 교체합니다.</td>
+                <td>기존 mapping이 교체되고 permission summary에 새 권한만 반영됩니다.</td>
+                <td>before/after role detail, permission summary</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>ACCESS-ASSIGN-001</code></td>
+                <td>사용자 role 부여와 회수</td>
+                <td><code>P0</code></td>
+                <td>사용자와 role이 같은 tenant에 있습니다.</td>
+                <td><code>POST /api/admin/users/{userId}/roles</code>로 role을 부여하고 summary를 확인한 뒤 <code>DELETE /api/admin/user-roles/{userRoleId}</code>로 회수합니다.</td>
+                <td>부여 후 permission check가 통과하고 회수 후 같은 check가 실패합니다.</td>
+                <td>userRoleId, permission summary, check response</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>ACCESS-ROLE-003</code></td>
+                <td>tenant_admin role 부여와 관리자 API 허용</td>
+                <td><code>P0</code></td>
+                <td>seed <code>tenant_admin</code> role과 신규 일반 사용자가 있습니다.</td>
+                <td>신규 <code>general_user</code>에게 <code>tenant_admin</code> role을 tenant scope로 부여한 뒤 해당 사용자로 로그인해 <code>GET /api/admin/tenants</code>를 호출합니다.</td>
+                <td>role assignment의 <code>roleCode</code>는 <code>tenant_admin</code>이고 <code>warehouseId</code>는 <code>null</code>이며, 관리자 API list envelope가 정상 반환됩니다.</td>
+                <td>tenantAdminUserId, roleId, login response, admin list response</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>ACCESS-ROLE-004</code></td>
+                <td>tenant_user role 부여와 관리자 API 차단</td>
+                <td><code>P0</code></td>
+                <td><code>wms.inventory.read</code> permission과 신규 일반 사용자가 있습니다.</td>
+                <td><code>tenant_user</code> 성격의 role에 <code>wms.inventory.read</code>를 연결하고 신규 사용자에게 부여한 뒤 <code>GET /api/app/me</code>, <code>GET /api/app/navigation</code>, <code>GET /api/admin/tenants</code>를 호출합니다.</td>
+                <td>app shell에는 tenant user role과 WMS inventory 권한/메뉴가 표시되고, 관리자 API는 <code>403 FORBIDDEN</code>으로 차단됩니다.</td>
+                <td>tenantUserId, roleCode, app context response, navigation response, denied admin response</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>ACCESS-SCOPE-001</code></td>
+                <td>warehouse scope 권한 확인</td>
+                <td><code>P0</code></td>
+                <td>창고 A/B와 warehouse scoped role assignment가 있습니다.</td>
+                <td>창고 A scope로 role을 부여하고 창고 A/B 각각에 대해 <code>POST /api/auth/permissions/check</code>를 호출합니다.</td>
+                <td>창고 A는 허용되고 창고 B는 거부됩니다. scope 없는 요청은 scoped assignment만으로 통과하지 않습니다.</td>
+                <td>permission check response, warehouseId, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>ACCESS-ADMIN-001</code></td>
+                <td>system_admin, tenant_admin, tenant_user 범위 분리</td>
+                <td><code>P0</code></td>
+                <td>tenant-scoped role API와 role-permission/user-role API를 호출할 수 있습니다.</td>
+                <td><code>system_admin</code> role 생성을 시도하고, <code>system.*</code> permission을 tenant role에 연결하며, <code>tenant_admin</code>을 warehouse scope로 부여합니다.</td>
+                <td>세 요청 모두 <code>403 AUTH_ADMIN_SCOPE_MISMATCH</code>로 실패하고, <code>tenant_admin</code>은 tenant 전체 scope로만 부여됩니다.</td>
+                <td>error response, role state after failure, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="user-bff">
+        <h2>User BFF: app shell과 메뉴</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>USER-BFF-001</code></td>
+                <td>사용자 app context 조회</td>
+                <td><code>P0</code></td>
+                <td>gateway, user-bff-service, auth-iam-service, tenant-service가 ready이고 active tenant 사용자 access token이 있습니다.</td>
+                <td>gateway 경유로 <code>GET /api/app/me</code>를 호출합니다.</td>
+                <td>표준 envelope의 <code>data.user</code>, <code>data.tenant</code>, <code>data.permissions</code>가 반환되고 tenant module과 permission summary가 포함됩니다.</td>
+                <td>response JSON, requestId, gateway log, user-bff access log, auth/tenant downstream requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-002</code></td>
+                <td>사용자 navigation 메뉴 조합</td>
+                <td><code>P0</code></td>
+                <td>tenant에 <code>wms</code> module이 활성화되어 있고 사용자에게 WMS 권한이 있습니다.</td>
+                <td>gateway 경유로 <code>GET /api/app/navigation</code>을 호출하고 permission summary를 대조합니다.</td>
+                <td>응답 메뉴는 활성 module과 사용자 권한을 모두 만족하는 항목만 포함하고 권한 없는 메뉴는 제외됩니다.</td>
+                <td>navigation response, permission summary, tenant modules response, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-003</code></td>
+                <td>비활성 tenant app API 차단</td>
+                <td><code>P0</code></td>
+                <td>테스트 tenant를 <code>suspended</code> 또는 비활성 상태로 전환할 수 있습니다.</td>
+                <td>비활성 tenant context로 <code>GET /api/app/me</code> 또는 <code>GET /api/app/navigation</code>을 호출합니다.</td>
+                <td>User BFF tenant status guard가 요청을 차단하고 <code>TENANT_NOT_READY</code> 계열 error envelope를 반환합니다.</td>
+                <td>error response, tenant status response, user-bff access log</td>
+                <td><span class="tag todo">Manual</span></td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-004</code></td>
+                <td>WMS 화면 조회 API 조합</td>
+                <td><code>P0</code></td>
+                <td>WMS 로컬 통합 시나리오가 통과해 warehouse, material, inventory 데이터가 생성되어 있고 tenant_admin access token과 tenant_user access token이 있습니다.</td>
+                <td>gateway 경유로 <code>/api/app/wms/warehouses</code>, <code>/materials</code>, <code>/inventory-summary</code>, <code>/dashboard</code>를 호출하고, tenant_user로 <code>/inventory-summary</code> 허용과 <code>/warehouses</code> 차단을 확인합니다.</td>
+                <td>BFF는 WMS 업무 규칙을 직접 계산하지 않고 화면 shape만 조합하며 list envelope, <code>pageTotals</code>, <code>visibleActions</code>, permission guard 규칙을 지킵니다.</td>
+                <td>BFF response, WMS internal response, propagated requestId, <code>pageTotals</code>, <code>visibleActions</code>, tenant_user 403 response</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-005</code></td>
+                <td>app shell 감사 로그 기록</td>
+                <td><code>P0</code></td>
+                <td>audit-log-service가 ready이고 local 기본값은 <code>USER_BFF_APP_AUDIT_PUBLISHER_TYPE=internal-api</code>입니다.</td>
+                <td><code>GET /api/app/me</code>와 <code>GET /api/app/navigation</code>을 호출한 뒤 audit log를 action/requestId로 조회합니다.</td>
+                <td><code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code> 감사 로그가 tenantId, userId, requestId와 함께 저장됩니다. 감사 저장 장애는 원 app 응답을 실패시키지 않습니다.</td>
+                <td>audit log row, action, actor.userId, requestId, user-bff warning log 없음</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>USER-BFF-006</code></td>
+                <td>app audit EventBridge 전환 설정 검증</td>
+                <td><code>P0</code></td>
+                <td>CDK synth가 가능하고 EventBridge bus 이름을 context로 전달할 수 있습니다.</td>
+                <td><code>userBffAppAuditPublisherType=eventbridge</code>, <code>userBffAuditEventBridgeBusName</code>으로 CDK synth를 실행합니다.</td>
+                <td>User BFF task에 <code>USER_BFF_APP_AUDIT_PUBLISHER_TYPE=eventbridge</code>, bus name, source prefix가 주입되고 <code>events:PutEvents</code> 권한이 생성됩니다.</td>
+                <td>CDK synth output, task env, IAM policy</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="wms-master">
+        <h2>WMS 기준정보: 창고, 로케이션, 자재</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>WMS-WH-001</code></td>
+                <td>창고 생성</td>
+                <td><code>P0</code></td>
+                <td>tenant가 active이고 <code>wms</code> module과 <code>wms.warehouses.manage</code> 권한이 있습니다.</td>
+                <td><code>POST /api/internal/wms/warehouses</code>로 창고 code/name을 생성합니다.</td>
+                <td>창고가 tenant scope에 생성되고 중복 code는 conflict로 실패합니다.</td>
+                <td>warehouseId, response JSON, DB row</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-WH-002</code></td>
+                <td>창고 목록 조회</td>
+                <td><code>P0</code></td>
+                <td>tenant에 창고가 1개 이상 있습니다.</td>
+                <td><code>GET /api/internal/wms/warehouses</code>를 호출합니다.</td>
+                <td>현재 tenant 창고만 조회되고 다른 tenant 창고는 포함되지 않습니다.</td>
+                <td>list response, tenantId, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-LOC-001</code></td>
+                <td>창고 하위 로케이션 생성</td>
+                <td><code>P0</code></td>
+                <td>창고가 존재하고 <code>wms.locations.manage</code> 권한이 있습니다.</td>
+                <td><code>POST /api/internal/wms/locations</code>로 storage/picking 등 type을 가진 로케이션을 생성합니다.</td>
+                <td>로케이션이 해당 창고 하위에 생성되고 다른 tenant 창고 ID는 <code>WMS_RESOURCE_NOT_FOUND</code>로 실패합니다.</td>
+                <td>locationId, response/error JSON</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-LOC-002</code></td>
+                <td>로케이션 목록 조회</td>
+                <td><code>P1</code></td>
+                <td>창고 하위 로케이션이 1개 이상 있습니다.</td>
+                <td><code>GET /api/internal/wms/locations?warehouseId={warehouseId}</code>를 호출합니다.</td>
+                <td>요청한 warehouseId의 로케이션만 반환됩니다.</td>
+                <td>list response, warehouseId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-ITEM-001</code></td>
+                <td>자재/품목 생성</td>
+                <td><code>P0</code></td>
+                <td><code>wms.items.manage</code> 권한과 고유 SKU가 있습니다.</td>
+                <td><code>POST /api/internal/wms/items</code>로 sku, name, uom을 생성합니다.</td>
+                <td>품목이 생성되고 같은 tenant 내 SKU 중복은 conflict로 실패합니다.</td>
+                <td>itemId, sku, response JSON</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-ITEM-002</code></td>
+                <td>자재/품목 목록과 SKU 검색</td>
+                <td><code>P0</code></td>
+                <td>생성된 품목이 있습니다.</td>
+                <td><code>GET /api/internal/wms/items?sku={sku}</code>를 호출합니다.</td>
+                <td>검색 SKU에 맞는 품목이 목록 envelope로 반환되고 다른 tenant 품목은 보이지 않습니다.</td>
+                <td>items response, itemId, tenantId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-ITEM-003</code></td>
+                <td>Lot/serial 관리 정책 검증</td>
+                <td><code>P2</code></td>
+                <td>lot/serial 기능 구현 후 품목별 추적 정책이 정의되어 있습니다.</td>
+                <td>lot 관리 품목과 serial 관리 품목을 각각 생성하고 입고/출고 처리합니다.</td>
+                <td>lot/serial 필수 여부, 중복 serial 차단, 재고 추적 단위가 정책대로 동작합니다.</td>
+                <td>lot/serial rows, inventory detail, response JSON</td>
+                <td><span class="tag todo">Planned</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="wms-flow">
+        <h2>WMS 업무 흐름: 재고, 입고, 출고, 포장, 출하, 스냅샷</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>WMS-INV-001</code></td>
+                <td>현재고 조회</td>
+                <td><code>P0</code></td>
+                <td>창고, 로케이션, 품목이 있고 <code>wms.inventory.read</code> 권한이 있습니다.</td>
+                <td><code>GET /api/internal/wms/inventory</code>에 warehouseId/locationId/itemId 조건을 보냅니다.</td>
+                <td>현재고, 할당 수량, 가용 수량이 문자열 수량 값으로 반환됩니다.</td>
+                <td>inventory response, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-INV-002</code></td>
+                <td>재고 조정 증가</td>
+                <td><code>P0</code></td>
+                <td><code>wms.inventory.adjust</code> 권한과 조정 대상 기준정보가 있습니다.</td>
+                <td><code>POST /api/internal/wms/inventory/adjustments</code>로 양수 quantityChange를 보냅니다.</td>
+                <td>재고가 증가하고 <code>wms.inventory.adjusted</code> outbox event가 pending 후 published가 되며 audit log가 저장됩니다.</td>
+                <td>adjustmentId, inventory after, outbox eventId, auditId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-INV-003</code></td>
+                <td>재고 조정 감소와 음수 방지</td>
+                <td><code>P0</code></td>
+                <td>현재고가 있는 품목이 있습니다.</td>
+                <td>가용 재고 이하 감소 조정과 가용 재고 초과 감소 조정을 각각 호출합니다.</td>
+                <td>정상 감소는 성공하고 초과 감소는 <code>WMS_INSUFFICIENT_STOCK</code> 또는 업무 오류로 실패합니다.</td>
+                <td>success response, error response, inventory after</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-IN-001</code></td>
+                <td>입고 확정</td>
+                <td><code>P0</code></td>
+                <td><code>wms.inbound.confirm</code> 권한과 기준정보가 있습니다.</td>
+                <td><code>POST /api/internal/wms/inbound/confirmations</code>로 입고 수량과 referenceNo를 보냅니다.</td>
+                <td>receipt가 저장되고 재고가 증가하며 <code>wms.inbound.confirmed</code> event와 audit log가 저장됩니다.</td>
+                <td>receiptId, inventory after, outbox eventId, auditId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-OUT-001</code></td>
+                <td>출고 할당</td>
+                <td><code>P0</code></td>
+                <td>가용 재고가 충분하고 <code>wms.outbound.allocate</code> 권한이 있습니다.</td>
+                <td><code>POST /api/internal/wms/outbound/allocations</code>로 orderNo, warehouseId, locationId, itemId, quantity를 보냅니다.</td>
+                <td>allocation이 생성되고 allocatedQuantity가 증가하며 <code>wms.outbound.allocated</code> event가 저장됩니다.</td>
+                <td>allocationId, inventory after, outbox/audit evidence</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-OUT-002</code></td>
+                <td>재고 부족 출고 할당 실패</td>
+                <td><code>P0</code></td>
+                <td>요청 quantity가 가용 재고보다 큽니다.</td>
+                <td>출고 할당 API에 초과 수량을 보냅니다.</td>
+                <td><code>422 WMS_INSUFFICIENT_STOCK</code> 계열 오류로 실패하고 allocation/outbox가 생성되지 않습니다.</td>
+                <td>error response, allocation count, outbox count</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-OUT-003</code></td>
+                <td>출하 완료</td>
+                <td><code>P0</code></td>
+                <td>allocated 상태의 allocation이 있고 <code>wms.outbound.ship</code> 권한이 있습니다.</td>
+                <td><code>POST /api/internal/wms/outbound/shipments</code>로 allocationId를 보냅니다.</td>
+                <td>할당 수량과 현재고가 차감되고 <code>wms.outbound.shipped</code> event와 audit log가 저장됩니다.</td>
+                <td>shipment response, final inventory, outbox/audit evidence</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-OUT-004</code></td>
+                <td>출하 중복 처리 방지</td>
+                <td><code>P0</code></td>
+                <td>이미 shipped 처리된 allocation이 있습니다.</td>
+                <td>같은 allocationId로 출하 API를 다시 호출합니다.</td>
+                <td>중복 출하는 conflict 또는 이미 처리됨 오류로 실패하고 재고가 추가 차감되지 않습니다.</td>
+                <td>first/second response, inventory before/after</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-PACK-001</code></td>
+                <td>포장 작업 생성</td>
+                <td><code>P0</code></td>
+                <td>allocated 상태의 allocation이 있고 <code>wms.outbound.pack</code> 권한이 있습니다.</td>
+                <td><code>POST /api/internal/wms/outbound/packings</code>로 outboundOrderId와 allocationIds를 보냅니다.</td>
+                <td>packing 작업이 생성되고 allocation과 연결되며 상태는 <code>packing</code>으로 시작합니다.</td>
+                <td>packingId, allocation linkage, response JSON</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-PACK-002</code></td>
+                <td>패키지 등록과 수량 검증</td>
+                <td><code>P0</code></td>
+                <td>포장 작업이 있고 박스별 포장 수량을 입력할 수 있습니다.</td>
+                <td>패키지를 등록한 뒤 allocation 수량보다 부족하거나 초과한 상태로 포장 확정을 시도합니다.</td>
+                <td><code>WMS_PACKAGE_QUANTITY_MISMATCH</code>로 실패하고 allocation, inventory, outbox가 변경되지 않습니다.</td>
+                <td>package rows, error response, inventory unchanged, outbox count</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-PACK-003</code></td>
+                <td>포장 확정</td>
+                <td><code>P0</code></td>
+                <td>패키지별 포장 수량 합계가 allocation 수량과 일치합니다.</td>
+                <td><code>POST /api/internal/wms/outbound/packings/{packingId}/confirm</code>을 호출합니다.</td>
+                <td>packing 상태가 confirmed로 바뀌고 <code>wms.outbound.packed</code> outbox event와 audit log가 저장됩니다.</td>
+                <td>packing status, package summary, outbox eventId, auditId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-SHIP-001</code></td>
+                <td>포장 기반 출하 완료</td>
+                <td><code>P0</code></td>
+                <td>confirmed 상태의 packing이 있고 <code>wms.outbound.ship</code> 권한이 있습니다.</td>
+                <td><code>POST /api/internal/wms/outbound/shipments</code>에 packingId, carrierCode, trackingNo를 보냅니다.</td>
+                <td>shipment가 생성되고 할당 수량과 현재고가 차감되며 <code>wms.outbound.shipped</code> event와 audit log가 저장됩니다.</td>
+                <td>shipmentId, trackingNo, final inventory, outbox/audit evidence</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-SHIP-002</code></td>
+                <td>포장 미확정 또는 중복 출하 차단</td>
+                <td><code>P0</code></td>
+                <td>미확정 packing 또는 이미 shipped 처리된 packing이 있습니다.</td>
+                <td>미확정 packing과 이미 출하된 packing으로 출하 API를 각각 호출합니다.</td>
+                <td>미확정 건은 <code>WMS_SHIPMENT_NOT_READY</code>, 중복 출하는 <code>WMS_SHIPMENT_ALREADY_SHIPPED</code>로 실패하고 재고가 추가 차감되지 않습니다.</td>
+                <td>error response, inventory before/after, outbox count</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-001</code></td>
+                <td>일 단위 스냅샷 생성</td>
+                <td><code>P0</code></td>
+                <td>스냅샷 대상 tenant에 재고 변경 원장이 있고 기준 일자의 cutoff가 정해져 있습니다.</td>
+                <td>tenant/date 단위 스냅샷 생성 작업을 실행하고 생성된 row를 조회합니다.</td>
+                <td>각 warehouse/location/item 조합의 snapshot 수량은 cutoff 이하 마지막 ledger balance와 일치합니다.</td>
+                <td>snapshot rows, sourceLedgerId, snapshot run log</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-002</code></td>
+                <td>지연 생성 정합성</td>
+                <td><code>P0</code></td>
+                <td>기준 일자 이후에 입고/출하 등 추가 재고 변경이 발생했습니다.</td>
+                <td>추가 변경 이후 과거 기준 일자의 스냅샷을 생성하고 현재고와 스냅샷을 함께 조회합니다.</td>
+                <td>과거 스냅샷은 현재고가 아니라 기준 일자 cutoff ledger balance를 반영합니다.</td>
+                <td>ledger cutoff query, current inventory, snapshot response</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-003</code></td>
+                <td>스냅샷 조회 API</td>
+                <td><code>P0</code></td>
+                <td><code>wms.inventory.read</code> 권한과 생성 완료된 스냅샷이 있습니다.</td>
+                <td><code>GET /api/internal/wms/inventory/snapshots</code>에 snapshotDate, warehouseId, locationId, itemId, page, size 조건을 보냅니다.</td>
+                <td>응답은 list envelope 규칙을 지키고 수량은 <code>quantity</code>, <code>allocatedQuantity</code>, <code>availableQuantity</code> 문자열로 반환됩니다.</td>
+                <td>response JSON, requestId, pagination values</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-004</code></td>
+                <td>스냅샷 재실행 멱등성</td>
+                <td><code>P0</code></td>
+                <td>동일 tenant/date 스냅샷 생성 작업을 재실행할 수 있습니다.</td>
+                <td>같은 tenant/date로 생성 작업을 두 번 실행하고 snapshot row 수와 수량을 비교합니다.</td>
+                <td>중복 row가 생기지 않고 두 번째 실행 후에도 수량과 total이 동일합니다.</td>
+                <td>snapshot count before/after, run logs, stable quantities</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-005</code></td>
+                <td>스냅샷 tenant 격리</td>
+                <td><code>P0</code></td>
+                <td>tenant A와 tenant B에 서로 다른 원장과 스냅샷 대상 재고가 있습니다.</td>
+                <td>tenant A context로 tenant B의 warehouse/location/item 조건을 포함해 스냅샷 조회와 생성을 시도합니다.</td>
+                <td>tenant B 데이터는 tenant A 결과에 노출되지 않고 cross-tenant 리소스는 <code>WMS_RESOURCE_NOT_FOUND</code> 또는 권한/tenant 오류로 차단됩니다.</td>
+                <td>tenant A/B snapshot rows, error response, requestId</td>
+                <td><span class="tag todo">Planned</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-006</code></td>
+                <td>스냅샷 필터 empty list envelope</td>
+                <td><code>P0</code></td>
+                <td>특정 날짜/창고에 생성 완료된 스냅샷 run이 있고, 조회 조건에 매칭되지 않는 itemId가 있습니다.</td>
+                <td><code>GET /api/internal/wms/inventory/snapshots</code>에 생성 완료 날짜와 창고, 존재하지 않는 itemId, page, size를 보냅니다.</td>
+                <td>스냅샷 run이 존재하므로 <code>WMS_SNAPSHOT_NOT_READY</code>가 아니라 <code>200</code> list envelope를 반환하고 <code>items=[]</code>, <code>total=0</code>을 유지합니다.</td>
+                <td>response JSON, requestId, page/size/total</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-API-001</code></td>
+                <td>WMS API error envelope</td>
+                <td><code>P0</code></td>
+                <td>WMS 내부 API를 호출할 수 있는 internal auth header가 있습니다.</td>
+                <td><code>X-Tenant-Id</code> 누락 요청과 잘못된 UUID query 요청을 각각 호출합니다.</td>
+                <td><code>TENANT_REQUIRED</code>, <code>VALIDATION_FAILED</code>가 표준 error envelope와 requestId로 반환됩니다.</td>
+                <td>error response, requestId, timestamp</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>WMS-FLOW-001</code></td>
+                <td>WMS 로컬 통합 시나리오 일괄 검증</td>
+                <td><code>P0</code></td>
+                <td>local DB, LocalStack, auth-iam-service, tenant-service, wms-service가 준비되어 있습니다.</td>
+                <td><code>pnpm test:wms:local</code>을 실행합니다.</td>
+                <td><code>WMS-INT-001</code>부터 <code>WMS-INT-005</code>까지 모두 통과하고, <code>WMS-INV-001</code>, 포장/출하 확장, 스냅샷 empty filter, WMS error envelope, 재고 부족, 수량 불일치, 출하 중복 회귀 시나리오도 통과합니다.</td>
+                <td>command output, scenario table, eventId, auditId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="observability">
+        <h2>이벤트, 감사 로그, 관측성</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>OBS-OUTBOX-001</code></td>
+                <td>업무 변경과 outbox 같은 transaction 저장</td>
+                <td><code>P0</code></td>
+                <td>사용자/role/tenant/WMS 변경 API 중 하나를 실행할 수 있습니다.</td>
+                <td>mutation API를 호출하고 같은 requestId로 업무 row와 outbox row를 조회합니다.</td>
+                <td>업무 변경과 outbox event가 모두 저장되거나 모두 롤백됩니다.</td>
+                <td>domain row, outbox row, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>OBS-OUTBOX-002</code></td>
+                <td>outbox relay SQS publish</td>
+                <td><code>P0</code></td>
+                <td>outbox-relay-service worker와 LocalStack SQS가 실행 중입니다.</td>
+                <td>compose mock relay/audit worker를 잠시 격리한 뒤 <code>pnpm test:outbox:sqs:local</code> 또는 WMS 통합 검증을 실행합니다.</td>
+                <td>pending event가 SQS relay에 의해 <code>published</code> 상태가 되고 published target에 SQS queue URL이 기록되며, 검증 후 compose worker가 다시 ready 상태가 됩니다.</td>
+                <td>outbox status, publishedTarget, relay log</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>OBS-AUDIT-001</code></td>
+                <td>감사 로그 저장</td>
+                <td><code>P0</code></td>
+                <td>감사 대상 이벤트가 SQS로 전달됩니다.</td>
+                <td>audit-log-service가 SQS message를 소비한 뒤 <code>GET /api/admin/audit-logs</code> 또는 DB로 조회합니다.</td>
+                <td>audit log에 <code>auditId</code>, <code>occurredAt</code>, <code>tenantId</code>, <code>actor</code>, <code>action</code>, <code>resource</code>, <code>result</code>, <code>requestId</code>가 저장됩니다.</td>
+                <td>audit row, SQS messageId, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>OBS-AUDIT-002</code></td>
+                <td>app shell 감사 로그 requestId 조회</td>
+                <td><code>P1</code></td>
+                <td>User BFF의 <code>GET /api/app/me</code>와 <code>GET /api/app/navigation</code> 호출이 성공했고 audit-log-service가 ready입니다.</td>
+                <td>각 app shell 요청의 <code>requestId</code>와 action으로 <code>GET /api/admin/audit-logs</code>를 조회합니다.</td>
+                <td><code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code> 감사 로그가 같은 tenantId, userId, requestId로 조회됩니다.</td>
+                <td>auditId, action, actor.userId, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>OBS-AUDIT-003</code></td>
+                <td>User BFF app audit EventBridge routing CDK 검증</td>
+                <td><code>P0</code></td>
+                <td>EventBridge bus 이름을 CDK context로 전달할 수 있고 audit event SQS queue가 CDK에 포함되어 있습니다.</td>
+                <td><code>pnpm --filter @multi-tenant/infra-cdk exec cdk synth -c userBffAppAuditPublisherType=eventbridge -c userBffAuditEventBridgeBusName=multi-tenant-dev-event-bus</code>를 실행합니다.</td>
+                <td><code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code> detail-type을 audit event SQS queue로 전달하는 EventBridge rule과 User BFF <code>events:PutEvents</code> 권한이 생성됩니다.</td>
+                <td>CDK synth output, EventBridge rule, SQS target, IAM policy, User BFF task env</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>OBS-LOG-001</code></td>
+                <td>requestId 기반 추적</td>
+                <td><code>P0</code></td>
+                <td>고정 <code>X-Request-Id</code>로 API를 호출합니다.</td>
+                <td>gateway, BFF, downstream service, outbox relay, audit log에서 같은 requestId를 검색합니다.</td>
+                <td>각 단계 로그와 audit/outbox row가 같은 requestId로 연결됩니다.</td>
+                <td>service logs, outbox row, audit row</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>OBS-SECRET-001</code></td>
+                <td>민감 정보 로그/응답 노출 방지</td>
+                <td><code>P0</code></td>
+                <td>로그인, 사용자 생성, token refresh, 실패 API를 실행할 수 있습니다.</td>
+                <td>API 응답과 서비스 로그에서 password, accessToken, refreshToken, Authorization, cookie, secret 문자열 노출 여부를 확인합니다.</td>
+                <td>민감 값이 응답의 필요한 token 필드 외 로그/오류 details에 노출되지 않고 개인정보는 마스킹됩니다.</td>
+                <td>redacted logs, response samples</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="negative">
+        <h2>오류, 격리, 회귀 시나리오</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>title</th><th>priority</th><th>preconditions</th><th>steps</th><th>expectedResult</th><th>evidence</th><th class="status-cell">status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>NEG-TENANT-001</code></td>
+                <td>tenant 누락 차단</td>
+                <td><code>P0</code></td>
+                <td>tenant-scoped business API가 있습니다.</td>
+                <td><code>X-Tenant-Id</code> 없이 API를 호출합니다.</td>
+                <td><code>400</code> 또는 <code>403</code>과 tenant 관련 <code>error.code</code>로 실패합니다.</td>
+                <td>error response, requestId</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>NEG-TENANT-002</code></td>
+                <td>JWT/header tenant mismatch 차단</td>
+                <td><code>P0</code></td>
+                <td>tenant A token과 tenant B id가 있습니다.</td>
+                <td>tenant A JWT로 <code>X-Tenant-Id</code>를 tenant B로 보냅니다.</td>
+                <td>gateway 또는 BFF에서 <code>403 TENANT_MISMATCH</code>로 차단됩니다.</td>
+                <td>error response, gateway log</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>NEG-TENANT-003</code></td>
+                <td>cross-tenant 데이터 접근 차단</td>
+                <td><code>P0</code></td>
+                <td>tenant A/B에 각각 사용자와 WMS 기준정보가 있습니다.</td>
+                <td>tenant A 사용자로 tenant B의 warehouseId/locationId/itemId를 사용해 조회/수정합니다.</td>
+                <td>응답은 <code>WMS_RESOURCE_NOT_FOUND</code> 또는 권한/tenant 오류이며 tenant B 데이터는 노출되지 않습니다.</td>
+                <td>error response, DB unchanged confirmation</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>NEG-AUTH-001</code></td>
+                <td>권한 없는 API 차단</td>
+                <td><code>P0</code></td>
+                <td>대상 permission이 없는 사용자가 있습니다.</td>
+                <td>관리자 API 또는 WMS mutation을 호출합니다.</td>
+                <td><code>403 FORBIDDEN</code> 또는 <code>WMS_PERMISSION_DENIED</code>로 실패하고 업무 row/outbox row가 생성되지 않습니다.</td>
+                <td>error response, outbox count, auth check log</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>NEG-VALID-001</code></td>
+                <td>validation error envelope</td>
+                <td><code>P0</code></td>
+                <td>필수 필드가 있는 API가 있습니다.</td>
+                <td>필수 필드 누락, 잘못된 UUID, 잘못된 page/size를 각각 요청합니다.</td>
+                <td><code>400 VALIDATION_FAILED</code>와 <code>error.details.fields</code>가 반환됩니다.</td>
+                <td>error response samples</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>NEG-IDEMP-001</code></td>
+                <td>mutation idempotency key 검증</td>
+                <td><code>P0</code></td>
+                <td>중복 실행 위험이 있는 POST/PATCH/PUT API가 있습니다.</td>
+                <td>Idempotency-Key 없이 호출하고, 같은 key로 같은 요청을 반복합니다.</td>
+                <td>key 누락은 <code>IDEMPOTENCY_KEY_REQUIRED</code>로 실패하고 같은 key 반복은 중복 row를 만들지 않습니다.</td>
+                <td>error response, duplicate count, idempotency key</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>NEG-RATE-001</code></td>
+                <td>gateway rate limit</td>
+                <td><code>P1</code></td>
+                <td>rate limit 설정이 활성화되어 있습니다.</td>
+                <td>같은 client 식별자로 제한보다 많은 요청을 짧은 시간에 보냅니다.</td>
+                <td><code>429</code>와 rate limit error code가 반환되고 정상 요청 로그와 구분됩니다.</td>
+                <td>response headers, gateway log</td>
+                <td><span class="tag todo">Manual</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>현재 실행 가능한 대표 명령</h2>
+        <table>
+          <tbody>
+            <tr><th>로컬 DB 초기화</th><td><code>pnpm db:reset:local</code></td></tr>
+            <tr><th>로컬 seed API 반영</th><td><code>pnpm seed:local</code></td></tr>
+            <tr><th>전체 workspace test script</th><td><code>pnpm test</code></td></tr>
+            <tr><th>WMS 로컬 통합 검증</th><td><code>pnpm test:wms:local</code></td></tr>
+            <tr><th>Outbox/SQS 로컬 검증</th><td><code>pnpm test:outbox:sqs:local</code></td></tr>
+            <tr><th>전체 시스템 로컬 검증</th><td><code>pnpm test:system:local</code></td></tr>
+            <tr><th>User BFF EventBridge 경로 검증</th><td><code>pnpm --filter @multi-tenant/infra-cdk exec cdk synth -c userBffAppAuditPublisherType=eventbridge -c userBffAuditEventBridgeBusName=multi-tenant-dev-event-bus</code></td></tr>
+            <tr><th>전체 시스템 5회 반복</th><td><code>LOCAL_SYSTEM_TEST_ITERATIONS=5 pnpm test:system:local</code></td></tr>
+            <tr><th>전체 시스템 테스트 로그</th><td><code>docs/test-logs/YYYY-MM-DD/system-test-scenarios-local-verification.html</code>에 각 항목 종료 시점마다 결과와 evidence를 기록합니다.</td></tr>
+            <tr><th>실패 처리 원칙</th><td>실패 시 즉시 중단하고 실패 당시 HTML 로그를 별도 파일로 보존한 뒤 수정, 시드 재적재, 처음부터 재실행합니다.</td></tr>
+            <tr><th>WMS 정적 검증</th><td><code>pnpm --filter wms-service typecheck</code>, <code>pnpm --filter wms-service build</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>후속 보강 대상</h2>
+        <div class="grid two">
+          <div class="card">
+            <strong>화면 시나리오</strong>
+            <p><code>web-admin</code>과 <code>web-wms</code> 구현 후 같은 scenarioId에 화면 조작 단계와 화면 캡처 evidence를 추가합니다.</p>
+          </div>
+          <div class="card">
+            <strong>User BFF 시나리오</strong>
+            <p><code>USER-BFF-004</code>로 warehouse selector, materials, dashboard, inventory summary 검증을 추가했습니다. 후속으로 화면 캡처 evidence와 warehouse scope별 selector 필터링을 보강합니다.</p>
+          </div>
+          <div class="card">
+            <strong>Lot/Serial과 작업 지시</strong>
+            <p>품목 추적 단위, 피킹/패킹 작업 지시, ERP retry 기능이 구현되면 WMS P1/P2 시나리오를 실행 상태로 전환합니다.</p>
+          </div>
+          <div class="card">
+            <strong>dev AWS evidence</strong>
+            <p>ECS, RDS, SQS/DLQ, CloudWatch, IAM role 기준의 dev 환경 evidence를 별도 날짜별 검증 로그에 남깁니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <p class="footer"><a href="../design/rules/testing.html">테스트 시나리오 규칙으로 이동</a> · <a href="../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

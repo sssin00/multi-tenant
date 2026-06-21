@@ -60,7 +60,7 @@
               <div class="grid two">
                 <div class="card">
                   <strong>1차 필수 이벤트</strong>
-                  <p><code>wms.inventory.adjusted</code>, <code>wms.inbound.confirmed</code>, <code>wms.outbound.allocated</code>, <code>wms.outbound.shipped</code></p>
+                  <p><code>wms.inventory.adjusted</code>, <code>wms.inventory.snapshot.generated</code>, <code>wms.inbound.confirmed</code>, <code>wms.outbound.allocated</code>, <code>wms.outbound.packed</code>, <code>wms.outbound.shipped</code></p>
                 </div>
                 <div class="card">
                   <strong>1차 구현 범위</strong>
@@ -88,6 +88,7 @@
                 <tbody>
                   <tr><th>업무 트랜잭션</th><td>도메인 상태 변경, <code>outbox_events</code> 저장, DB commit 순서로 처리합니다.</td></tr>
                   <tr><th>Relay</th><td><code>outbox-relay-service</code>가 미발행 이벤트를 조회하고 EventBridge 또는 SQS로 발행합니다. 감사 로그 저장 경로는 SQS를 기본 대상으로 사용합니다.</td></tr>
+                  <tr><th>BFF best-effort 이벤트</th><td>자체 DB/outbox가 없는 BFF 소유 화면 이벤트는 사용자 응답을 차단하지 않는 범위에서 EventBridge 직접 발행을 사용할 수 있습니다. 정합성이 필요한 도메인 상태 변경은 반드시 outbox transaction 규칙을 따릅니다.</td></tr>
                   <tr><th>Source DB Credential</th><td>Relay는 source별 전용 DB URL secret으로 <code>outbox_events</code>만 다룹니다. 서비스의 일반 application <code>DATABASE_URL</code>을 재사용하지 않고, 다른 업무 테이블을 수정하지 않습니다.</td></tr>
                   <tr><th>성공 처리</th><td>발행 성공 시 <code>published</code> 상태와 <code>publishedAt</code>을 기록합니다.</td></tr>
                   <tr><th>실패 처리</th><td>발행 실패 시 <code>retryCount</code>를 증가시키고 재시도합니다. 반복 실패는 outbox <code>failed</code> 상태로 분리합니다. SQS 소비 실패는 메시지를 삭제하지 않아 visibility timeout 이후 재시도되고, redrive 정책에 따라 DLQ로 이동합니다.</td></tr>

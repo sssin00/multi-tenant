@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>서비스별 기능 정의서</title>
+    <link rel="stylesheet" href="../assets-docs.css" />
+    <style>
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 20px;
+      }
+
+      .summary-card {
+        min-height: 108px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+      }
+
+      .summary-card strong {
+        display: block;
+        color: var(--primary-dark);
+        font-size: 24px;
+        line-height: 1.15;
+      }
+
+      .summary-card span {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+      }
+
+      .service-nav {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .service-nav a {
+        min-height: 72px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .service-nav a:hover {
+        border-color: var(--primary);
+      }
+
+      .service-nav strong {
+        display: block;
+        color: var(--primary-dark);
+      }
+
+      .service-nav span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .service-title {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .link-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .link-row a {
+        text-decoration: none;
+      }
+
+      .feature-table th {
+        width: 180px;
+      }
+
+      .detail-heading {
+        margin-top: 24px;
+      }
+
+      .detail-note {
+        margin-top: 8px;
+      }
+
+      .detail-feature-table th {
+        width: auto;
+      }
+
+      @media (max-width: 900px) {
+        .summary-grid,
+        .service-nav,
+        .service-title {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Service Feature Definition</p>
+        <h1>서비스별 기능 정의서</h1>
+        <p class="lead">
+          이 문서는 현재 저장소의 서비스와 앱을 기준으로 각 서비스가 제공해야 하는 기능, 호출자, 데이터 책임, 이벤트와 후속 범위를 정리합니다.
+          구현 상세나 일자별 기록은 서비스 개발과정 문서에 두고, 이 문서는 제품 기능과 서비스 경계를 빠르게 확인하는 기준 문서로 사용합니다.
+        </p>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <strong>8</strong>
+            <span>백엔드 서비스</span>
+          </div>
+          <div class="summary-card">
+            <strong>2</strong>
+            <span>프론트엔드 앱</span>
+          </div>
+          <div class="summary-card">
+            <strong>WMS</strong>
+            <span>첫 메인 도메인</span>
+          </div>
+          <div class="summary-card">
+            <strong>BFF</strong>
+            <span>외부 업무 API 진입 경계</span>
+          </div>
+          <div class="summary-card">
+            <strong>Outbox</strong>
+            <span>상태 변경 이벤트 전달 기준</span>
+          </div>
+        </div>
+      </header>
+
+      <section>
+        <h2>서비스 목록</h2>
+        <p>각 항목은 기능 정의 섹션으로 이동합니다. 백엔드 도메인 기능은 API와 이벤트를 함께 보며, 웹 앱은 연결할 BFF 화면 기능을 기준으로 정의합니다.</p>
+        <div class="service-nav">
+          <a href="#gateway-service"><strong>gateway-service</strong><span>인증 전처리와 라우팅</span></a>
+          <a href="#admin-bff-service"><strong>admin-bff-service</strong><span>관리자 API 조합</span></a>
+          <a href="#user-bff-service"><strong>user-bff-service</strong><span>사용자 앱 화면 조합</span></a>
+          <a href="#auth-iam-service"><strong>auth-iam-service</strong><span>인증과 RBAC</span></a>
+          <a href="#tenant-service"><strong>tenant-service</strong><span>테넌트 생명주기</span></a>
+          <a href="#wms-service"><strong>wms-service</strong><span>창고 업무 도메인</span></a>
+          <a href="#audit-log-service"><strong>audit-log-service</strong><span>감사 로그 저장/조회</span></a>
+          <a href="#outbox-relay-service"><strong>outbox-relay-service</strong><span>outbox 발행</span></a>
+          <a href="#web-admin"><strong>web-admin</strong><span>관리자 웹 앱</span></a>
+          <a href="#web-wms"><strong>web-wms</strong><span>WMS 사용자 웹 앱</span></a>
+        </div>
+      </section>
+
+      <section id="gateway-service">
+        <div class="service-title">
+          <div>
+            <h2>gateway-service</h2>
+            <p>외부 요청의 공통 진입점입니다. 인증 토큰 확인, tenant context 검증, rate limit, BFF upstream 라우팅을 담당합니다.</p>
+          </div>
+          <span class="tag done">1차 구현</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 호출자</th><td>web-admin, web-wms, 외부 API client</td></tr>
+          <tr><th>핵심 책임</th><td>JWT 검증, <code>X-Tenant-Id</code>와 JWT tenant 일치 확인, requestId 생성/전파, rate limit, upstream proxy</td></tr>
+          <tr><th>라우팅 범위</th><td><code>/api/auth/**</code>는 auth-iam-service, <code>/api/admin/**</code>는 admin-bff-service, <code>/api/app/**</code>는 user-bff-service로 전달합니다.</td></tr>
+          <tr><th>제외 책임</th><td>도메인 비즈니스 로직, tenant-service 직접 상태 조회, domain/platform service 직접 라우팅은 맡지 않습니다.</td></tr>
+          <tr><th>공통 기능</th><td><code>GET /health</code>, <code>GET /ready</code>, CORS/security headers, JSON access log, Redis 기반 route별 rate limit</td></tr>
+          <tr><th>후속 범위</th><td>운영 환경별 rate limit tuning, gateway route 확장 시 BFF 선행 계약 검증, production CORS origin 확정</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">gateway-service는 사용자-facing 업무 의미를 해석하지 않고, 요청을 안전하게 분류하고 검증한 뒤 올바른 BFF 또는 인증 서비스로 전달합니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>기능</th><th>입력/사용자 행위</th><th>시스템 처리</th><th>결과/예외</th></tr>
+            <tr><td>Health 확인</td><td>운영자나 로드밸런서가 <code>GET /health</code>를 호출합니다.</td><td>프로세스 생존 여부만 빠르게 확인합니다.</td><td>정상 기동 중이면 표준 성공 envelope 또는 health 응답을 반환합니다.</td></tr>
+            <tr><td>Readiness 확인</td><td>배포, compose, ECS health check가 <code>GET /ready</code>를 호출합니다.</td><td>필수 config, upstream URL, Redis rate limit 의존성 등 gateway 준비 상태를 확인합니다.</td><td>준비되지 않은 항목이 있으면 <code>not_ready</code> 응답으로 배포/트래픽 투입을 막습니다.</td></tr>
+            <tr><td>인증 API proxy</td><td>사용자가 로그인, 토큰 갱신, 로그아웃, 내 정보 조회 요청을 보냅니다.</td><td><code>/api/auth/**</code> 요청을 auth-iam-service upstream으로 전달하고 requestId를 유지합니다.</td><td>auth-iam-service의 표준 응답을 gateway 응답으로 반환합니다.</td></tr>
+            <tr><td>관리자 API proxy</td><td>관리자가 tenant, 사용자, role, audit 조회 요청을 보냅니다.</td><td>JWT를 검증하고 tenant header 불일치를 차단한 뒤 <code>/api/admin/**</code>를 admin-bff-service로 전달합니다.</td><td>인증 실패는 <code>401</code>, tenant mismatch는 <code>403 TENANT_MISMATCH</code>, upstream 장애는 표준 gateway 오류로 반환합니다.</td></tr>
+            <tr><td>사용자 앱 API proxy</td><td>WMS 사용자가 app shell, navigation, WMS 화면 데이터를 요청합니다.</td><td><code>/api/app/**</code>를 user-bff-service로 전달하고 사용자/tenant/request context를 보존합니다.</td><td>User BFF의 업무 응답을 그대로 envelope 규칙에 맞춰 전달합니다.</td></tr>
+            <tr><td>Rate limit</td><td>특정 route에 과도한 요청이 들어옵니다.</td><td>Redis 기반 key로 route별 요청 수를 계산하고 정책치를 초과하면 차단합니다.</td><td><code>429 RATE_LIMIT_EXCEEDED</code>로 반환하며 도메인 서비스에는 요청을 전달하지 않습니다.</td></tr>
+            <tr><td>보안 header와 CORS</td><td>브라우저가 preflight 또는 실제 API 요청을 보냅니다.</td><td>허용 origin/method/header를 확인하고 보안 header를 추가합니다.</td><td>허용되지 않은 origin은 브라우저 접근을 차단하고, production wildcard CORS는 사용하지 않습니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/gateway-service.html">개발과정</a>
+          <a class="tag" href="../apis/gateway-service/index.html">API 문서</a>
+        </div>
+      </section>
+
+      <section id="admin-bff-service">
+        <div class="service-title">
+          <div>
+            <h2>admin-bff-service</h2>
+            <p>관리자 화면의 외부 API surface입니다. 여러 내부 서비스를 조합하되, 도메인 상태 변경은 각 owning service로 위임합니다.</p>
+          </div>
+          <span class="tag done">1차 구현</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 호출자</th><td>web-admin, gateway-service</td></tr>
+          <tr><th>핵심 책임</th><td>관리자 권한 확인, tenant readiness 확인, tenant/user/role/permission/audit 화면 데이터 조합, downstream request context 전파</td></tr>
+          <tr><th>Tenant 관리</th><td>tenant 목록, 생성, 상세, 수정, 상태 변경, module 교체, domain 목록/추가/비활성화 API를 tenant-service 내부 API로 위임합니다.</td></tr>
+          <tr><th>사용자/RBAC 관리</th><td>tenant 일반 사용자 CRUD, 사용자 상태 변경, role 목록/생성/수정, role permission 교체, user-role 부여/해제를 auth-iam-service로 위임합니다.</td></tr>
+          <tr><th>화면 조합</th><td><code>GET /api/admin/access-control/screen-data</code>에서 사용자, role, permission 목록을 조합해 access-control 화면 초기 데이터를 제공합니다.</td></tr>
+          <tr><th>Audit 조회</th><td><code>GET /api/admin/audit-logs</code>에서 audit-log-service 조회 API를 호출해 관리자 evidence 조회 화면을 지원합니다.</td></tr>
+          <tr><th>후속 범위</th><td><code>GET /api/admin/me</code>, audit-log-service 장애 처리 UX 정책, 운영 위험 작업 확인 흐름</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">Admin BFF는 관리자 화면의 업무 흐름을 API 단위로 안정화하고, 실제 데이터 변경은 tenant-service와 auth-iam-service 같은 owning service로 위임합니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>기능</th><th>사용자 행위</th><th>시스템 처리</th><th>권한/결과</th></tr>
+            <tr><td>Tenant 목록 조회</td><td>관리자가 tenant 목록 화면에 진입하거나 검색 조건을 입력합니다.</td><td>tenant-service의 internal admin 목록 API를 호출하고 page/size/상태 조건을 전달합니다.</td><td><code>tenant.tenants.read</code> 권한이 필요하며 list envelope로 반환합니다.</td></tr>
+            <tr><td>Tenant 생성</td><td>관리자가 tenant 이름, domain, 초기 module 정보를 입력하고 생성을 실행합니다.</td><td>idempotency key를 확인한 뒤 tenant-service 생성 API로 위임합니다. tenant code 생성과 outbox 저장은 tenant-service가 처리합니다.</td><td><code>tenant.tenants.create</code> 권한이 필요합니다. 중복 domain은 <code>TENANT_DOMAIN_CONFLICT</code>로 반환합니다.</td></tr>
+            <tr><td>Tenant 상태 변경</td><td>관리자가 tenant를 active/inactive/suspended 등 운영 상태로 변경합니다.</td><td>관리 권한과 idempotency key를 확인하고 tenant-service 상태 변경 API로 위임합니다.</td><td><code>tenant.tenants.updateStatus</code> 권한이 필요하며 변경 후 tenant object를 반환합니다.</td></tr>
+            <tr><td>Tenant module 관리</td><td>관리자가 tenant에 사용할 module 목록을 수정합니다.</td><td>요청한 module set을 tenant-service로 전달하고 enable/disable 차이를 처리하게 합니다.</td><td><code>tenant.modules.manage</code> 권한이 필요합니다. 변경 결과와 enabledModules를 반환합니다.</td></tr>
+            <tr><td>Tenant domain 관리</td><td>관리자가 tenant domain을 추가하거나 비활성화합니다.</td><td>domain 형식과 idempotency key를 확인한 뒤 tenant-service domain API로 위임합니다.</td><td><code>tenant.domains.manage</code> 권한이 필요합니다.</td></tr>
+            <tr><td>관리 사용자 목록/상세</td><td>관리자가 tenant 사용자 목록을 검색하거나 상세 화면을 엽니다.</td><td>auth-iam-service 사용자 목록/상세 API와 user-role 목록 API를 조합합니다.</td><td><code>auth.users.read</code> 권한이 필요하며 다른 tenant 사용자는 반환하지 않습니다.</td></tr>
+            <tr><td>관리 사용자 생성/수정</td><td>관리자가 일반 사용자 계정을 생성하거나 이름/email/status를 수정합니다.</td><td>tenant-scoped 사용자 API로 위임하고 <code>general_user</code>만 생성할 수 있게 제한합니다.</td><td><code>auth.users.create</code> 또는 <code>auth.users.update</code> 권한이 필요합니다.</td></tr>
+            <tr><td>Role/Permission 관리</td><td>관리자가 role을 만들고 permission 목록을 교체합니다.</td><td>auth-iam-service role, permission, role-permission API를 호출합니다.</td><td><code>auth.roles.*</code>, <code>auth.rolePermissions.manage</code> 계열 권한이 필요합니다.</td></tr>
+            <tr><td>Access control 화면 초기화</td><td>관리자가 접근제어 화면에 진입합니다.</td><td>users, roles, permissions 목록을 병렬 조회하고 화면 초기 데이터 형태로 조합합니다.</td><td>관련 read 권한을 모두 확인한 뒤 조합 결과를 반환합니다.</td></tr>
+            <tr><td>Audit log 검색</td><td>관리자가 기간, action, actor, resource, requestId로 감사 로그를 검색합니다.</td><td>audit-log-service 내부 조회 API에 query와 context를 전달합니다.</td><td><code>audit.logs.read</code> 권한이 필요하며 감사 로그 목록 envelope를 반환합니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/admin-bff-service.html">개발과정</a>
+          <a class="tag" href="../apis/admin-bff-service/index.html">API 문서</a>
+        </div>
+      </section>
+
+      <section id="user-bff-service">
+        <div class="service-title">
+          <div>
+            <h2>user-bff-service</h2>
+            <p>일반 사용자 앱의 BFF입니다. 사용자 app shell, navigation, WMS 화면 데이터를 조합하고 tenant/module/permission 기준으로 화면 노출을 제어합니다.</p>
+          </div>
+          <span class="tag done">App shell 구현</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 호출자</th><td>web-wms, gateway-service</td></tr>
+          <tr><th>핵심 책임</th><td>tenant active 확인, module 사용 가능 여부 확인, permission summary 조회, app shell 데이터 조합, user-facing API envelope 제공</td></tr>
+          <tr><th>구현 기능</th><td><code>GET /api/app/me</code>, <code>GET /api/app/navigation</code>, app context loaded/navigation loaded audit best-effort 기록</td></tr>
+          <tr><th>WMS 화면 계획</th><td>창고 목록, 자재 목록, 재고 요약, WMS dashboard, 향후 입고/출고/포장 작업 화면 데이터를 wms-service 내부 API에서 조합합니다.</td></tr>
+          <tr><th>감사 정책</th><td>app shell 진입과 navigation 조회는 user-bff-service가 EventBridge 또는 audit-log-service 내부 POST fallback으로 best-effort 기록합니다. 실패해도 원 업무 응답은 차단하지 않습니다.</td></tr>
+          <tr><th>후속 범위</th><td>WMS 화면별 screen-data API 구현, 화면 권한별 navigation 세분화, web-wms 첫 화면 연결</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">User BFF는 현장 사용자가 보는 화면 데이터를 한 번에 읽기 좋게 조합하고, 메뉴/버튼 노출에 필요한 permission summary를 함께 제공합니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>기능</th><th>사용자 행위</th><th>시스템 처리</th><th>권한/결과</th></tr>
+            <tr><td>App context 조회</td><td>사용자가 로그인 후 앱 첫 화면에 진입합니다.</td><td>사용자 정보, tenant 상태, enabled module, permission summary를 조회해 app shell context로 조합합니다.</td><td><code>GET /api/app/me</code> 응답으로 사용자/tenant/module/permission 정보를 반환합니다.</td></tr>
+            <tr><td>Navigation 조회</td><td>사용자가 사이드바나 상단 메뉴를 로드합니다.</td><td>tenant module과 permission summary를 기준으로 표시 가능한 메뉴를 계산합니다.</td><td><code>GET /api/app/navigation</code> 응답으로 메뉴 tree와 사용할 수 없는 항목의 제외 결과를 반환합니다.</td></tr>
+            <tr><td>Tenant readiness guard</td><td>사용자가 업무 API를 호출합니다.</td><td>tenant-service status API로 active tenant인지 확인합니다.</td><td>inactive/suspended tenant는 <code>TENANT_NOT_READY</code>로 차단합니다.</td></tr>
+            <tr><td>Module guard</td><td>사용자가 WMS 화면 또는 API에 접근합니다.</td><td>tenant-service modules API로 <code>wms</code> module이 enabled인지 확인합니다.</td><td>module이 꺼진 tenant는 WMS 화면 데이터를 반환하지 않습니다.</td></tr>
+            <tr><td>WMS 창고 화면 데이터</td><td>사용자가 창고/로케이션 기준정보 화면을 엽니다.</td><td>wms-service 창고/로케이션 API를 호출해 필터와 paging을 화면 모델로 변환합니다.</td><td>후속 구현 대상이며 <code>wms.warehouses.manage</code>, <code>wms.locations.manage</code> 또는 읽기 권한 분리가 필요합니다.</td></tr>
+            <tr><td>WMS 재고 화면 데이터</td><td>사용자가 재고 검색 조건을 입력하거나 요약을 조회합니다.</td><td>wms-service inventory/snapshot API를 호출해 현재고, 가용 수량, 과거 스냅샷을 조합합니다.</td><td>후속 구현 대상이며 <code>wms.inventory.read</code> 권한이 필요합니다.</td></tr>
+            <tr><td>WMS 작업 화면 데이터</td><td>사용자가 입고, 출고, 포장 작업 화면을 엽니다.</td><td>WMS 업무 API 결과를 사용자 화면용 상태명, 액션 가능 여부, 권한 플래그로 변환합니다.</td><td>후속 구현 대상이며 작업별 권한이 없는 사용자는 액션 버튼을 노출하지 않습니다.</td></tr>
+            <tr><td>App audit 기록</td><td>사용자가 app context 또는 navigation을 조회합니다.</td><td>EventBridge 또는 internal-api fallback으로 <code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code> 기록을 시도합니다.</td><td>감사 기록 실패는 warning log로 남기고 원 응답은 성공 처리합니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/user-bff-service.html">개발과정</a>
+          <a class="tag" href="../apis/user-bff-service/index.html">API 문서</a>
+        </div>
+      </section>
+
+      <section id="auth-iam-service">
+        <div class="service-title">
+          <div>
+            <h2>auth-iam-service</h2>
+            <p>인증, 사용자, role, permission의 source of truth입니다. JWT는 최소 claim만 담고 권한 판단은 이 서비스가 수행합니다.</p>
+          </div>
+          <span class="tag done">1차 구현</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 호출자</th><td>gateway-service, admin-bff-service, user-bff-service, wms-service</td></tr>
+          <tr><th>인증 기능</th><td>로그인, access token 발급, refresh token rotation, logout, 현재 사용자 조회를 제공합니다.</td></tr>
+          <tr><th>사용자 관리</th><td>tenant-scoped 일반 사용자 생성/조회/수정/비활성화, user type 분리, system_admin과 general_user 경계 검증을 담당합니다.</td></tr>
+          <tr><th>RBAC 관리</th><td>permission catalog, tenant role, role-permission 교체, user-role 부여/해제, warehouse scope 기반 user-role을 관리합니다.</td></tr>
+          <tr><th>권한 확인</th><td><code>GET /api/auth/permissions/summary</code>와 <code>POST /api/auth/permissions/check</code>로 BFF 메뉴 노출과 도메인 실행 권한을 지원합니다.</td></tr>
+          <tr><th>이벤트</th><td><code>auth.user.created</code>, <code>auth.user.updated</code>, <code>auth.user.statusChanged</code>, <code>auth.permission.created</code>, <code>auth.role.created</code>, <code>auth.role.updated</code>, <code>auth.role.permissionsReplaced</code>, <code>auth.userRole.assigned</code>, <code>auth.userRole.removed</code></td></tr>
+          <tr><th>후속 범위</th><td>system_admin bootstrap 분리 강화, permission catalog 운영 UI와 검증 증적 축적, ABAC 확장 검토</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">Auth/IAM은 사용자 identity와 권한 판단의 기준점입니다. 도메인 서비스는 권한을 자체 해석하지 않고 이 서비스의 check API를 호출합니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>기능</th><th>입력/행위</th><th>시스템 처리</th><th>결과/이벤트</th></tr>
+            <tr><td>로그인</td><td>사용자가 email/password를 제출합니다.</td><td>사용자 상태, password hash, tenantId, userType을 확인하고 access token과 refresh token을 발급합니다.</td><td>성공 시 JWT와 refresh token을 반환하고, 실패 시 <code>AUTH_INVALID_CREDENTIALS</code> 또는 계정 상태 오류를 반환합니다.</td></tr>
+            <tr><td>Token refresh</td><td>클라이언트가 refresh token으로 새 access token을 요청합니다.</td><td>서버 저장 refresh token을 조회하고 만료/폐기 여부를 확인한 뒤 refresh token rotation을 수행합니다.</td><td>새 access token과 새 refresh token을 반환하고 이전 refresh token은 폐기합니다.</td></tr>
+            <tr><td>Logout</td><td>사용자가 로그아웃합니다.</td><td>전달된 refresh token 또는 사용자 세션을 폐기합니다.</td><td>이후 같은 refresh token 재사용은 실패합니다.</td></tr>
+            <tr><td>내 정보 조회</td><td>gateway가 검증한 사용자 context로 <code>GET /api/auth/me</code>를 호출합니다.</td><td>사용자 기본 정보와 tenant/userType/status를 조회합니다.</td><td>BFF app/admin shell에서 사용할 사용자 정보를 반환합니다.</td></tr>
+            <tr><td>사용자 생성</td><td>관리자가 tenant 사용자 email, displayName, password를 입력합니다.</td><td>tenant scope와 userType 규칙을 검증하고 password를 hash해 저장합니다.</td><td><code>auth.user.created</code> outbox 이벤트를 저장합니다. email 중복은 <code>AUTH_USER_EMAIL_CONFLICT</code>입니다.</td></tr>
+            <tr><td>사용자 수정/상태 변경</td><td>관리자가 사용자 이름, email 또는 status를 변경합니다.</td><td>tenant scope로 대상 사용자를 찾고 수정 가능 필드를 검증합니다.</td><td><code>auth.user.updated</code> 또는 <code>auth.user.statusChanged</code> 이벤트를 저장합니다.</td></tr>
+            <tr><td>Permission catalog 관리</td><td>관리자가 새 permission code를 등록하거나 목록을 조회합니다.</td><td><code>{domain}.{resource}.{action}</code> 형식의 code 중복을 검증합니다.</td><td>생성 시 <code>auth.permission.created</code> 이벤트를 저장합니다.</td></tr>
+            <tr><td>Role 관리</td><td>관리자가 tenant role을 생성, 조회, 수정합니다.</td><td>tenant scope 안에서 role code/name을 검증하고 저장합니다.</td><td><code>auth.role.created</code>, <code>auth.role.updated</code> 이벤트를 저장합니다.</td></tr>
+            <tr><td>Role permission 교체</td><td>관리자가 role에 포함될 permission code 목록을 저장합니다.</td><td>요청된 permission 존재 여부를 확인하고 role-permission mapping을 전체 교체합니다.</td><td><code>auth.role.permissionsReplaced</code> 이벤트를 저장하고 최종 permission 목록을 반환합니다.</td></tr>
+            <tr><td>User role 부여/해제</td><td>관리자가 사용자에게 role을 부여하거나 제거합니다.</td><td>tenant scope, role/user 존재 여부, optional warehouse scope를 검증합니다.</td><td><code>auth.userRole.assigned</code>, <code>auth.userRole.removed</code> 이벤트를 저장합니다.</td></tr>
+            <tr><td>Permission summary</td><td>BFF가 메뉴/버튼 표시를 위해 사용자 권한 요약을 요청합니다.</td><td>사용자 role과 role permission, warehouse scope를 집계합니다.</td><td>role 목록, permission code 목록, scope 요약을 반환합니다.</td></tr>
+            <tr><td>Permission check</td><td>도메인 서비스가 업무 실행 전 특정 permission과 optional warehouse scope를 확인합니다.</td><td>사용자 role mapping과 scope를 확인해 allow/deny를 계산합니다.</td><td>허용 여부와 거부 사유를 반환하며, 도메인 서비스는 deny 시 업무 mutation을 수행하지 않습니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/auth-iam-service.html">개발과정</a>
+          <a class="tag" href="../apis/auth-iam-service/index.html">API 문서</a>
+        </div>
+      </section>
+
+      <section id="tenant-service">
+        <div class="service-title">
+          <div>
+            <h2>tenant-service</h2>
+            <p>테넌트 생명주기와 module/domain 설정의 source of truth입니다. 외부에는 직접 노출하지 않고 BFF 내부 호출로만 사용합니다.</p>
+          </div>
+          <span class="tag done">1차 구현</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 호출자</th><td>admin-bff-service, user-bff-service, wms-service, auth-iam-service</td></tr>
+          <tr><th>Tenant 식별</th><td>내부 식별자는 UUID <code>tenantId</code>, 운영자와 화면용 식별자는 unique <code>tenant.code</code>로 분리합니다.</td></tr>
+          <tr><th>생명주기 관리</th><td>tenant 생성, 목록, 상세, 기본 정보 수정, 상태 변경, active readiness 확인을 제공합니다.</td></tr>
+          <tr><th>Module 관리</th><td>tenant별 enabled module 목록 조회와 module enable/disable 변경을 담당합니다.</td></tr>
+          <tr><th>Domain 관리</th><td>tenant domain 목록, 추가, 비활성화를 관리하고 domain 기반 tenant.code 생성 규칙을 지원합니다.</td></tr>
+          <tr><th>이벤트</th><td><code>tenant.created</code>, <code>tenant.status.changed</code>, <code>tenant.module.enabled</code>, <code>tenant.module.disabled</code></td></tr>
+          <tr><th>후속 범위</th><td>tenant setting 확장, tenant proxy 접근 정책, module별 provisioning 자동화, 운영 승인/audit 정책 보강</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">tenant-service는 tenant의 운영 상태와 사용 가능한 module을 결정합니다. BFF와 도메인 서비스는 업무 처리 전 이 정보를 기준으로 접근 가능 여부를 확인합니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>기능</th><th>입력/행위</th><th>시스템 처리</th><th>결과/이벤트</th></tr>
+            <tr><td>Tenant 생성</td><td>관리자가 tenant 이름, domain, 초기 module 정보를 입력합니다.</td><td>UUID tenantId를 만들고, domain 또는 name 기반 8자리 tenant.code를 생성하며, 기본 domain/module/settings를 저장합니다.</td><td><code>tenant.created</code> 이벤트를 저장하고 tenant 기본 정보를 반환합니다.</td></tr>
+            <tr><td>Tenant 목록 조회</td><td>관리자가 tenant 운영 목록을 조회합니다.</td><td>상태, code, 이름 조건과 page/size를 적용해 tenant 목록을 조회합니다.</td><td>list envelope로 반환하며 관리 화면에서 tenant 선택과 상태 확인에 사용합니다.</td></tr>
+            <tr><td>Tenant 상세 조회</td><td>관리자가 특정 tenant 상세 화면을 엽니다.</td><td>tenant 기본 정보, domains, enabledModules, settings를 함께 조회합니다.</td><td>Admin BFF가 상세 화면 데이터로 조합할 수 있는 object를 반환합니다.</td></tr>
+            <tr><td>Tenant 기본 정보 수정</td><td>관리자가 tenant 표시 이름 등을 수정합니다.</td><td>tenant 존재 여부와 수정 가능한 필드를 검증하고 저장합니다.</td><td>수정된 tenant object를 반환합니다.</td></tr>
+            <tr><td>Tenant 상태 변경</td><td>관리자가 tenant 운영 상태를 변경합니다.</td><td>상태 enum과 변경 사유를 검증하고 tenant.status를 변경합니다.</td><td><code>tenant.status.changed</code> 이벤트를 같은 transaction에서 저장합니다.</td></tr>
+            <tr><td>Tenant status 확인</td><td>BFF나 도메인 서비스가 업무 처리 전 tenant 상태를 확인합니다.</td><td>tenantId로 tenant를 찾고 현재 status를 읽습니다.</td><td>active 여부와 상태 값을 반환합니다. BFF는 active가 아니면 업무 API를 차단합니다.</td></tr>
+            <tr><td>Module 목록 조회</td><td>BFF나 도메인 서비스가 tenant의 module 사용 여부를 확인합니다.</td><td>tenant module mapping을 읽고 enabled module code 목록을 구성합니다.</td><td>예: WMS module이 없으면 WMS 업무 화면과 API 접근을 제한합니다.</td></tr>
+            <tr><td>Module 교체</td><td>관리자가 tenant별 enabled module 목록을 저장합니다.</td><td>현재 module set과 요청 set을 비교해 enable/disable 변경분을 계산합니다.</td><td>변경분마다 <code>tenant.module.enabled</code> 또는 <code>tenant.module.disabled</code> 이벤트를 저장합니다.</td></tr>
+            <tr><td>Domain 목록/추가</td><td>관리자가 tenant에 접속 domain을 추가합니다.</td><td>domain 형식과 중복을 검증하고 tenant domain row를 생성합니다.</td><td>domain 목록 또는 생성된 domain object를 반환합니다.</td></tr>
+            <tr><td>Domain 비활성화</td><td>관리자가 더 이상 쓰지 않는 domain을 제거 요청합니다.</td><td>domain row를 삭제하기보다 비활성 상태로 변경해 추적 가능성을 유지합니다.</td><td>비활성화된 domain object를 반환합니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/tenant-service.html">개발과정</a>
+          <a class="tag" href="../apis/tenant-service/index.html">API 문서</a>
+        </div>
+      </section>
+
+      <section id="wms-service">
+        <div class="service-title">
+          <div>
+            <h2>wms-service</h2>
+            <p>첫 메인 도메인인 창고관리 서비스입니다. WMS 업무 규칙과 재고 정합성은 이 서비스 안에서 처리합니다.</p>
+          </div>
+          <span class="tag done">1차 구현</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 호출자</th><td>user-bff-service, admin-bff-service, 운영 검증 스크립트</td></tr>
+          <tr><th>기준정보</th><td>창고, 로케이션, 품목 생성과 조회를 tenant 범위로 제공합니다.</td></tr>
+          <tr><th>재고 관리</th><td>현재고/할당/가용 수량 조회, 재고 조정, 음수 재고 방지, mutation과 outbox 저장의 같은 transaction 처리를 제공합니다.</td></tr>
+          <tr><th>입고</th><td>입고 확정 시 현재고를 증가시키고 <code>wms.inbound.confirmed</code> 이벤트를 저장합니다.</td></tr>
+          <tr><th>출고</th><td>출고 할당, 직접 출하, 포장 기반 출하를 지원합니다. 출하 완료 시 할당과 현재고를 차감합니다.</td></tr>
+          <tr><th>포장</th><td>포장 작업 생성, 패키지 등록, 포장 수량 검증, 포장 확정, <code>wms.outbound.packed</code> 이벤트 저장을 제공합니다.</td></tr>
+          <tr><th>스냅샷</th><td>재고 변경 원장 기반 일 단위 스냅샷 조회/생성/재생성, 서울 기본 business date, 과거일 보정 추적, <code>wms.inventory.snapshot.generated</code> 이벤트 저장을 제공합니다.</td></tr>
+          <tr><th>권한</th><td><code>wms.warehouses.manage</code>, <code>wms.locations.manage</code>, <code>wms.items.manage</code>, <code>wms.inventory.read</code>, <code>wms.inventory.adjust</code>, <code>wms.inventory.snapshot.generate</code>, <code>wms.inbound.confirm</code>, <code>wms.outbound.allocate</code>, <code>wms.outbound.pack</code>, <code>wms.outbound.ship</code></td></tr>
+          <tr><th>이벤트</th><td><code>wms.inventory.adjusted</code>, <code>wms.inventory.snapshot.generated</code>, <code>wms.inbound.confirmed</code>, <code>wms.outbound.allocated</code>, <code>wms.outbound.packed</code>, <code>wms.outbound.shipped</code></td></tr>
+          <tr><th>후속 범위</th><td>tenant 격리 전용 스냅샷 시나리오, lot/serial, 작업 지시 고도화, 입고/출고 취소와 보정 승인 정책</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">WMS는 재고 수량이 바뀌는 모든 업무를 transaction으로 묶고, 현재고 balance, 변경 원장, outbox event를 함께 관리합니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>기능</th><th>업무 행위</th><th>시스템 처리</th><th>권한/결과</th></tr>
+            <tr><td>창고 생성</td><td>관리자 또는 운영자가 창고 code/name을 등록합니다.</td><td>tenant scope 안에서 창고 code 중복을 확인하고 warehouse row를 생성합니다.</td><td><code>wms.warehouses.manage</code> 권한이 필요하며 생성된 warehouse를 반환합니다.</td></tr>
+            <tr><td>창고 목록 조회</td><td>사용자가 창고 기준정보 화면을 조회합니다.</td><td>tenantId 조건으로 창고 목록을 조회하고 page/size를 적용합니다.</td><td>list envelope로 반환합니다. 읽기 전용 권한 분리는 후속입니다.</td></tr>
+            <tr><td>로케이션 생성</td><td>사용자가 특정 창고 안에 보관/피킹 등 로케이션을 등록합니다.</td><td>warehouse tenant 일치와 location code 중복을 검증하고 location row를 생성합니다.</td><td><code>wms.locations.manage</code> 권한과 warehouse scope가 필요합니다.</td></tr>
+            <tr><td>품목 생성</td><td>사용자가 SKU, 품명, 단위를 등록합니다.</td><td>tenant scope 안에서 SKU 중복을 확인하고 item row를 생성합니다.</td><td><code>wms.items.manage</code> 권한이 필요합니다.</td></tr>
+            <tr><td>현재고 조회</td><td>사용자가 창고/로케이션/품목 조건으로 현재 재고를 조회합니다.</td><td>inventory balance를 tenant 조건으로 조회하고 quantity, allocatedQuantity, availableQuantity를 계산합니다.</td><td><code>wms.inventory.read</code> 권한이 필요하며 decimal string으로 반환합니다.</td></tr>
+            <tr><td>재고 조정</td><td>사용자가 실사 차이, 파손, 조정 사유로 수량 증감 요청을 입력합니다.</td><td>현재 balance를 잠그고 음수 재고 여부를 검증한 뒤 balance를 변경합니다. adjustment row, inventory ledger, outbox event를 같은 transaction에 저장합니다.</td><td><code>wms.inventory.adjust</code> 권한이 필요하며 <code>wms.inventory.adjusted</code> 이벤트가 생성됩니다.</td></tr>
+            <tr><td>과거일 재고 보정</td><td>운영자가 과거 일자의 원장을 정정하기 위해 effectiveDate와 correctedLedgerId를 입력합니다.</td><td>참조 원장이 같은 tenant/warehouse/location/item인지 확인하고 correction ledger를 남깁니다.</td><td>현재고는 보정 수량을 반영하고, 과거 스냅샷 재생성 시 이전/새 snapshot version을 추적합니다.</td></tr>
+            <tr><td>입고 확정</td><td>입고 담당자가 창고, 로케이션, 품목, 수량, referenceNo로 입고를 확정합니다.</td><td>입고 row를 생성하고 balance quantity를 증가시키며 inbound ledger를 저장합니다.</td><td><code>wms.inbound.confirm</code> 권한이 필요하며 <code>wms.inbound.confirmed</code> 이벤트가 생성됩니다.</td></tr>
+            <tr><td>출고 할당</td><td>출고 담당자가 주문번호, 품목, 수량으로 재고를 할당합니다.</td><td>availableQuantity를 검증하고 allocatedQuantity를 증가시켜 allocation row와 ledger를 저장합니다.</td><td><code>wms.outbound.allocate</code> 권한이 필요합니다. 부족하면 <code>WMS_INSUFFICIENT_STOCK</code>로 실패하고 outbox는 생성하지 않습니다.</td></tr>
+            <tr><td>직접 출하</td><td>담당자가 allocationId 기준으로 출하 완료를 처리합니다.</td><td>allocation 상태를 확인하고 quantity와 allocatedQuantity를 함께 차감합니다. shipment row와 ledger를 저장합니다.</td><td><code>wms.outbound.ship</code> 권한이 필요하며 <code>wms.outbound.shipped</code> 이벤트가 생성됩니다.</td></tr>
+            <tr><td>포장 작업 생성</td><td>담당자가 하나 이상의 allocated allocation을 포장 작업으로 묶습니다.</td><td>allocation 상태, tenant, warehouse 일치 여부를 검증하고 packing row를 생성합니다.</td><td><code>wms.outbound.pack</code> 권한이 필요하며 packing status는 작업 상태로 반환됩니다.</td></tr>
+            <tr><td>패키지 등록</td><td>담당자가 박스 번호, 포장 수량, 품목별 구성 정보를 입력합니다.</td><td>packing 상태와 품목/수량 합계를 검증하고 package와 package item row를 저장합니다.</td><td>수량 불일치는 포장 확정 시 <code>WMS_PACKAGE_QUANTITY_MISMATCH</code>로 차단됩니다.</td></tr>
+            <tr><td>포장 확정</td><td>담당자가 패키지 등록 완료 후 포장을 확정합니다.</td><td>allocation 수량과 package item 합계를 비교하고 packing을 packed 상태로 변경합니다.</td><td><code>wms.outbound.packed</code> 이벤트를 저장합니다.</td></tr>
+            <tr><td>포장 기반 출하</td><td>담당자가 packingId로 출하 완료를 처리합니다.</td><td>packed 상태인지 확인하고 연결된 allocation별로 현재고와 할당 수량을 차감합니다.</td><td><code>wms.outbound.shipped</code> 이벤트를 저장하고 이미 출하된 packing은 <code>WMS_SHIPMENT_ALREADY_SHIPPED</code>로 차단합니다.</td></tr>
+            <tr><td>일 단위 스냅샷 생성</td><td>배치 또는 운영자가 snapshotDate와 optional warehouseId로 스냅샷 생성을 실행합니다.</td><td>해당 일자의 ledger cutoff 기준으로 warehouse/location/item별 마지막 balance를 찾아 daily snapshot current row를 생성합니다.</td><td><code>wms.inventory.snapshot.generate</code> 권한이 필요하며 <code>wms.inventory.snapshot.generated</code> 이벤트를 저장합니다.</td></tr>
+            <tr><td>스냅샷 재실행/재생성</td><td>운영자가 같은 일자를 재실행하거나 보정 후 rebuild합니다.</td><td>동일 sourceLedgerId와 수량이면 새 row 없이 unchangedCount만 증가합니다. 변경이 있으면 기존 current row를 <code>isCurrent=false</code>로 보관하고 새 row를 생성합니다.</td><td>보정 전/후 수량은 <code>previousSnapshotId</code>로 추적합니다.</td></tr>
+            <tr><td>스냅샷 조회</td><td>사용자가 과거 일자의 보유 자재 수량을 조회합니다.</td><td>snapshotDate, warehouseId, locationId, itemId 조건으로 current snapshot row만 조회합니다.</td><td><code>wms.inventory.read</code> 권한이 필요하며 스냅샷 미생성 일자는 <code>WMS_SNAPSHOT_NOT_READY</code>입니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/wms-service.html">개발과정</a>
+          <a class="tag" href="../apis/wms-service/index.html">API 문서</a>
+        </div>
+      </section>
+
+      <section id="audit-log-service">
+        <div class="service-title">
+          <div>
+            <h2>audit-log-service</h2>
+            <p>업무 행위에 대한 append-only 감사 로그를 저장하고 조회합니다. 시스템 로그와 별도로 business evidence를 보관합니다.</p>
+          </div>
+          <span class="tag done">1차 구현</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 호출자</th><td>outbox-relay-service가 전달한 SQS/EventBridge 이벤트, admin-bff-service, user-bff-service internal-api fallback</td></tr>
+          <tr><th>저장 기능</th><td>domain event payload를 검증해 <code>audit_logs</code>에 append-only로 저장하고 <code>eventId</code> 기준 멱등 처리를 합니다.</td></tr>
+          <tr><th>조회 기능</th><td>관리자 조회를 위해 page/size, 기간, actor, action, resource, result, requestId 필터를 제공합니다.</td></tr>
+          <tr><th>소비 경로</th><td>outbox-relay-service가 SQS로 발행한 Auth/IAM, tenant, WMS 이벤트를 polling consumer가 소비합니다.</td></tr>
+          <tr><th>직접 기록</th><td>user-bff-service의 app shell audit처럼 outbox가 없는 best-effort 기록은 EventBridge 발행을 우선 사용하고, 내부 POST API는 호환 fallback으로 수신합니다.</td></tr>
+          <tr><th>보안</th><td>내부 HMAC 인증, 민감 키 details 저장 방지, GET은 admin-bff-service, POST fallback은 user-bff-service 호출자로 제한합니다.</td></tr>
+          <tr><th>후속 범위</th><td>DLQ 운영 절차, 검색 성능 기준, 보존 정책, 감사 로그 export와 운영 alert 기준</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">audit-log-service는 업무 evidence 저장소입니다. 이벤트를 받으면 원천 서비스의 업무 사실을 감사 로그 형태로 보존하고, 관리자 검색 API로 제공합니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>기능</th><th>입력/행위</th><th>시스템 처리</th><th>결과/예외</th></tr>
+            <tr><td>SQS 이벤트 소비</td><td>outbox-relay-service가 audit event queue에 domain event를 발행합니다.</td><td>polling worker가 메시지를 읽고 event envelope를 파싱합니다.</td><td>저장 성공 후에만 SQS 메시지를 삭제합니다.</td></tr>
+            <tr><td>감사 로그 저장</td><td>Auth/IAM, tenant, WMS 이벤트 payload가 들어옵니다.</td><td>eventId, schemaVersion, tenantId, requestId, occurredAt, actor, aggregate 정보를 검증합니다.</td><td><code>audit_logs</code>에 append-only row를 생성합니다.</td></tr>
+            <tr><td>멱등 처리</td><td>같은 eventId가 재전달됩니다.</td><td>기존 audit log를 eventId로 조회합니다.</td><td>이미 있으면 중복 저장하지 않고 성공으로 처리합니다.</td></tr>
+            <tr><td>민감 정보 방지</td><td>이벤트 data에 password, token, Authorization 같은 민감 키가 포함될 수 있습니다.</td><td>details 저장 전 민감 키를 검증합니다.</td><td>민감 값 포함 시 저장 실패로 처리해 운영자가 이벤트 payload를 수정하게 합니다.</td></tr>
+            <tr><td>내부 직접 기록</td><td>user-bff-service가 internal-api fallback 모드에서 app shell 진입 audit를 직접 POST합니다.</td><td>내부 HMAC 인증과 허용 serviceId를 확인한 뒤 recordFromEvent로 저장합니다.</td><td>성공 시 auditId와 recorded=true를 반환합니다.</td></tr>
+            <tr><td>감사 로그 목록 조회</td><td>Admin BFF가 기간, action, actor, resource, result, requestId 조건을 전달합니다.</td><td>tenantId 조건을 필수로 적용하고 page/size, 정렬, 필터를 DB query로 변환합니다.</td><td>list envelope로 반환하며 다른 tenant 감사 로그는 섞이지 않습니다.</td></tr>
+            <tr><td>조회 권한 경계</td><td>관리자가 audit 화면에서 검색합니다.</td><td>직접 사용자 권한을 판단하지 않고 Admin BFF가 권한 확인 후 내부 API로 호출합니다.</td><td>허용 호출자는 admin-bff-service로 제한합니다.</td></tr>
+            <tr><td>장애 처리</td><td>DB 쓰기 실패, 이벤트 payload 오류, SQS 장애가 발생합니다.</td><td>오류 로그에 requestId, tenantId, eventId, action을 남기고 메시지는 삭제하지 않습니다.</td><td>SQS visibility timeout 후 재시도되며, 장기 실패는 DLQ/운영 알림 대상으로 봅니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/audit-log-service.html">개발과정</a>
+          <a class="tag" href="../apis/audit-log-service/index.html">API 문서</a>
+        </div>
+      </section>
+
+      <section id="outbox-relay-service">
+        <div class="service-title">
+          <div>
+            <h2>outbox-relay-service</h2>
+            <p>각 서비스 DB의 outbox_events를 읽어 외부 메시징 대상으로 발행합니다. 도메인 DB를 직접 수정하지 않고 이벤트 전달 상태만 관리합니다.</p>
+          </div>
+          <span class="tag done">1차 구현</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 호출자</th><td>자체 worker, 운영자 내부 API, CDK/ECS runtime</td></tr>
+          <tr><th>소스</th><td>Auth/IAM, tenant, WMS 등 source DB별 outbox table을 polling합니다.</td></tr>
+          <tr><th>발행 대상</th><td>local/mock, EventBridge, SQS publisher를 지원하며 audit event queue로 업무 이벤트를 전달할 수 있습니다.</td></tr>
+          <tr><th>처리 정책</th><td>pending event claim, lock timeout, retry count, failed 상태 기록, published target과 provider message id 기록을 담당합니다.</td></tr>
+          <tr><th>운영 API</th><td><code>GET /internal/operations/outbox-relay/status</code>, <code>GET /internal/operations/outbox-relay/sources</code>로 worker와 source별 pending/failed 상태를 확인합니다.</td></tr>
+          <tr><th>후속 범위</th><td>source별 운영 alert, DLQ replay 정책, EventBridge schema registry, 멀티 source 장애 격리</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">outbox-relay-service는 각 서비스가 transaction 안에 저장한 outbox event를 외부 메시징으로 옮기는 신뢰성 계층입니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>기능</th><th>입력/상태</th><th>시스템 처리</th><th>결과/운영 기준</th></tr>
+            <tr><td>Source 등록</td><td>환경 변수에 source 이름과 DB URL이 설정됩니다.</td><td>source registry가 각 DB의 outbox adapter를 구성합니다.</td><td>설정 누락 source는 readiness에서 확인 대상이 됩니다.</td></tr>
+            <tr><td>Pending event polling</td><td>source DB에 <code>pending</code> outbox row가 있습니다.</td><td>worker가 batch size만큼 조회하고 lock을 획득합니다.</td><td>다른 relay worker가 같은 event를 동시에 처리하지 못하게 합니다.</td></tr>
+            <tr><td>Event envelope 검증</td><td>outbox row의 column 값과 payload 값이 들어옵니다.</td><td>eventId, eventType, schemaVersion, tenantId, requestId, aggregateId 등 payload와 outbox column 일치 여부를 확인합니다.</td><td>불일치하면 발행하지 않고 실패 처리합니다.</td></tr>
+            <tr><td>SQS 발행</td><td>publisher type이 SQS로 설정되어 있습니다.</td><td>event payload를 MessageBody로 보내고 eventId/eventType/tenantId/requestId를 message attributes에 넣습니다.</td><td>발행 성공 시 outbox row를 <code>published</code>로 갱신하고 target/message id를 기록합니다.</td></tr>
+            <tr><td>EventBridge 발행</td><td>publisher type이 EventBridge로 설정되어 있습니다.</td><td>event bus, source prefix, detailType 기준으로 이벤트를 발행합니다.</td><td>성공 시 published target을 기록합니다.</td></tr>
+            <tr><td>Retry 처리</td><td>일시적 네트워크 오류나 publisher 오류가 발생합니다.</td><td>retryCount를 증가시키고 nextRetryAt을 계산합니다.</td><td>최대 재시도 전까지 pending 상태로 재시도하며, 초과하면 failed로 전환합니다.</td></tr>
+            <tr><td>Lock timeout 복구</td><td>worker가 event를 lock한 뒤 비정상 종료됩니다.</td><td>lockedAt이 timeout을 넘은 row를 다시 claim 가능하게 봅니다.</td><td>중단된 이벤트가 영구 정체되지 않게 합니다.</td></tr>
+            <tr><td>운영 상태 조회</td><td>운영자가 relay 상태 API를 호출합니다.</td><td>worker enabled, publisher type, 처리 카운터, 마지막 성공/실패 정보를 반환합니다.</td><td>운영 대시보드나 수동 점검에서 사용합니다.</td></tr>
+            <tr><td>Source 상태 조회</td><td>운영자가 source별 backlog를 확인합니다.</td><td>pending/failed count와 oldest pending age를 집계합니다.</td><td>특정 서비스 outbox 적체를 빠르게 식별합니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/outbox-relay-service.html">개발과정</a>
+          <a class="tag" href="../apis/outbox-relay-service/index.html">API 문서</a>
+        </div>
+      </section>
+
+      <section id="web-admin">
+        <div class="service-title">
+          <div>
+            <h2>web-admin</h2>
+            <p>운영자와 관리자를 위한 React + Vite 웹 앱입니다. Admin BFF API를 사용해 tenant와 접근제어 운영 화면을 제공합니다.</p>
+          </div>
+          <span class="tag todo">착수 전</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 사용자</th><td>system_admin, tenant_admin, 운영 담당자</td></tr>
+          <tr><th>연결 서비스</th><td>gateway-service를 통해 admin-bff-service의 <code>/api/admin/**</code> API를 호출합니다.</td></tr>
+          <tr><th>Tenant 화면</th><td>tenant 목록, 상세, 생성, 상태 변경, module 변경, domain 관리 화면을 제공합니다.</td></tr>
+          <tr><th>사용자/RBAC 화면</th><td>사용자 목록/상세/생성/상태 변경, role 관리, permission catalog, role permission 교체, user-role 부여/해제 화면을 제공합니다.</td></tr>
+          <tr><th>Audit 화면</th><td>action, actor, 기간, resource, requestId 기준 검색과 evidence 상세 확인 화면을 제공합니다.</td></tr>
+          <tr><th>UX 기준</th><td>위험 작업은 실행 전 확인을 받고, 완료 후 requestId와 변경 결과를 확인할 수 있어야 합니다.</td></tr>
+          <tr><th>후속 범위</th><td>로그인 이후 admin shell, tenant 관리 화면, access-control 화면, audit-log 화면 순서로 구현합니다.</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">web-admin은 운영자가 시스템 설정과 접근제어를 반복적으로 처리하는 업무 도구입니다. 화면은 dense하고 비교/검색/확인이 쉬운 구조를 우선합니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>화면/기능</th><th>사용자 행위</th><th>표시/처리 내용</th><th>완료 기준</th></tr>
+            <tr><td>로그인/세션</td><td>관리자가 계정으로 로그인하고 관리자 앱에 진입합니다.</td><td>gateway의 auth API를 통해 token을 받고 admin shell 진입 시 사용자/tenant context를 불러옵니다.</td><td>인증 실패, 만료, 권한 부족 상태가 명확히 분리되어 표시됩니다.</td></tr>
+            <tr><td>Admin shell</td><td>관리자가 메뉴를 이동합니다.</td><td>사용자 정보, 현재 tenant, 권한 요약, 관리 메뉴를 표시합니다.</td><td>권한이 없는 메뉴는 숨기거나 disabled 상태로 표현합니다.</td></tr>
+            <tr><td>Tenant 목록</td><td>tenant를 검색, 정렬, 상태별 필터링합니다.</td><td>tenant code, 이름, 상태, domain, enabled module, 생성/수정 시간을 표로 보여줍니다.</td><td>검색 결과와 page 상태가 URL/query와 동기화됩니다.</td></tr>
+            <tr><td>Tenant 생성</td><td>관리자가 tenant 이름, domain, module을 입력합니다.</td><td>필수값 검증, domain 형식 검증, idempotency key 기반 생성 요청을 보냅니다.</td><td>생성 후 tenantId, tenant.code, requestId를 확인할 수 있습니다.</td></tr>
+            <tr><td>Tenant 상세/상태 변경</td><td>관리자가 tenant 상태나 기본 정보를 수정합니다.</td><td>상태 변경 전 확인 UI를 제공하고 변경 사유를 입력받습니다.</td><td>완료 후 변경된 상태와 audit 추적용 requestId를 보여줍니다.</td></tr>
+            <tr><td>Module/Domain 관리</td><td>관리자가 tenant별 module과 domain을 조정합니다.</td><td>현재 enabled module과 domain 목록을 비교 가능하게 보여주고 변경 요청을 보냅니다.</td><td>추가/비활성화 결과와 충돌 오류를 화면에서 확인합니다.</td></tr>
+            <tr><td>사용자 관리</td><td>관리자가 tenant 사용자를 검색, 생성, 수정, 비활성화합니다.</td><td>email, 표시명, 상태, role 요약, userType을 표시하고 general_user 생성만 허용합니다.</td><td>system_admin 생성 시도는 화면/서버 양쪽에서 차단됩니다.</td></tr>
+            <tr><td>Role/Permission 관리</td><td>관리자가 role을 만들고 permission을 선택해 저장합니다.</td><td>permission catalog를 domain/resource/action 기준으로 검색하고 role permission set을 편집합니다.</td><td>저장 후 최종 permission 목록과 requestId를 보여줍니다.</td></tr>
+            <tr><td>User-role 관리</td><td>관리자가 사용자에게 role과 optional warehouse scope를 부여합니다.</td><td>사용자 상세에서 현재 role 목록과 scope를 보여주고 부여/해제를 실행합니다.</td><td>중복 부여와 존재하지 않는 role/scope 오류를 명확히 표시합니다.</td></tr>
+            <tr><td>Audit log 조회</td><td>관리자가 기간, action, actor, resource, requestId로 검색합니다.</td><td>감사 로그 목록, action, actor, resource, result, occurredAt, requestId, details를 표시합니다.</td><td>업무 변경 후 evidence를 requestId로 추적할 수 있습니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/web-admin.html">개발과정</a>
+        </div>
+      </section>
+
+      <section id="web-wms">
+        <div class="service-title">
+          <div>
+            <h2>web-wms</h2>
+            <p>WMS 사용자와 현장 작업자를 위한 React + Vite 웹 앱입니다. User BFF의 app shell과 WMS screen-data API를 기준으로 화면을 구성합니다.</p>
+          </div>
+          <span class="tag todo">착수 전</span>
+        </div>
+        <table class="feature-table">
+          <tr><th>주요 사용자</th><td>창고 관리자, 재고 담당자, 입고 담당자, 출고/포장 담당자, 현장 작업자</td></tr>
+          <tr><th>연결 서비스</th><td>gateway-service를 통해 user-bff-service의 <code>/api/app/**</code> API를 호출합니다.</td></tr>
+          <tr><th>App shell</th><td>로그인 후 사용자, tenant, module, permission summary, navigation을 표시합니다.</td></tr>
+          <tr><th>WMS Dashboard</th><td>창고 현황, 재고 요약, 입고/출고 작업 상태, 예외 작업 알림을 보여줍니다.</td></tr>
+          <tr><th>기준정보 화면</th><td>창고, 로케이션, 품목 조회와 필터링을 제공합니다.</td></tr>
+          <tr><th>재고 화면</th><td>현재고 검색, 가용 수량, 재고 조정 요청, 과거 스냅샷 조회를 제공합니다.</td></tr>
+          <tr><th>입출고/포장 화면</th><td>입고 확정, 출고 할당, 포장 작업, 패키지 등록, 포장 확정, 출하 완료 흐름을 화면화합니다.</td></tr>
+          <tr><th>후속 범위</th><td>User BFF WMS screen-data API 확정 후 dashboard, inventory, 기준정보, 작업 화면 순서로 구현합니다.</td></tr>
+        </table>
+        <h3 class="detail-heading">상세 기능</h3>
+        <p class="detail-note">web-wms는 현장 업무 속도를 우선하는 화면입니다. 재고와 작업 상태를 빠르게 스캔하고, 실수하기 쉬운 수량/상태 변경은 명확한 확인과 evidence를 남겨야 합니다.</p>
+        <div class="wide-table">
+          <table class="detail-feature-table">
+            <tr><th>화면/기능</th><th>사용자 행위</th><th>표시/처리 내용</th><th>완료 기준</th></tr>
+            <tr><td>앱 진입</td><td>사용자가 로그인 후 WMS 앱에 접근합니다.</td><td>app context와 navigation을 불러와 tenant, 사용자, module, 권한별 메뉴를 표시합니다.</td><td>WMS module이 비활성 tenant이면 업무 메뉴를 노출하지 않습니다.</td></tr>
+            <tr><td>WMS dashboard</td><td>사용자가 오늘의 창고 운영 상태를 확인합니다.</td><td>현재고 요약, 입고 확정 대기, 출고 할당/포장/출하 상태, 예외 작업을 카드나 표로 보여줍니다.</td><td>각 요약에서 상세 목록으로 이동할 수 있습니다.</td></tr>
+            <tr><td>창고/로케이션 조회</td><td>사용자가 창고나 로케이션 기준으로 재고를 필터링합니다.</td><td>창고, 로케이션 type, 사용 가능 상태, 품목 수량 연결 정보를 표시합니다.</td><td>선택한 창고/로케이션 조건이 재고/입출고 화면으로 이어집니다.</td></tr>
+            <tr><td>품목 조회</td><td>사용자가 SKU나 품명으로 자재를 검색합니다.</td><td>SKU, 품명, 단위, 상태, 재고 존재 여부를 목록으로 보여줍니다.</td><td>선택한 품목으로 현재고와 스냅샷 조회에 진입할 수 있습니다.</td></tr>
+            <tr><td>현재고 조회</td><td>사용자가 품목/창고/로케이션 조건으로 재고를 조회합니다.</td><td>quantity, allocatedQuantity, availableQuantity를 함께 보여주고 부족/음수 불가 상태를 구분합니다.</td><td>재고 조정 권한이 있는 사용자에게만 조정 액션을 표시합니다.</td></tr>
+            <tr><td>재고 조정</td><td>사용자가 실사 수량 차이를 입력하고 조정 사유를 선택합니다.</td><td>수량 증감, reason, referenceNo를 받아 WMS 조정 API를 호출합니다.</td><td>완료 후 변경 전/후 수량과 requestId, outbox/audit 추적 정보를 확인합니다.</td></tr>
+            <tr><td>과거 스냅샷 조회</td><td>사용자가 특정 날짜의 보유 자재 수량을 조회합니다.</td><td>snapshotDate와 필터를 User BFF/WMS snapshot API로 전달하고 과거 수량을 표시합니다.</td><td>현재고와 스냅샷 수량이 구분되어 표시됩니다.</td></tr>
+            <tr><td>입고 확정</td><td>입고 담당자가 도착 수량을 확인하고 확정합니다.</td><td>품목, 창고, 로케이션, 수량, referenceNo를 입력받아 WMS 입고 확정 API를 호출합니다.</td><td>확정 후 현재고 증가와 requestId를 표시합니다.</td></tr>
+            <tr><td>출고 할당</td><td>출고 담당자가 주문 수량을 할당합니다.</td><td>availableQuantity를 화면에서 먼저 보여주고 부족 가능성을 안내한 뒤 WMS 할당 API를 호출합니다.</td><td>부족 시 <code>WMS_INSUFFICIENT_STOCK</code> 메시지와 현재 가용 수량을 표시합니다.</td></tr>
+            <tr><td>포장 작업</td><td>포장 담당자가 allocation을 선택해 packing을 만들고 패키지를 등록합니다.</td><td>포장 대상 수량, 등록된 박스, 품목별 포장 수량, 미포장 잔량을 계속 계산합니다.</td><td>합계 불일치 시 포장 확정을 막고 어떤 품목이 부족/초과인지 표시합니다.</td></tr>
+            <tr><td>출하 완료</td><td>담당자가 allocation 또는 packing 기준으로 출하를 확정합니다.</td><td>출하 전 상태와 수량을 확인시키고 WMS shipment API를 호출합니다.</td><td>완료 후 현재고/할당 수량 차감 결과와 requestId를 표시합니다.</td></tr>
+            <tr><td>권한별 액션 제어</td><td>사용자마다 가능한 업무 액션이 다릅니다.</td><td>permission summary를 기준으로 조정, 입고 확정, 출고 할당, 포장, 출하 버튼 노출을 제어합니다.</td><td>권한이 없는 사용자는 화면에서 실행 버튼을 볼 수 없고, 서버에서도 다시 차단됩니다.</td></tr>
+          </table>
+        </div>
+        <div class="link-row">
+          <a class="tag" href="./services/web-wms.html">개발과정</a>
+        </div>
+      </section>
+
+      <section>
+        <h2>공통 기능 기준</h2>
+        <div class="wide-table">
+          <table>
+            <tr>
+              <th>구분</th>
+              <th>정의</th>
+              <th>적용 서비스</th>
+            </tr>
+            <tr>
+              <td>Tenant context</td>
+              <td>업무 API는 <code>tenantId</code>를 필수로 가지며 JWT와 <code>X-Tenant-Id</code> 불일치는 차단합니다.</td>
+              <td>gateway, BFF, auth-iam, tenant, WMS, audit</td>
+            </tr>
+            <tr>
+              <td>Internal auth</td>
+              <td>서비스 간 호출은 HMAC internal auth header와 requestId를 전파합니다.</td>
+              <td>BFF, auth-iam, tenant, WMS, audit</td>
+            </tr>
+            <tr>
+              <td>API envelope</td>
+              <td>응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>와 <code>data</code> 또는 <code>error</code>를 사용합니다.</td>
+              <td>모든 HTTP API 서비스</td>
+            </tr>
+            <tr>
+              <td>Outbox</td>
+              <td>도메인 상태 변경과 outbox event insert는 같은 DB transaction 안에서 처리합니다.</td>
+              <td>auth-iam, tenant, WMS</td>
+            </tr>
+            <tr>
+              <td>Audit</td>
+              <td>권한, tenant, 사용자, 재고, 입고, 출고, 포장, 스냅샷 생성 같은 업무 행위는 audit evidence로 남깁니다.</td>
+              <td>auth-iam, tenant, WMS, user-bff, audit-log</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+
+      <p class="footer">Last updated: 2026-06-19 · 기준 문서: service development docs, API docs, project rules</p>
+    </main>
+  </body>
+</html>

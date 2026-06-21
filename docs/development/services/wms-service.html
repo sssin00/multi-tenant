@@ -11,136 +11,591 @@
       <header>
         <p class="eyebrow">Development Process</p>
         <h1>wms-service 개발과정</h1>
-        <p class="lead">WMS 기준정보, 재고, 입고, 출고, 작업 지시를 담당하는 첫 메인 도메인 서비스입니다.</p>
+        <p class="lead">
+          WMS 기준정보, 재고, 일 단위 스냅샷, 입고, 출고, 포장, 출하를 담당하는 첫 메인 도메인 서비스입니다.
+          1차 구현은 내부 API, tenant scope, 권한 확인, 재고 원장, outbox 이벤트 저장, 감사 로그 연계 기준까지 완료했습니다.
+        </p>
       </header>
+
       <section>
         <h2>서비스/앱 역할</h2>
         <table>
-          <tr><th>위치</th><td><code>apps/wms-service</code></td></tr>
-          <tr><th>카테고리</th><td>Backend Service · Domain Service</td></tr>
-          <tr><th>초기 구조</th><td>하나의 서비스 내부를 모듈형 모놀리스로 구성</td></tr>
-          <tr><th>도메인 순서</th><td>warehouse → location → item → inventory → inbound → outbound → task → shipment</td></tr>
-          <tr><th>이벤트</th><td><code>wms.inventory.adjusted</code>, <code>wms.inbound.confirmed</code>, <code>wms.outbound.allocated</code>, <code>wms.outbound.shipped</code></td></tr>
-        </table>
-      </section>
-      <section>
-        <h2>기능 정의</h2>
-        <table>
           <tbody>
-            <tr><th>기준정보</th><td>warehouse, location, item, partner, unit, barcode 등 WMS 운영 기준정보를 tenant 범위로 관리합니다.</td></tr>
-            <tr><th>재고 관리</th><td>현재고/가용재고 조회, 재고 이동, 재고 조정, lot/serial 정책과 관련 audit/outbox 기록을 담당합니다.</td></tr>
-            <tr><th>입고 관리</th><td>입고 예정, 검수, 적치 완료 흐름과 입고 확정 이벤트 저장을 담당합니다.</td></tr>
-            <tr><th>출고 관리</th><td>출고 요청, 재고 할당, 피킹, 출하 완료 흐름과 출고 이벤트 저장을 담당합니다.</td></tr>
-            <tr><th>권한/테넌트</th><td>중요 업무 action 실행 전 tenantId 조건과 필요한 permission/scope를 검증합니다.</td></tr>
-            <tr><th>제외 범위</th><td>화면 데이터 조합, 사용자 인증, tenant lifecycle 관리, 외부 ERP 재시도 orchestration은 직접 소유하지 않습니다.</td></tr>
+            <tr><th>위치</th><td><code>apps/wms-service</code></td></tr>
+            <tr><th>카테고리</th><td>Backend Service · Domain Service</td></tr>
+            <tr><th>외부 노출</th><td>직접 노출하지 않습니다. 사용자 화면 API는 이후 <code>user-bff-service</code>가 담당합니다.</td></tr>
+            <tr><th>초기 구조</th><td>하나의 서비스 내부를 모듈형 모놀리스로 구성합니다.</td></tr>
+            <tr><th>1차 도메인</th><td>warehouse, location, item, inventory ledger/balance/daily snapshot, inbound, outbound allocation, packing, direct/packing shipment</td></tr>
+            <tr><th>다음 확장</th><td>read 권한 분리, Idempotency-Key 저장, task, lot/serial, wave picking, ERP 전송 retry, 운영 replay/approval</td></tr>
           </tbody>
         </table>
       </section>
+
+      <section>
+        <h2>서비스 경계</h2>
+        <table>
+          <tbody>
+            <tr><th>소유</th><td>WMS 기준정보, 재고 수량, 입고 확정, 출고 할당/출하, WMS outbox event</td></tr>
+            <tr><th>소유하지 않음</th><td>로그인, 사용자/권한 원장, tenant lifecycle, 화면 데이터 조합, 감사 로그 저장소, 외부 ERP orchestration</td></tr>
+            <tr><th>호출 방향</th><td>BFF 또는 내부 서비스가 WMS 내부 API를 호출합니다. WMS는 tenant-service와 auth-iam-service의 내부 API만 사용합니다.</td></tr>
+            <tr><th>이벤트 방식</th><td>WMS 업무 DB 변경과 <code>outbox_events</code> 저장을 같은 transaction에서 처리합니다. 감사 로그 저장은 relay/SQS/audit-log-service가 담당합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>1차 기능 정의</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>영역</th>
+                <th>기능</th>
+                <th>권한</th>
+                <th>이벤트</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>창고</td>
+                <td>창고 생성, 목록, 상세 조회</td>
+                <td><code>wms.warehouses.manage</code></td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td>로케이션</td>
+                <td>창고 하위 location 생성, 목록 조회</td>
+                <td><code>wms.locations.manage</code></td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td>품목</td>
+                <td>품목 생성, 목록, 상세 조회</td>
+                <td><code>wms.items.manage</code></td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td>재고 조회</td>
+                <td>tenant/warehouse/location/item 조건의 현재고 목록 조회</td>
+                <td><code>wms.inventory.read</code></td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td>재고 조정</td>
+                <td>수량 증가/감소 조정과 재고 balance 반영</td>
+                <td><code>wms.inventory.adjust</code></td>
+                <td><code>wms.inventory.adjusted</code></td>
+              </tr>
+              <tr>
+                <td>재고 스냅샷</td>
+                <td>원장 기준 일 단위 과거 보유 수량 조회와 수동 생성/재생성</td>
+                <td><code>wms.inventory.read</code>, <code>wms.inventory.snapshot.generate</code></td>
+                <td><code>wms.inventory.snapshot.generated</code></td>
+              </tr>
+              <tr>
+                <td>입고 확정</td>
+                <td>입고 수량을 재고로 반영하고 receipt 기록</td>
+                <td><code>wms.inbound.confirm</code></td>
+                <td><code>wms.inbound.confirmed</code></td>
+              </tr>
+              <tr>
+                <td>출고 할당</td>
+                <td>가용 재고 확인 후 allocated 수량 증가</td>
+                <td><code>wms.outbound.allocate</code></td>
+                <td><code>wms.outbound.allocated</code></td>
+              </tr>
+              <tr>
+                <td>포장</td>
+                <td>allocation 묶음, 패키지 등록, 수량 검증, 포장 확정</td>
+                <td><code>wms.outbound.pack</code></td>
+                <td><code>wms.outbound.packed</code></td>
+              </tr>
+              <tr>
+                <td>출하 완료</td>
+                <td>allocation 직접 출하 또는 packing 기반 출하로 할당 수량/on-hand 차감과 출고 상태 변경</td>
+                <td><code>wms.outbound.ship</code></td>
+                <td><code>wms.outbound.shipped</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>포장과 출하 구현</h2>
+        <p>
+          기존 allocation 직접 출하 흐름은 유지하면서, <code>allocation -> packing -> shipment</code> 단계로 출고 업무를 세분화했습니다.
+          포장 확정과 포장 기반 출하는 WMS DB row와 outbox event를 같은 transaction에서 저장합니다.
+        </p>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>단계</th>
+                <th>목표</th>
+                <th>주요 데이터</th>
+                <th>이벤트</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>1</code> 포장 작업 생성</td>
+                <td>allocated 상태의 allocation을 포장 대상으로 묶습니다.</td>
+                <td>packingId, outboundOrderId, allocationIds, status, packedBy</td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td><code>2</code> 박스/패키지 등록</td>
+                <td>포장 박스별 품목, 수량, 중량, 부피, 바코드/운송장 후보 정보를 기록합니다.</td>
+                <td>packageId, packageNo, itemId, quantity, weight, dimensions</td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td><code>3</code> 포장 확정</td>
+                <td>포장 수량이 할당 수량과 일치하는지 검증하고 packing 상태를 confirmed로 변경합니다.</td>
+                <td>confirmedAt, confirmedBy, package summary</td>
+                <td><code>wms.outbound.packed</code></td>
+              </tr>
+              <tr>
+                <td><code>4</code> 출하 확정</td>
+                <td>포장 확정 건을 출하 처리하고 재고/할당 수량을 최종 차감합니다.</td>
+                <td>shipmentId, carrierCode, trackingNo, shippedAt</td>
+                <td><code>wms.outbound.shipped</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <table>
+          <tbody>
+            <tr><th>호환성</th><td>기존 <code>POST /api/internal/wms/outbound/shipments</code>의 allocationId 직접 출하 흐름은 유지합니다. 포장 기반 출하는 같은 endpoint의 <code>packingId</code> branch로 처리합니다.</td></tr>
+            <tr><th>권한</th><td>포장 생성/목록/패키지 등록/확정은 <code>wms.outbound.pack</code>, 출하는 기존 <code>wms.outbound.ship</code>를 사용합니다. read 권한 분리는 후속 결정입니다.</td></tr>
+            <tr><th>트랜잭션</th><td>포장 확정과 출하 확정은 각각 업무 row와 outbox event 저장을 같은 DB transaction에서 처리합니다.</td></tr>
+            <tr><th>감사</th><td>포장 확정과 출하 확정은 audit-log-service 직접 호출이 아니라 outbox relay/SQS/audit consumer 경로로 기록합니다.</td></tr>
+            <tr><th><code>wms.outbound.packed</code> payload</th><td><code>packingId</code>, <code>outboundOrderId</code>, <code>allocationIds</code>, <code>packageIds</code>, <code>packageCount</code>, <code>totalQuantity</code>, <code>confirmedAt</code>를 포함하고, 품목 상세는 소비자가 꼭 필요한 최소 필드만 추가합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>일 단위 재고 스냅샷 구현 기준</h2>
+        <p>
+          과거 일자별 보유 자재 수량 조회를 위해 재고 변경 원장과 일 단위 스냅샷 read model을 추가합니다.
+          현재고 테이블을 단순 복사하면 배치 지연, 재실행, 과거일 재생성에서 정합성이 흔들릴 수 있으므로 모든 재고/할당 수량 변경을 먼저 원장에 기록하고,
+          스냅샷은 지정 일자 마감 시점의 원장을 기준으로 생성합니다.
+        </p>
+        <table>
+          <tbody>
+            <tr><th>상태</th><td><span class="tag done">Implemented</span> 원장 기반 스냅샷과 수동 생성 API를 추가했습니다.</td></tr>
+            <tr><th>조회 기준</th><td><code>snapshotDate</code> 하루 단위로 tenant business date를 사용합니다. tenant timezone 설정이 도입되기 전 기본값은 <code>Asia/Seoul</code>로 확정합니다.</td></tr>
+            <tr><th>마감 기준</th><td>해당 business date의 종료 시각까지 발생한 원장 중 각 warehouse/location/item 조합의 마지막 balance를 스냅샷으로 저장합니다.</td></tr>
+            <tr><th>수량 필드</th><td><code>quantity</code>, <code>allocatedQuantity</code>, <code>availableQuantity</code>를 문자열 decimal로 응답합니다.</td></tr>
+            <tr><th>정합성 원칙</th><td>재고 mutation, 원장 insert, outbox event 저장은 같은 DB transaction 안에서 처리합니다. 스냅샷 생성은 원장 기준으로 멱등 재실행 가능해야 합니다.</td></tr>
+            <tr><th>과거 데이터</th><td>원장 도입 전 기간은 정확한 역산을 보장하지 않습니다. 배포일 기준 baseline snapshot을 만들고, 정확 보장 시작일을 문서와 API 응답에 명확히 표시합니다.</td></tr>
+          </tbody>
+        </table>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>구현 모델</th>
+                <th>주요 필드</th>
+                <th>목적</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>wms_inventory_ledger</code></td>
+                <td><code>ledgerId</code>, <code>tenantId</code>, <code>warehouseId</code>, <code>locationId</code>, <code>itemId</code>, <code>movementType</code>, <code>quantityChange</code>, <code>allocatedQuantityChange</code>, <code>balanceQuantityAfter</code>, <code>balanceAllocatedQuantityAfter</code>, <code>sourceType</code>, <code>sourceId</code>, <code>effectiveDate</code>, <code>occurredAt</code>, <code>correctedLedgerId</code>, <code>correctionReason</code>, <code>requestId</code></td>
+                <td>모든 현재고/할당 수량 변경을 transaction 안에서 append-only로 남기는 정합성 기준입니다.</td>
+              </tr>
+              <tr>
+                <td><code>wms_inventory_daily_snapshots</code></td>
+                <td><code>snapshotId</code>, <code>tenantId</code>, <code>snapshotDate</code>, <code>snapshotAt</code>, <code>warehouseId</code>, <code>locationId</code>, <code>itemId</code>, <code>quantity</code>, <code>allocatedQuantity</code>, <code>availableQuantity</code>, <code>sourceLedgerId</code>, <code>runId</code>, <code>previousSnapshotId</code>, <code>isCurrent</code>, <code>generatedAt</code></td>
+                <td>일자별 조회 성능과 재실행 안정성을 위한 materialized read model입니다. 보정 재생성 시 기존 row는 <code>isCurrent=false</code>로 보관하고 새 row를 current로 저장합니다.</td>
+              </tr>
+              <tr>
+                <td><code>wms_inventory_snapshot_runs</code></td>
+                <td><code>runId</code>, <code>tenantId</code>, <code>snapshotDate</code>, <code>snapshotAt</code>, <code>warehouseId</code>, <code>mode</code>, <code>status</code>, <code>startedAt</code>, <code>finishedAt</code>, <code>generatedCount</code>, <code>unchangedCount</code>, <code>errorCode</code>, <code>requestId</code></td>
+                <td>일자별 생성/재생성 lock, 실패 추적, 운영 증적을 남깁니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>순서</th>
+                <th>처리</th>
+                <th>정합성 기준</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>1</code></td><td>재고 조정, 입고 확정, 출고 할당, 출하 확정에서 balance를 변경합니다.</td><td>balance 변경과 ledger insert를 같은 transaction으로 묶습니다.</td></tr>
+              <tr><td><code>2</code></td><td>일 마감 배치 또는 승인된 수동 명령이 tenant/date 단위 snapshot run lock을 획득합니다.</td><td>같은 tenant/date에 대해 동시에 두 생성 작업이 실행되지 않아야 합니다.</td></tr>
+              <tr><td><code>3</code></td><td>마감 cutoff 이하의 ledger에서 각 재고 키별 마지막 balance를 조회합니다.</td><td>배치가 다음 날 실행되어도 과거 일자 결과가 바뀌지 않아야 합니다.</td></tr>
+              <tr><td><code>4</code></td><td>daily snapshot은 변경이 있을 때 기존 current row를 보관하고 새 current row를 생성합니다.</td><td>같은 입력 원장으로 재실행하면 새 row 없이 <code>unchangedCount</code>만 증가해야 합니다.</td></tr>
+              <tr><td><code>5</code></td><td>조회 API는 snapshot table만 읽고 필터/페이지네이션을 적용합니다.</td><td>tenantId 조건과 API envelope 규칙을 지킵니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <table>
+          <tbody>
+            <tr><th>조회 API</th><td><code>GET /api/internal/wms/inventory/snapshots?snapshotDate=YYYY-MM-DD&amp;warehouseId=&amp;locationId=&amp;itemId=&amp;page=&amp;size=</code>, 권한은 기존 <code>wms.inventory.read</code>를 사용합니다.</td></tr>
+            <tr><th>생성 API</th><td><code>POST /api/internal/wms/inventory/snapshots/generate</code>는 운영/관리 목적의 내부 명령입니다. 권한명은 <code>wms.inventory.snapshot.generate</code>를 신설합니다.</td></tr>
+            <tr><th>이벤트</th><td>스냅샷 조회 자체는 이벤트를 만들지 않습니다. 생성/재생성 완료는 <code>wms.inventory.snapshot.generated</code> outbox event로 남깁니다.</td></tr>
+            <tr><th>보정 정책</th><td>과거일 보정은 허용합니다. 보정 원장은 <code>effectiveDate</code>, <code>correctedLedgerId</code>, <code>correctionReason</code>을 남기고, 재생성된 스냅샷은 이전 current row를 보관해 보정 전/후 수량 추적이 가능해야 합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>연계 구조</h2>
+        <pre><code>user-bff-service 또는 admin-bff-service
+  -> wms-service /api/internal/wms/**
+    -> tenant-service /internal/tenants/{tenantId}/modules
+    -> auth-iam-service /api/auth/permissions/check
+    -> WMS DB transaction
+      -> WMS domain rows
+      -> outbox_events
+        -> outbox-relay-service
+          -> SQS
+            -> audit-log-service</code></pre>
+        <table>
+          <tbody>
+            <tr><th>tenant 확인</th><td>업무 API마다 <code>X-Tenant-Id</code>를 요구하고, tenant-service modules 응답에 <code>wms</code>가 포함되어야 합니다.</td></tr>
+            <tr><th>권한 확인</th><td>중요 action 전 auth-iam-service의 permission check를 호출합니다. warehouse scope가 있으면 <code>scope.warehouseId</code>를 전달합니다.</td></tr>
+            <tr><th>감사 로그</th><td>WMS는 audit-log-service를 직접 호출하지 않습니다. outbox event가 relay와 SQS를 거쳐 audit-log-service에 저장됩니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>API 문서</h2>
+        <table>
+          <tbody>
+            <tr><th>문서 위치</th><td><a href="../../apis/wms-service/index.html"><code>docs/apis/wms-service/index.html</code></a></td></tr>
+            <tr><th>API surface</th><td><code>/api/internal/wms/**</code></td></tr>
+            <tr><th>인증</th><td>HMAC internal service auth. public endpoint는 <code>/health</code>, <code>/ready</code>만 허용합니다.</td></tr>
+            <tr><th>응답</th><td>공통 envelope: <code>success</code>, <code>requestId</code>, <code>timestamp</code>, <code>data</code> 또는 <code>error</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
       <section>
         <h2>구현 상태</h2>
         <table>
-          <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>
-          <tr><th>선행 조건</th><td>tenant context, Auth/IAM permission check, WMS 1차 domain scope가 확정되어야 합니다.</td></tr>
-          <tr><th>API 문서</th><td>WMS API가 생기면 <code>docs/apis/wms-service/index.html</code>에 계약을 기록합니다.</td></tr>
+          <tbody>
+            <tr><th>상태</th><td><span class="tag done">1차 구현 · 로컬 연계 검증 완료</span></td></tr>
+            <tr><th>현재 결과</th><td>WMS 내부 API와 DB/outbox/event/audit 연계의 최소 동작 범위를 완성했습니다.</td></tr>
+            <tr><th>다음 BFF</th><td><code>user-bff-service</code>에서 WMS 화면 조합 API와 web-wms 첫 화면 계약을 제작합니다.</td></tr>
+          </tbody>
         </table>
       </section>
-      <section>
-        <h2>첫 구현 범위</h2>
-        <div class="grid">
-          <div class="card"><strong>기준정보</strong><p>창고, 로케이션, 품목, 거래처, 단위, 바코드</p></div>
-          <div class="card"><strong>재고</strong><p>재고 조회, 이동, 조정, 로트/시리얼 정책</p></div>
-          <div class="card"><strong>입출고</strong><p>입고 예정/검수/적치, 출고 요청/할당/피킹</p></div>
-        </div>
-      </section>
+
       <section>
         <h2>TODO</h2>
-        <p>wms-service TODO는 완료 항목과 남은 작업을 분리해 갱신합니다.</p>
+        <p>TODO는 설계 순서와 구현 순서를 같이 보여줍니다. 2026-06-19 기준 1차 구현, 포장/출하, 원장 기반 스냅샷 구현은 완료했고 남은 항목은 검증 확대와 운영 보강입니다.</p>
         <div class="grid two">
           <div class="card">
             <h3>완료</h3>
-            <p>아직 완료된 구현 TODO는 없습니다.</p>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> WMS 1차 범위와 서비스 경계 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> 내부 API surface를 <code>/api/internal/wms/**</code>로 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> WMS 필수 이벤트 4종 확정</label></p>
+            </div>
           </div>
           <div class="card">
-            <h3>남은 작업</h3>
+            <h3>완료된 1차 구현 작업</h3>
             <div class="task-list">
-              <p><label><input type="checkbox" disabled /> <code>apps/wms-service</code> NestJS 기본 구조 생성</label></p>
-              <p><label><input type="checkbox" disabled /> tenant-scoped DB model과 repository 기준 설계</label></p>
-              <p><label><input type="checkbox" disabled /> warehouse, location, item 기준정보 API 구현</label></p>
-              <p><label><input type="checkbox" disabled /> inventory 조회, 이동, 조정 API 구현</label></p>
-              <p><label><input type="checkbox" disabled /> inbound 확인과 outbound 할당/출하 API 구현</label></p>
-              <p><label><input type="checkbox" disabled /> outbox event와 audit log 저장 기준 구현</label></p>
-              <p><label><input type="checkbox" disabled /> <code>docs/apis/wms-service/index.html</code>에 API 계약 작성</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>apps/wms-service</code> NestJS 기본 구조 생성</label></p>
+              <p><label><input type="checkbox" checked disabled /> Prisma schema, migration, generated client 구성</label></p>
+              <p><label><input type="checkbox" checked disabled /> request context, security headers, access log, exception filter 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant-service module check client 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> auth-iam-service permission check client 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> warehouse/location/item 내부 API 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> inventory 조회/조정 내부 API 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> inbound confirm API와 <code>wms.inbound.confirmed</code> outbox 저장</label></p>
+              <p><label><input type="checkbox" checked disabled /> outbound allocate/ship API와 outbox 저장</label></p>
+              <p><label><input type="checkbox" checked disabled /> Docker local env와 outbox-relay <code>wms</code> source 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> Postman collection과 API 문서 최신화</label></p>
+              <p><label><input type="checkbox" checked disabled /> 로컬 기능 테스트 5개 시나리오와 결과 문서화</label></p>
+            </div>
+          </div>
+          <div class="card">
+            <h3>포장/출하 구현</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> 포장 작업과 패키지 DB 모델 설계</label></p>
+              <p><label><input type="checkbox" checked disabled /> 포장 생성, 패키지 등록, 포장 확정 API 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> 포장 기반 출하 확정 API와 기존 direct shipment 호환 처리</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>wms.outbound.packed</code> 이벤트와 outbox 저장 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>wms.outbound.packed</code> audit consumer 증거 재확인</label></p>
+            </div>
+          </div>
+          <div class="card">
+            <h3>스냅샷 구현</h3>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> 재고 변경 원장과 일 단위 스냅샷 모델 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> 스냅샷 조회 API와 수동 생성 API 계약 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant business date 기본값을 <code>Asia/Seoul</code>로 확정</label></p>
+              <p><label><input type="checkbox" checked disabled /> 과거일 보정 원장과 스냅샷 이전 버전 추적 구현</label></p>
+              <p><label><input type="checkbox" disabled /> tenant 격리 테스트 시나리오 구현</label></p>
             </div>
           </div>
         </div>
       </section>
-      <section>
-        <h2>기능별 작업 내역</h2>
-        <table>
-          <tr><th>기준정보</th><td>warehouse, location, item, partner, unit, barcode를 tenantId 조건으로 관리합니다.</td></tr>
-          <tr><th>재고</th><td>현재고, 가용재고, 이동, 조정, lot/serial 정책과 audit 대상 변경을 구현합니다.</td></tr>
-          <tr><th>입고</th><td>입고 예정, 검수, 적치 완료 흐름과 <code>wms.inbound.confirmed</code> event를 저장합니다.</td></tr>
-          <tr><th>출고</th><td>출고 요청, 할당, 피킹, 출하 완료 흐름과 <code>wms.outbound.allocated</code>, <code>wms.outbound.shipped</code> event를 저장합니다.</td></tr>
-        </table>
-      </section>
+
       <section>
         <h2>테스트 시나리오</h2>
-        <table>
-          <tr><th>WMS-TENANT-001</th><td>tenantId가 다른 데이터는 목록/상세/변경 API에서 조회되거나 수정되지 않는다.</td></tr>
-          <tr><th>WMS-INV-001</th><td>재고 조정은 재고 수량 변경, audit log, outbox event를 같은 흐름에서 확인할 수 있다.</td></tr>
-          <tr><th>WMS-OUT-001</th><td>출고 할당은 가용 재고 부족 시 표준 error code로 실패한다.</td></tr>
-        </table>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>목적</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>WMS-INT-001</code></td>
+                <td>창고, 로케이션, 품목 생성 후 tenant 범위 목록에서 조회됩니다.</td>
+                <td>응답 envelope, DB row, requestId</td>
+              </tr>
+              <tr>
+                <td><code>WMS-INT-002</code></td>
+                <td>재고 조정이 balance를 변경하고 <code>wms.inventory.adjusted</code> outbox를 저장합니다.</td>
+                <td>inventory balance, outbox row, audit row</td>
+              </tr>
+              <tr>
+                <td><code>WMS-INT-003</code></td>
+                <td>입고 확정이 on-hand 재고를 증가시키고 감사 로그로 전달됩니다.</td>
+                <td>receipt row, balance, outbox/audit row</td>
+              </tr>
+              <tr>
+                <td><code>WMS-INT-004</code></td>
+                <td>출고 할당이 가용 재고를 검증하고 allocated 수량을 증가시킵니다.</td>
+                <td>allocation row, balance, 표준 에러 또는 성공 응답</td>
+              </tr>
+              <tr>
+                <td><code>WMS-INT-005</code></td>
+                <td>출하 완료가 할당/현재고를 차감하고 <code>wms.outbound.shipped</code> 감사 로그를 남깁니다.</td>
+                <td>order 상태, balance, outbox/audit row</td>
+              </tr>
+              <tr>
+                <td><code>WMS-INV-001</code></td>
+                <td>현재고 조회가 list envelope와 문자열 수량 필드를 안정적으로 반환합니다.</td>
+                <td>page, size, total, quantity, allocatedQuantity, availableQuantity</td>
+              </tr>
+              <tr>
+                <td><code>WMS-API-001</code></td>
+                <td>tenant 누락과 잘못된 UUID가 표준 error envelope로 실패합니다.</td>
+                <td><code>TENANT_REQUIRED</code>, <code>VALIDATION_FAILED</code>, requestId</td>
+              </tr>
+              <tr>
+                <td><code>WMS-INV-003</code></td>
+                <td>재고를 음수로 만드는 조정은 <code>WMS_INSUFFICIENT_STOCK</code>으로 실패하고 outbox를 만들지 않습니다.</td>
+                <td>error response, outbox count</td>
+              </tr>
+              <tr>
+                <td><code>WMS-OUT-002</code></td>
+                <td>가용 재고를 초과한 출고 할당은 실패하고 allocation/outbox를 만들지 않습니다.</td>
+                <td>error response, outbox count</td>
+              </tr>
+              <tr>
+                <td><code>WMS-OUT-004</code></td>
+                <td>이미 shipped 상태인 allocation 재출하는 conflict로 실패하고 출하 outbox를 만들지 않습니다.</td>
+                <td>error response, outbox count</td>
+              </tr>
+              <tr>
+                <td><code>WMS-PACK-001</code></td>
+                <td>allocated 상태의 allocation으로 포장 작업을 생성합니다.</td>
+                <td>packing row, allocation linkage, requestId</td>
+              </tr>
+              <tr>
+                <td><code>WMS-PACK-002</code></td>
+                <td>패키지별 포장 수량 합계가 allocation 수량과 일치하지 않으면 포장 확정이 실패합니다.</td>
+                <td>error response, package rows, inventory unchanged</td>
+              </tr>
+              <tr>
+                <td><code>WMS-PACK-003</code></td>
+                <td>포장 확정 시 <code>wms.outbound.packed</code> outbox와 audit log가 저장됩니다.</td>
+                <td>packing status, outbox row, audit row</td>
+              </tr>
+              <tr>
+                <td><code>WMS-SHIP-001</code></td>
+                <td>포장 확정 건 기준으로 출하 완료를 처리하고 재고/할당 수량을 차감합니다.</td>
+                <td>shipment row, final inventory, outbox/audit row</td>
+              </tr>
+              <tr>
+                <td><code>WMS-SHIP-002</code></td>
+                <td>이미 shipped 처리된 packing 재출하는 conflict로 실패하고 출하 outbox를 만들지 않습니다.</td>
+                <td>error response, inventory unchanged, outbox count</td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-001</code></td>
+                <td>일 단위 스냅샷 생성은 cutoff 시점 원장 기준으로 수량을 저장합니다.</td>
+                <td>snapshot row, sourceLedgerId, snapshot run log</td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-002</code></td>
+                <td>다음 날 재고 변경 후 과거일 스냅샷을 지연 생성해도 과거 cutoff 수량을 유지합니다.</td>
+                <td>ledger rows, snapshot row, inventory after</td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-003</code></td>
+                <td>스냅샷 조회 API는 날짜/창고/로케이션/품목 필터와 list envelope를 지킵니다.</td>
+                <td>response JSON, requestId, pagination</td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-004</code></td>
+                <td>같은 tenant/date 생성 작업을 재실행해도 중복 row 없이 동일 결과를 반환합니다.</td>
+                <td>snapshot count, run log, stable quantities</td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-005</code></td>
+                <td>다른 tenant의 원장과 스냅샷은 조회/생성 결과에 섞이지 않습니다.</td>
+                <td>tenant A/B snapshot rows, API response</td>
+              </tr>
+              <tr>
+                <td><code>WMS-SNAP-006</code></td>
+                <td>생성 완료된 snapshot run에서 필터 결과가 없어도 정상 empty list envelope를 반환합니다.</td>
+                <td>items length 0, total 0, page, size</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
+
+      <section>
+        <h2>검증 결과</h2>
+        <table>
+          <tbody>
+            <tr><th>검증 명령</th><td><code>pnpm test:wms:local</code></td></tr>
+            <tr><th>정적 검증</th><td><code>pnpm --filter wms-service typecheck</code>, <code>pnpm --filter wms-service build</code></td></tr>
+            <tr><th>연계 서비스</th><td><code>auth-iam-service</code>, <code>tenant-service</code>, <code>outbox-relay-service</code>, <code>audit-log-service</code>, LocalStack SQS, PostgreSQL</td></tr>
+            <tr><th>기존 결과</th><td><span class="tag done">통과</span> 2026-06-17에는 5개 로컬 연계 기능 테스트가 모두 통과했습니다. 2026-06-19에는 <code>pnpm test:wms:local</code>이 정상 흐름, 포장/출하, 스냅샷, WMS 회귀/오류 시나리오 22개를 함께 검증해 통과했습니다.</td></tr>
+            <tr><th>포장/출하 재검증</th><td><span class="tag done">통과</span> 포장 생성, 패키지 등록, 포장 확정, <code>wms.outbound.packed</code> outbox/audit, 포장 기반 출하, 중복 출하 차단, 수량 불일치를 <code>pnpm test:wms:local</code>로 검증했습니다.</td></tr>
+            <tr><th>스냅샷 검증</th><td><span class="tag done">통과</span> 원장 기반 생성, 조회 API, 재실행 멱등성, 과거일 보정 후 rebuild, <code>wms.inventory.snapshot.generated</code> outbox/audit를 로컬 시나리오에서 검증했습니다. tenant A/B 격리 전용 시나리오는 별도 확장합니다.</td></tr>
+            <tr><th>상세 로그</th><td><a href="../../test-logs/2026-06-19/wms-local-regression-verification.html"><code>docs/test-logs/2026-06-19/wms-local-regression-verification.html</code></a>, <a href="../../test-logs/2026-06-17/wms-local-integration-verification.html"><code>docs/test-logs/2026-06-17/wms-local-integration-verification.html</code></a></td></tr>
+          </tbody>
+        </table>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>Scenario</th><th>결과</th><th>핵심 증적</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>WMS-INT-001</code></td><td><span class="tag done">통과</span></td><td>warehouse, location, item 생성과 목록 조회</td></tr>
+              <tr><td><code>WMS-INT-002</code></td><td><span class="tag done">통과</span></td><td><code>wms.inventory.adjusted</code> outbox published 및 audit 저장</td></tr>
+              <tr><td><code>WMS-INT-003</code></td><td><span class="tag done">통과</span></td><td><code>wms.inbound.confirmed</code> outbox published 및 audit 저장</td></tr>
+              <tr><td><code>WMS-INT-004</code></td><td><span class="tag done">통과</span></td><td><code>wms.outbound.allocated</code> outbox published 및 audit 저장</td></tr>
+              <tr><td><code>WMS-INT-005</code></td><td><span class="tag done">통과</span></td><td><code>wms.outbound.shipped</code> outbox published, 최종 재고 <code>18</code>, 할당 <code>0</code></td></tr>
+              <tr><td><code>WMS-INV-001</code></td><td><span class="tag done">통과</span></td><td>현재고 조회 list envelope와 <code>availableQuantity</code> 문자열 수량 검증</td></tr>
+              <tr><td><code>WMS-API-001</code></td><td><span class="tag done">통과</span></td><td>tenant 누락과 invalid UUID error envelope 검증</td></tr>
+              <tr><td><code>WMS-INV-003</code></td><td><span class="tag done">통과</span></td><td>음수 재고 방지와 실패 시 outbox 미생성 검증</td></tr>
+              <tr><td><code>WMS-OUT-002</code></td><td><span class="tag done">통과</span></td><td>재고 부족 출고 할당 실패와 outbox 미생성 검증</td></tr>
+              <tr><td><code>WMS-OUT-004</code></td><td><span class="tag done">통과</span></td><td>출하 중복 conflict와 outbox 미생성 검증</td></tr>
+              <tr><td><code>WMS-PACK-001</code></td><td><span class="tag done">통과</span></td><td>packing 생성 <code>201</code>, allocation linkage, status <code>packing</code></td></tr>
+              <tr><td><code>WMS-PACK-002</code></td><td><span class="tag done">통과</span></td><td>수량 불일치 포장 확정 <code>422 WMS_PACKAGE_QUANTITY_MISMATCH</code>, 실패 시 outbox 미생성</td></tr>
+              <tr><td><code>WMS-PACK-003</code></td><td><span class="tag done">통과</span></td><td>packing 확정 <code>200</code>, <code>wms.outbound.packed</code> outbox published 및 audit 저장</td></tr>
+              <tr><td><code>WMS-SHIP-001</code></td><td><span class="tag done">통과</span></td><td>packingId 출하 <code>200</code>, shipment row 생성, 최종 재고 <code>14</code>, 할당 <code>0</code></td></tr>
+              <tr><td><code>WMS-SHIP-002</code></td><td><span class="tag done">통과</span></td><td>미확정 packing 출하 <code>422 WMS_SHIPMENT_NOT_READY</code>, 이미 shipped packing 재출하 <code>409 WMS_SHIPMENT_ALREADY_SHIPPED</code></td></tr>
+              <tr><td><code>WMS-SNAP-006</code></td><td><span class="tag done">통과</span></td><td>생성 완료 일자의 미매칭 itemId 조회가 <code>items=[]</code>, <code>total=0</code> list envelope로 응답</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>개발 기록</h2>
+        <article>
+          <h3>2026-06-19 문서·검증 재정비</h3>
+          <ul>
+            <li><code>pnpm test:wms:local</code>을 다시 실행해 WMS 정상 흐름, 포장/출하, 스냅샷, 오류 회귀 시나리오 22개 통과를 확인했습니다.</li>
+            <li>로컬 compose의 기본 <code>outbox-relay-service</code>가 WMS outbox를 mock으로 선점하지 않도록 검증 스크립트가 필요한 경우 해당 컨테이너를 일시 중지하고 종료 시 복구하도록 보완했습니다.</li>
+            <li>검증 증적은 <code>wms.outbound.packed</code>, <code>wms.outbound.shipped</code>, <code>wms.inventory.snapshot.generated</code>의 LocalStack SQS publish와 audit row 저장을 포함합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-19 일 단위 재고 스냅샷 구현</h3>
+          <ul>
+            <li>과거 보유 자재 수량 조회를 위해 현재고 복사 방식이 아니라 <code>wms_inventory_ledger</code> 기반 스냅샷 생성 방식을 구현했습니다.</li>
+            <li><code>wms_inventory_daily_snapshots</code>와 <code>wms_inventory_snapshot_runs</code>를 추가해 일자별 조회, 재실행 멱등성, 운영 증적을 분리했습니다.</li>
+            <li>기본 business date는 <code>Asia/Seoul</code>, 수동 생성 권한은 <code>wms.inventory.snapshot.generate</code>, 생성 완료 이벤트는 <code>wms.inventory.snapshot.generated</code>로 확정했습니다.</li>
+            <li>과거일 보정은 <code>effectiveDate</code>, <code>correctedLedgerId</code>, <code>correctionReason</code> 원장으로 허용하고, 이전 스냅샷 row는 <code>isCurrent=false</code>로 보관합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-19 포장과 출하 구현</h3>
+          <ul>
+            <li><code>wms_outbound_packings</code>, <code>wms_outbound_packages</code>, <code>wms_outbound_package_items</code>, <code>wms_outbound_shipments</code> 모델을 추가했습니다.</li>
+            <li>포장 생성, 포장 목록, 패키지 등록, 포장 확정, 포장 기반 출하 API를 추가했습니다.</li>
+            <li>포장 확정은 <code>wms.outbound.packed</code>, 출하 확정은 <code>wms.outbound.shipped</code> outbox event를 저장합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-19 포장과 출하 확장 계획</h3>
+          <ul>
+            <li>기존 출고 흐름을 깨지 않고 <code>allocation -> packing -> shipment</code> 단계로 확장하기로 했습니다.</li>
+            <li>포장 작업, 박스/패키지, 포장 확정, 포장 기반 출하를 별도 계획 항목과 테스트 시나리오로 추가했습니다.</li>
+            <li>새 이벤트는 <code>wms.outbound.packed</code>를 추가하고, 출하 완료는 기존 <code>wms.outbound.shipped</code> 이벤트를 유지합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-19 개선 전 테스트 준비</h3>
+          <ul>
+            <li><code>scripts/test/verify-local-wms-flow.mjs</code>의 requestId를 실행 단위로 고유하게 만들어 이전 outbox/audit row가 검증 결과에 섞이지 않도록 했습니다.</li>
+            <li><code>pnpm test:wms:local</code>이 기존 WMS 정상 흐름 5개에 더해 tenant 누락, invalid UUID, 중복 창고/품목, 음수 재고 조정, 재고 부족 출고 할당, 출하 중복 방지까지 확인하도록 준비했습니다.</li>
+            <li>실패 시나리오는 표준 error envelope와 실패 requestId 기준 outbox 미생성을 증거로 남깁니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-17 1차 설계 및 작업 분해</h3>
+          <ul>
+            <li>WMS를 직접 외부 노출하지 않는 내부 도메인 서비스로 확정했습니다.</li>
+            <li>1차 범위를 기준정보, 재고 조정, 입고 확정, 출고 할당/출하로 제한했습니다.</li>
+            <li>tenant module check, Auth/IAM permission check, outbox relay, audit-log-service 연계를 테스트 범위에 포함했습니다.</li>
+            <li>구현 담당 서브에이전트는 <code>apps/wms-service/**</code>만 수정하고, 문서/연계/검증은 통합 단계에서 별도로 처리합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-17 1차 구현 완료</h3>
+          <ul>
+            <li><code>apps/wms-service</code>에 NestJS shell, config, health/readiness, request context, access log, exception filter, internal auth guard를 추가했습니다.</li>
+            <li>Prisma schema와 migration으로 WMS 기준정보, 재고 balance, inventory adjustment, inbound receipt, outbound order/allocation, outbox_events를 구성했습니다.</li>
+            <li>tenant-service module check와 auth-iam-service permission check를 업무 API마다 호출하도록 연결했습니다.</li>
+            <li>재고 조정, 입고 확정, 출고 할당, 출하 완료 시 WMS DB 변경과 outbox 저장을 같은 transaction에서 처리합니다.</li>
+            <li>첫 로컬 검증에서 UUID 정규식이 네 번째 그룹과 다섯 번째 그룹 사이의 하이픈을 누락해 정상 tenantId를 거부하는 문제를 발견했고 수정했습니다.</li>
+            <li>Postman collection에는 WMS 내부 직접 호출 폴더를 추가했습니다. 제품 API 경로는 계속 Gateway → BFF → WMS 원칙을 따릅니다.</li>
+          </ul>
+        </article>
+      </section>
+
       <section>
         <h2>후속 작업</h2>
-        <p>현재 WMS 1차 구현 이후 이어서 진행할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
         <div class="wide-table">
           <table>
             <thead>
               <tr>
                 <th>우선순위</th>
                 <th>작업</th>
-                <th>범위</th>
-                <th>완료 기준</th>
-                <th>함께 갱신할 문서</th>
+                <th>설명</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td><code>P0</code></td>
-                <td>ERP 연동 기준</td>
-                <td>입출고 확정 이후 ERP 전송, 실패 retry, 수동 재전송 기준을 별도 문서로 확장합니다.</td>
-                <td>ERP 전송 성공/실패와 재시도 상태가 requestId, tenantId, audit/outbox evidence로 추적됩니다.</td>
-                <td>wms-service 개발 문서, events/outbox 규칙, ERP 연동 문서</td>
-              </tr>
-              <tr>
-                <td><code>P1</code></td>
-                <td>고급 재고 정책</td>
-                <td>lot/serial, FEFO/FIFO, 유통기한, 보류 재고, 가용 재고 계산 정책을 단계적으로 추가합니다.</td>
-                <td>재고 할당과 조정이 tenant별 정책을 따르고 교차 tenant 접근 없이 검증됩니다.</td>
-                <td>wms-service API 문서, multi-tenant 규칙, testing 규칙</td>
-              </tr>
-              <tr>
-                <td><code>P1</code></td>
-                <td>출고 작업 고도화</td>
-                <td>wave picking, task assignment, 작업자별 picking/packing 흐름은 1차 API 안정화 후 추가합니다.</td>
-                <td>출고 할당부터 작업 완료까지 상태 전이가 audit log와 event로 남습니다.</td>
-                <td>wms-service 개발 문서, web-wms 개발 문서, events/outbox 규칙</td>
-              </tr>
+              <tr><td><code>P0</code></td><td>user-bff-service</td><td>WMS 내부 API를 사용해 사용자 화면용 dashboard, warehouse selector, inventory summary API를 제작합니다.</td></tr>
+              <tr><td><code>P0</code></td><td>읽기 권한 분리</td><td>기준정보 목록 조회가 현재 manage 권한을 사용하므로, 운영 UX에 맞춰 <code>wms.warehouses.read</code>, <code>wms.locations.read</code>, <code>wms.items.read</code> 분리 여부를 결정합니다.</td></tr>
+              <tr><td><code>P1</code></td><td>스냅샷 격리 검증 확대</td><td>구현된 일 단위 스냅샷에 대해 tenant A/B 교차 데이터 미노출 전용 시나리오와 대량 원장 성능 검증을 추가합니다.</td></tr>
+              <tr><td><code>P1</code></td><td>lot/serial 정책</td><td>품목별 lot/serial, 보류 재고, 유통기한 정책을 추가합니다.</td></tr>
+              <tr><td><code>P1</code></td><td>포장 운영 보강</td><td>포장 취소/재포장, 라벨 출력, carrier별 tracking 정책, 작업자 배정과 화면 API를 보강합니다.</td></tr>
+              <tr><td><code>P1</code></td><td>작업 지시</td><td>출고 picking task, 작업자 배정, 작업 완료 흐름을 포장 단계 전후로 연결합니다.</td></tr>
+              <tr><td><code>P2</code></td><td>ERP 연동</td><td>입출고 확정 이후 ERP 전송, 실패 retry, 수동 재전송 기준을 별도 확장합니다.</td></tr>
             </tbody>
           </table>
         </div>
       </section>
-      <section>
-        <h2>개발 기록</h2>
-        <article>
-          <h3>2026-06-12 착수 전 상태 점검</h3>
-          <ul>
-            <li>아직 구현 전이며 입고, 재고 조정, 출고 할당/확정, audit/outbox 저장을 첫 도메인 범위로 유지합니다.</li>
-            <li>WMS 모듈이 생길 때마다 API, DB, 이벤트, audit, outbox, 테스트 evidence를 이 문서에 시간 순서대로 기록합니다.</li>
-          </ul>
-        </article>
-      </section>
+
       <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
     </main>
   </body>

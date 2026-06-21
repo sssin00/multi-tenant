@@ -25,6 +25,8 @@
                   <tr><th>Access Token</th><td>JWT를 사용합니다. 기본 만료 시간은 30분을 권장합니다.</td></tr>
                   <tr><th>Refresh Token</th><td>opaque token을 사용하고 저장소에 보관합니다. 기본 만료 시간은 14일을 권장합니다.</td></tr>
                   <tr><th>Refresh Rotation</th><td>refresh token 사용 시 새 token을 발급하고 이전 token은 폐기합니다.</td></tr>
+                  <tr><th>User Type</th><td>사용자는 <code>system_admin</code>과 <code>general_user</code>로 구분합니다. <code>general_user</code>는 반드시 tenant 값을 가지며, tenant-scoped 사용자 API는 <code>general_user</code>만 생성하고 관리합니다.</td></tr>
+                  <tr><th>System Admin</th><td><code>system_admin</code> 계정은 별도 시스템 관리 또는 bootstrap 경로에서만 다루며 tenant-scoped 사용자 API와 섞지 않습니다.</td></tr>
                   <tr><th>권한 모델</th><td>초기에는 RBAC를 사용합니다. 사용자 → 역할 → 권한 구조를 따릅니다.</td></tr>
                   <tr><th>Role/Permission Source</th><td>역할과 권한의 source of truth는 <code>auth-iam-service</code>입니다.</td></tr>
                 </tbody>
@@ -76,12 +78,14 @@ permission:{tenantId}:{userId}</code></pre>
       <section>
               <h2>Permission Naming</h2>
               <p>권한 이름은 <code>{domain}.{resource}.{action}</code> 형식을 사용합니다.</p>
-              <pre><code>wms.inventory.read
-wms.inventory.adjust
-wms.inbound.manage
-wms.outbound.allocate
-wms.outbound.ship
-tenant.users.manage
+	              <pre><code>wms.inventory.read
+	wms.inventory.adjust
+	wms.inventory.snapshot.generate
+	wms.inbound.manage
+	wms.outbound.allocate
+	wms.outbound.pack
+	wms.outbound.ship
+	tenant.users.manage
 tenant.settings.manage
 admin.tenants.manage</code></pre>
             </section>

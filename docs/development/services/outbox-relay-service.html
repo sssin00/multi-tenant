@@ -20,7 +20,7 @@
           <tr><th>카테고리</th><td>Backend Service · Event Relay</td></tr>
           <tr><th>핵심 역할</th><td>각 서비스 DB에 저장된 <code>outbox_events</code>를 읽어 EventBridge/SQS 또는 local mock publisher로 발행하고, 성공/실패 상태를 원본 outbox row에 기록합니다.</td></tr>
           <tr><th>책임</th><td>미발행 outbox event 조회, event envelope 검증, publish, retry, 실패 기록, 발행 지연/실패 관측</td></tr>
-          <tr><th>초기 대상</th><td>Auth/IAM 사용자·권한 변경 이벤트, tenant 상태·모듈 변경 이벤트, 이후 WMS 재고 변경, 입고 완료, 출고 완료 이벤트</td></tr>
+          <tr><th>초기 대상</th><td>Auth/IAM 사용자·권한 변경 이벤트, tenant 상태·모듈 변경 이벤트, WMS 재고 조정/스냅샷/입고/출고/포장/출하 이벤트</td></tr>
           <tr><th>주의</th><td>도메인 트랜잭션은 각 서비스 DB에서 끝나고, relay는 발행만 담당합니다.</td></tr>
         </table>
       </section>
@@ -29,7 +29,7 @@
         <table>
           <tbody>
             <tr><th>한 문장 정의</th><td><code>outbox-relay-service</code>는 서비스 내부 DB와 AWS 이벤트 인프라 사이의 안정적인 배송 담당자입니다.</td></tr>
-            <tr><th>입력</th><td>Auth/IAM, tenant-service, 이후 WMS 등 각 서비스 DB의 <code>outbox_events</code> row입니다. 입력 이벤트는 이미 업무 트랜잭션과 함께 저장된 사실이어야 합니다.</td></tr>
+            <tr><th>입력</th><td>Auth/IAM, tenant-service, wms-service 등 각 서비스 DB의 <code>outbox_events</code> row입니다. 입력 이벤트는 이미 업무 트랜잭션과 함께 저장된 사실이어야 합니다.</td></tr>
             <tr><th>처리</th><td>pending event를 source별로 polling하고, batch claim/lock, envelope validation, publisher 호출, retry/backoff, failed 전환을 수행합니다.</td></tr>
             <tr><th>출력</th><td>local에서는 <code>mock</code> publisher log와 outbox 상태 변경, AWS에서는 EventBridge event 또는 SQS message입니다.</td></tr>
             <tr><th>상태 책임</th><td>발행 성공 시 <code>published</code>, 실패 시 retry count와 실패 사유를 남기고, 최대 재시도 초과 시 <code>failed</code>로 전환합니다.</td></tr>
@@ -56,8 +56,8 @@
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag done">Relay engine 구현 · Docker/CDK/GitHub Actions 배포 준비 완료</span></td></tr>
-          <tr><th>완료 범위</th><td><code>apps/outbox-relay-service</code> NestJS app shell, <code>/health</code>, <code>/ready</code>, source DB adapter, lock/retry 상태 전환, mock/EventBridge/SQS publisher, 감사 이벤트 SQS 기본 발행 연결, 운영 API, Docker compose, CDK ECS service, 수동 배포 workflow, Postman 요청</td></tr>
-          <tr><th>남은 범위</th><td>dev AWS Outbox Relay → SQS → audit-log-service 저장 증적 확보, CloudWatch custom metric 방출 구현, replay 승인/감사 흐름, WMS source 추가</td></tr>
+          <tr><th>완료 범위</th><td><code>apps/outbox-relay-service</code> NestJS app shell, <code>/health</code>, <code>/ready</code>, auth-iam/tenant/wms source DB adapter, lock/retry 상태 전환, mock/EventBridge/SQS publisher, 감사 이벤트 SQS 기본 발행 연결, 운영 API, Docker compose, CDK ECS service, 수동 배포 workflow, Postman 요청</td></tr>
+          <tr><th>남은 범위</th><td>dev AWS Outbox Relay → SQS → audit-log-service 저장 증적 확보, CloudWatch custom metric 방출 구현, replay 승인/감사 흐름</td></tr>
           <tr><th>선행 조건</th><td>각 도메인 서비스가 <code>outbox_events</code>에 pending event를 저장하고, relay가 읽을 DB 연결/권한 정책과 AWS 발행 대상이 확정되어야 합니다.</td></tr>
           <tr><th>API 문서</th><td><code>docs/apis/outbox-relay-service/index.html</code>에 health/readiness와 내부 운영 조회 API를 기록했습니다.</td></tr>
         </table>
@@ -66,9 +66,9 @@
         <h2>구현 계획 요약</h2>
         <table>
           <tbody>
-            <tr><th>1차 목표</th><td>Auth/IAM과 tenant-service의 <code>outbox_events</code> pending row를 안전하게 가져와 EventBridge 또는 SQS로 발행하고, 성공/실패 상태를 원본 DB에 기록합니다.</td></tr>
+            <tr><th>1차 목표</th><td>Auth/IAM, tenant-service, wms-service의 <code>outbox_events</code> pending row를 안전하게 가져와 EventBridge 또는 SQS로 발행하고, 성공/실패 상태를 원본 DB에 기록합니다.</td></tr>
             <tr><th>서비스 경계</th><td>다른 서비스의 내부 TypeScript source나 Prisma generated client를 import하지 않습니다. relay는 source별 DB connection과 SQL adapter로 outbox table만 다룹니다.</td></tr>
-            <tr><th>초기 source</th><td><code>auth-iam-service</code>, <code>tenant-service</code>. 이후 <code>wms-service</code>가 outbox table을 갖추면 source adapter를 추가합니다.</td></tr>
+            <tr><th>초기 source</th><td><code>auth-iam-service</code>, <code>tenant-service</code>, <code>wms-service</code>. WMS source는 <code>WMS_OUTBOX_DATABASE_URL</code> 또는 CDK secret context로 연결합니다.</td></tr>
             <tr><th>초기 publisher</th><td>local은 <code>mock</code> publisher로 payload와 상태 전환을 검증하고, AWS dev 이상은 감사 로그 저장을 위해 SQS를 기본 대상으로 둡니다. EventBridge는 여러 consumer fan-out이 필요한 이벤트에 사용합니다.</td></tr>
             <tr><th>운영 방식</th><td>HTTP API 중심 서비스가 아니라 worker 성격입니다. <code>/health</code>, <code>/ready</code>, 내부 운영 조회/replay API만 제공합니다.</td></tr>
             <tr><th>성공 기준</th><td>동일 이벤트가 중복 발행되어도 소비자는 <code>eventId</code>로 멱등 처리하고, relay는 published/failed/retry 상태와 requestId를 추적할 수 있습니다.</td></tr>
@@ -85,7 +85,7 @@
           <div class="card">
             <strong>포함</strong>
             <ul>
-              <li>Auth/IAM, tenant-service <code>outbox_events</code> pending 조회</li>
+              <li>Auth/IAM, tenant-service, wms-service <code>outbox_events</code> pending 조회</li>
               <li>event envelope 필수 필드 검증</li>
               <li>local <code>mock</code> publisher</li>
               <li><code>pending</code> → <code>published</code> 상태 변경</li>
@@ -98,7 +98,7 @@
             <strong>제외</strong>
             <ul>
               <li>업무 이벤트 생성 로직</li>
-              <li>WMS 이벤트 생성</li>
+              <li>WMS 업무 이벤트 생성</li>
               <li>EventBridge bus 리소스 생성</li>
               <li>DLQ 운영 replay UI</li>
               <li>다른 서비스 DB의 업무 데이터 수정</li>
@@ -135,7 +135,7 @@ outbox_events 상태를 published 또는 failed로 변경</code></pre>
         </div>
         <pre><code>OUTBOX_PORT=3007
 OUTBOX_WORKER_ENABLED=true
-OUTBOX_SOURCES=auth-iam,tenant
+OUTBOX_SOURCES=auth-iam,tenant,wms
 OUTBOX_PUBLISHER_TYPE=mock
 OUTBOX_POLL_INTERVAL_MS=5000
 OUTBOX_BATCH_SIZE=20
@@ -146,7 +146,7 @@ OUTBOX_LOCK_TIMEOUT_SECONDS=60</code></pre>
         <h2>첫 구현 범위</h2>
         <div class="grid">
           <div class="card"><strong>Service Shell</strong><p>NestJS app, config, health/readiness, JSON access log, graceful shutdown</p></div>
-          <div class="card"><strong>Source Adapter</strong><p>Auth/IAM과 tenant-service outbox table을 source 단위로 polling</p></div>
+          <div class="card"><strong>Source Adapter</strong><p>Auth/IAM, tenant-service, wms-service outbox table을 source 단위로 polling</p></div>
           <div class="card"><strong>Lock Strategy</strong><p>중복 worker 실행을 고려한 batch claim, lock timeout, retry schedule</p></div>
           <div class="card"><strong>Publish</strong><p><code>mock</code>, EventBridge, SQS publisher adapter를 분리해 선택적으로 사용</p></div>
           <div class="card"><strong>State Transition</strong><p>published, retry, failed 상태와 last error, retry count 기록</p></div>
@@ -167,7 +167,7 @@ OUTBOX_LOCK_TIMEOUT_SECONDS=60</code></pre>
             <span class="step-number">2</span>
             <div>
               <strong>Outbox schema 보강 기준 확정</strong>
-              <p>Auth/IAM과 tenant-service의 <code>outbox_events</code>에 lock/retry 운영에 필요한 필드를 추가할지 확정합니다. 1차 권장 필드는 <code>lockedAt</code>, <code>lockedBy</code>, <code>nextRetryAt</code>, <code>lastError</code>, <code>publishedTarget</code>입니다.</p>
+              <p>Auth/IAM, tenant-service, wms-service의 <code>outbox_events</code>에 lock/retry 운영 필드를 같은 계약으로 유지합니다. 1차 필드는 <code>lockedAt</code>, <code>lockedBy</code>, <code>nextRetryAt</code>, <code>lastError</code>, <code>publishedTarget</code>입니다.</p>
             </div>
           </div>
           <div class="flow-item">
@@ -219,15 +219,16 @@ OUTBOX_LOCK_TIMEOUT_SECONDS=60</code></pre>
               <p><label><input type="checkbox" checked disabled /> <code>apps/outbox-relay-service</code> NestJS 실행 구조 생성</label></p>
               <p><label><input type="checkbox" checked disabled /> <code>OUTBOX_*</code> 환경 변수 config와 readiness 검증 추가</label></p>
               <p><label><input type="checkbox" checked disabled /> Outbox source별 DB URL/secret 정책 확정</label></p>
-              <p><label><input type="checkbox" checked disabled /> Auth/IAM과 tenant-service <code>outbox_events</code> lock/retry 보강 필드 schema 반영</label></p>
+              <p><label><input type="checkbox" checked disabled /> Auth/IAM, tenant-service, wms-service <code>outbox_events</code> lock/retry 보강 필드 schema 반영</label></p>
               <p><label><input type="checkbox" checked disabled /> Auth/IAM source adapter 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> Tenant source adapter 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> WMS source adapter와 secret context 연결</label></p>
               <p><label><input type="checkbox" checked disabled /> batch claim, lock timeout, retry backoff 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> mock publisher 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> EventBridge publisher 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> SQS publisher adapter 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> relay 운영 API와 <code>docs/apis/outbox-relay-service/index.html</code> 작성</label></p>
-              <p><label><input type="checkbox" checked disabled /> Auth/IAM과 tenant-service의 <code>outbox_events</code> 저장 구조 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> Auth/IAM, tenant-service, wms-service의 <code>outbox_events</code> 저장 구조 확인</label></p>
               <p><label><input type="checkbox" checked disabled /> <code>packages/events</code>의 공통 event envelope 타입 확인</label></p>
             </div>
           </div>
@@ -293,7 +294,7 @@ OUTBOX_LOCK_TIMEOUT_SECONDS=60</code></pre>
           <tbody>
             <tr><th>Runtime</th><td><code>OUTBOX_PORT</code>, <code>APP_ENV</code>, <code>LOG_LEVEL</code>, <code>AWS_REGION</code></td></tr>
             <tr><th>Worker</th><td><code>OUTBOX_WORKER_ENABLED</code>, <code>OUTBOX_POLL_INTERVAL_MS</code>, <code>OUTBOX_BATCH_SIZE</code>, <code>OUTBOX_MAX_RETRY_COUNT</code>, <code>OUTBOX_LOCK_TIMEOUT_SECONDS</code></td></tr>
-            <tr><th>Sources</th><td><code>OUTBOX_SOURCES</code>, <code>AUTH_IAM_OUTBOX_DATABASE_URL</code>, <code>TENANT_OUTBOX_DATABASE_URL</code>, 이후 <code>WMS_OUTBOX_DATABASE_URL</code></td></tr>
+            <tr><th>Sources</th><td><code>OUTBOX_SOURCES</code>, <code>AUTH_IAM_OUTBOX_DATABASE_URL</code>, <code>TENANT_OUTBOX_DATABASE_URL</code>, <code>WMS_OUTBOX_DATABASE_URL</code></td></tr>
             <tr><th>Publisher</th><td><code>OUTBOX_PUBLISHER_TYPE</code> 값은 <code>mock</code>, <code>eventbridge</code>, <code>sqs</code> 중 하나로 둡니다.</td></tr>
             <tr><th>EventBridge</th><td><code>OUTBOX_EVENTBRIDGE_BUS_NAME</code>, <code>OUTBOX_EVENT_SOURCE_PREFIX</code></td></tr>
             <tr><th>SQS</th><td><code>OUTBOX_SQS_QUEUE_URL</code>, <code>OUTBOX_SQS_MESSAGE_GROUP_STRATEGY</code></td></tr>
@@ -318,12 +319,12 @@ OUTBOX_LOCK_TIMEOUT_SECONDS=60</code></pre>
         </p>
         <p>
           <code>OUTBOX_WORKER_ENABLED=true</code>이면 <code>OUTBOX_SOURCES</code>에 포함된 source마다 대응하는 DB URL secret이 필요합니다.
-          예를 들어 <code>OUTBOX_SOURCES=auth-iam,tenant</code>이면 <code>AUTH_IAM_OUTBOX_DATABASE_URL</code>과 <code>TENANT_OUTBOX_DATABASE_URL</code>이 모두 주입되어야 readiness가 통과합니다.
+          예를 들어 <code>OUTBOX_SOURCES=auth-iam,tenant,wms</code>이면 <code>AUTH_IAM_OUTBOX_DATABASE_URL</code>, <code>TENANT_OUTBOX_DATABASE_URL</code>, <code>WMS_OUTBOX_DATABASE_URL</code>이 모두 주입되어야 readiness가 통과합니다.
         </p>
       </section>
       <section>
         <h2>Outbox DB 보강 초안</h2>
-        <p>Auth/IAM과 tenant-service의 <code>outbox_events</code>에는 relay 운영 안정성을 위해 아래 lock/retry 필드를 반영했습니다. 필드는 nullable이라 기존 outbox 저장 코드와 호환됩니다.</p>
+        <p>Auth/IAM, tenant-service, wms-service의 <code>outbox_events</code>에는 relay 운영 안정성을 위해 아래 lock/retry 필드를 반영했습니다. 필드는 nullable이라 기존 outbox 저장 코드와 호환됩니다.</p>
         <div class="wide-table">
           <table>
             <thead>
@@ -405,7 +406,7 @@ OUTBOX_LOCK_TIMEOUT_SECONDS=60</code></pre>
               <tr>
                 <td><code>P0</code></td>
                 <td>Source DB 연결 운영 검증</td>
-                <td>Auth/IAM과 tenant-service의 <code>outbox_events</code>를 source별 전용 DB URL secret과 독립 connection pool로 읽습니다.</td>
+                <td>Auth/IAM, tenant-service, wms-service의 <code>outbox_events</code>를 source별 전용 DB URL secret과 독립 connection pool로 읽습니다.</td>
                 <td>source별 runtime env, CDK context, GitHub secret, Secrets Manager 이름과 readiness 조건이 dev AWS에서 재현됩니다.</td>
                 <td>outbox-relay-service 개발 문서, environment 규칙, AWS ECS 기술 문서</td>
               </tr>
@@ -465,7 +466,7 @@ OUTBOX_LOCK_TIMEOUT_SECONDS=60</code></pre>
         <article>
           <h3>2026-06-17 Relay engine과 운영 API 구현</h3>
           <ul>
-            <li><code>pg</code> 기반 source adapter를 추가해 Auth/IAM, tenant-service, 이후 WMS source DB의 <code>outbox_events</code>를 source별 connection pool로 다룰 수 있게 했습니다.</li>
+            <li><code>pg</code> 기반 source adapter를 추가해 Auth/IAM, tenant-service, WMS source DB의 <code>outbox_events</code>를 source별 connection pool로 다룰 수 있게 했습니다.</li>
             <li><code>FOR UPDATE SKIP LOCKED</code> 기반 batch claim, lock timeout, exponential backoff, max retry 초과 시 <code>failed</code> 전환을 구현했습니다.</li>
             <li><code>mock</code>, EventBridge, SQS publisher adapter를 추가하고 publisher 결과를 <code>publishedTarget</code>에 기록하도록 했습니다.</li>
             <li><code>/internal/operations/outbox-relay/status</code>, <code>/internal/operations/outbox-relay/sources</code> 운영 API와 API 문서를 추가했습니다.</li>
@@ -475,7 +476,7 @@ OUTBOX_LOCK_TIMEOUT_SECONDS=60</code></pre>
         <article>
           <h3>2026-06-17 Outbox lock/retry schema 보강</h3>
           <ul>
-            <li>Auth/IAM과 tenant-service의 <code>OutboxEvent</code> schema에 <code>lockedAt</code>, <code>lockedBy</code>, <code>nextRetryAt</code>, <code>lastError</code>, <code>publishedTarget</code> nullable 필드를 추가했습니다.</li>
+            <li>Auth/IAM, tenant-service, wms-service의 <code>OutboxEvent</code> schema에 <code>lockedAt</code>, <code>lockedBy</code>, <code>nextRetryAt</code>, <code>lastError</code>, <code>publishedTarget</code> nullable 필드를 추가했습니다.</li>
             <li>pending claim과 retry 조회를 위해 <code>status</code>, <code>nextRetryAt</code>, <code>createdAt</code> 복합 index와 <code>lockedAt</code> index를 추가했습니다.</li>
             <li>새 필드는 nullable이므로 기존 업무 transaction의 outbox event 저장 코드는 그대로 호환됩니다.</li>
             <li><code>pnpm --dir apps/auth-iam-service prisma:validate</code>, <code>pnpm --dir apps/tenant-service prisma:validate</code>로 schema 유효성을 확인했습니다.</li>
@@ -511,7 +512,7 @@ OUTBOX_LOCK_TIMEOUT_SECONDS=60</code></pre>
         <article>
           <h3>2026-06-12 착수 전 상태 점검</h3>
           <ul>
-            <li>아직 구현 전이며 Auth/IAM과 tenant-service의 <code>outbox_events</code>를 EventBridge 또는 SQS로 relay하는 서비스로 유지합니다.</li>
+            <li>Auth/IAM, tenant-service, wms-service의 <code>outbox_events</code>를 EventBridge 또는 SQS로 relay하는 서비스로 유지합니다.</li>
             <li>첫 구현 전에는 대상 DB 연결 방식, idempotency 기준, retry/DLQ 정책, published/failed 상태 전환 규칙을 확정해야 했고, 1차 구현에서 source별 DB URL, lock/retry, 감사 SQS queue/DLQ 기준을 반영했습니다.</li>
           </ul>
         </article>

@@ -16,7 +16,9 @@
     "infra:deploy": "pnpm --filter @multi-tenant/infra-cdk deploy",
     "db:reset:local": "bash scripts/db/reset-local-db.sh",
     "seed:local": "docker compose -f docker/local/docker-compose.yml up --build --no-deps tenant-service-seed auth-iam-seed && node scripts/db/seed-local-api.mjs",
-    "test:outbox:sqs:local": "node scripts/test/verify-local-outbox-sqs.mjs"
+    "test:outbox:sqs:local": "node scripts/test/verify-local-outbox-sqs.mjs",
+    "test:wms:local": "node scripts/test/verify-local-wms-flow.mjs",
+    "test:system:local": "node scripts/test/verify-local-system-scenarios.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.3",

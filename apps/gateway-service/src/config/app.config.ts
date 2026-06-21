@@ -12,6 +12,7 @@ export interface AppConfig {
   routes: {
     auth: ProxyRouteConfig;
     admin: ProxyRouteConfig;
+    app: ProxyRouteConfig;
   };
 }
 
@@ -49,7 +50,7 @@ export interface RateLimitConfig {
 }
 
 export interface ProxyRouteConfig {
-  key: "auth" | "admin";
+  key: "auth" | "admin" | "app";
   publicPathPrefix: string;
   upstreamUrl: string;
   timeoutMs: number;
@@ -112,7 +113,8 @@ export function getAppConfig(): AppConfig {
       windowSeconds: readNumber("GATEWAY_RATE_LIMIT_WINDOW_SECONDS", 60),
       limits: {
         auth: readNumber("GATEWAY_RATE_LIMIT_AUTH_PER_WINDOW", 60),
-        admin: readNumber("GATEWAY_RATE_LIMIT_ADMIN_PER_WINDOW", 300)
+        admin: readNumber("GATEWAY_RATE_LIMIT_ADMIN_PER_WINDOW", 300),
+        app: readNumber("GATEWAY_RATE_LIMIT_APP_PER_WINDOW", 600)
       }
     },
     routes: {
@@ -128,6 +130,13 @@ export function getAppConfig(): AppConfig {
         publicPathPrefix: "/api/admin",
         upstreamUrl: readString("ADMIN_BFF_SERVICE_URL", "http://admin-bff-service:3000/api/admin"),
         timeoutMs: readNumber("GATEWAY_ADMIN_UPSTREAM_TIMEOUT_MS", 5000),
+        retryCount: readNumber("GATEWAY_SAFE_METHOD_RETRIES", DEFAULT_SAFE_METHOD_RETRY_COUNT)
+      },
+      app: {
+        key: "app",
+        publicPathPrefix: "/api/app",
+        upstreamUrl: readString("USER_BFF_SERVICE_URL", "http://user-bff-service:3000/api/app"),
+        timeoutMs: readNumber("GATEWAY_APP_UPSTREAM_TIMEOUT_MS", 5000),
         retryCount: readNumber("GATEWAY_SAFE_METHOD_RETRIES", DEFAULT_SAFE_METHOD_RETRY_COUNT)
       }
     }

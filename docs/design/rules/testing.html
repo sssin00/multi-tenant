@@ -87,13 +87,25 @@
                 </div>
                 <div class="card">
                   <strong>WMS 핵심 업무</strong>
-                  <p>재고 조정, 입고 확정, 출고 할당, 출고 확정</p>
+                  <p>재고 조정, 일 단위 스냅샷 생성/조회, 입고 확정, 출고 할당, 포장 확정, 출고 확정</p>
                 </div>
                 <div class="card">
                   <strong>Outbox/Audit</strong>
-                  <p>업무 상태 변경 후 outbox 이벤트 저장, 재고 조정/출고 확정 audit log 저장, 로그의 requestId 연결</p>
+                  <p>업무 상태 변경 후 outbox 이벤트 저장, 재고 조정/스냅샷/포장/출고 확정 audit log 저장, 로그의 requestId 연결</p>
                 </div>
               </div>
+            </section>
+
+      <section>
+              <h2>현재 로컬 검증 기준</h2>
+              <table>
+                <tbody>
+                  <tr><th>기준일</th><td><code>2026-06-19</code></td></tr>
+                  <tr><th>전체 시스템</th><td><code>pnpm test:system:local</code>은 gateway, Admin BFF, User BFF app shell/WMS 화면 조회 API, Auth/IAM, Tenant, WMS, outbox/audit, User BFF app audit EventBridge routing CDK synth를 포함해 33개 시나리오를 검증합니다.</td></tr>
+                  <tr><th>WMS 하위 흐름</th><td><code>pnpm test:wms:local</code>은 현재고 list envelope, 입고, 출고 할당, 포장, 출하, 일 단위 스냅샷, empty filter 회귀를 포함해 22개 하위 시나리오를 검증합니다.</td></tr>
+                  <tr><th>최신 로그</th><td><a href="../../test-logs/2026-06-21/frontend-wms-api-verification.html"><code>docs/test-logs/2026-06-21/frontend-wms-api-verification.html</code></a></td></tr>
+                </tbody>
+              </table>
             </section>
 
       <section>

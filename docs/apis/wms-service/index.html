@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>wms-service API 문서</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">API Docs</p>
+        <h1>wms-service API 문서</h1>
+        <p class="lead">
+          wms-service는 외부에 직접 노출하지 않는 WMS 도메인 서비스입니다.
+          1차 API는 BFF 또는 내부 서비스가 호출하는 <code>/api/internal/wms/**</code> 계약으로 작성합니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>API 공통 기준</h2>
+        <table>
+          <tbody>
+            <tr><th>Public endpoint</th><td><code>GET /health</code>, <code>GET /ready</code>만 public입니다.</td></tr>
+            <tr><th>Internal endpoint</th><td><code>/api/internal/wms/**</code>은 HMAC 기반 internal service auth가 필요합니다.</td></tr>
+            <tr><th>Allowed caller</th><td><code>admin-bff-service</code>, <code>user-bff-service</code>만 WMS 내부 API 호출자로 허용합니다. Postman과 테스트 스크립트는 로컬에서 <code>admin-bff-service</code> caller를 시뮬레이션합니다.</td></tr>
+            <tr><th>Headers</th><td><code>Content-Type</code>, <code>Accept</code>, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>, <code>X-Internal-Service-Id</code>, <code>X-Internal-Timestamp</code>, <code>X-Internal-Signature</code>, mutation은 <code>Idempotency-Key</code> 권장</td></tr>
+            <tr><th>Envelope</th><td>응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>, <code>data</code> 또는 <code>error</code> 구조를 사용합니다. <code>meta</code> 필드는 사용하지 않습니다.</td></tr>
+            <tr><th>Tenant</th><td>모든 WMS 업무 API는 <code>X-Tenant-Id</code>가 필요하고 tenant module 목록에 <code>wms</code>가 있어야 합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Endpoint 목록</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Endpoint</th>
+                <th>권한</th>
+                <th>설명</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>GET /health</code></td><td>Public</td><td>프로세스 생존 상태를 확인합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>GET /ready</code></td><td>Public</td><td>DB, 내부 client, config 준비 상태를 확인합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/warehouses</code></td><td><code>wms.warehouses.manage</code></td><td>창고를 생성합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>GET /api/internal/wms/warehouses</code></td><td><code>wms.warehouses.manage</code></td><td>tenant 창고 목록을 조회합니다. 읽기 전용 권한 분리는 후속 결정입니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/locations</code></td><td><code>wms.locations.manage</code></td><td>창고 하위 로케이션을 생성합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>GET /api/internal/wms/locations</code></td><td><code>wms.locations.manage</code></td><td>로케이션 목록을 조회합니다. 읽기 전용 권한 분리는 후속 결정입니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/items</code></td><td><code>wms.items.manage</code></td><td>품목을 생성합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>GET /api/internal/wms/items</code></td><td><code>wms.items.manage</code></td><td>품목 목록을 조회합니다. 읽기 전용 권한 분리는 후속 결정입니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>GET /api/internal/wms/inventory</code></td><td><code>wms.inventory.read</code></td><td>현재고/할당/가용 재고를 조회합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>GET /api/internal/wms/inventory/snapshots</code></td><td><code>wms.inventory.read</code></td><td>일 단위 과거 재고 스냅샷을 조회합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/inventory/snapshots/generate</code></td><td><code>wms.inventory.snapshot.generate</code></td><td>tenant/date 단위 스냅샷을 생성 또는 재생성하고 <code>wms.inventory.snapshot.generated</code> outbox event를 저장합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/inventory/adjustments</code></td><td><code>wms.inventory.adjust</code></td><td>재고 조정 후 <code>wms.inventory.adjusted</code> outbox event를 저장합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/inbound/confirmations</code></td><td><code>wms.inbound.confirm</code></td><td>입고 확정 후 <code>wms.inbound.confirmed</code> outbox event를 저장합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/outbound/allocations</code></td><td><code>wms.outbound.allocate</code></td><td>가용 재고 검증 후 출고 할당을 생성합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/outbound/shipments</code></td><td><code>wms.outbound.ship</code></td><td><code>allocationId</code> 직접 출하 또는 <code>packingId</code> 포장 기반 출하를 처리하고 <code>wms.outbound.shipped</code> outbox event를 저장합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/outbound/packings</code></td><td><code>wms.outbound.pack</code></td><td>allocated allocation을 포장 작업으로 묶습니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>GET /api/internal/wms/outbound/packings</code></td><td><code>wms.outbound.pack</code></td><td>tenant 범위 포장 작업 목록을 조회합니다. read 권한 분리는 후속 결정입니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/outbound/packings/{packingId}/packages</code></td><td><code>wms.outbound.pack</code></td><td>포장 작업에 박스/패키지와 품목별 포장 수량을 등록합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+              <tr><td><code>POST /api/internal/wms/outbound/packings/{packingId}/confirm</code></td><td><code>wms.outbound.pack</code></td><td>포장 수량 검증 후 포장을 확정하고 <code>wms.outbound.packed</code> outbox event를 저장합니다.</td><td><span class="tag done">Implemented</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>주요 요청 예시</h2>
+        <h3>POST /api/internal/wms/inventory/adjustments</h3>
+        <pre><code>{
+  "warehouseId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "locationId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "itemId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "quantityChange": 10,
+  "reason": "initial-stock",
+  "effectiveDate": "2026-06-19",
+  "correctedLedgerId": null,
+  "correctionReason": null
+}</code></pre>
+        <h3>성공 응답</h3>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-wms-001",
+  "timestamp": "2026-06-17T00:00:00.000Z",
+  "data": {
+    "adjustmentId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    "inventoryBalanceId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    "quantityChange": "10",
+    "reason": "initial-stock",
+    "referenceNo": null,
+    "effectiveDate": "2026-06-19",
+    "correctedLedgerId": null,
+    "correctionReason": null
+  }
+}</code></pre>
+        <h3>POST /api/internal/wms/outbound/packings</h3>
+        <pre><code>{
+  "outboundOrderId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "allocationIds": [
+    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+  ],
+  "memo": "packing work for wave-001"
+}</code></pre>
+        <h3>POST /api/internal/wms/outbound/packings/{packingId}/packages</h3>
+        <pre><code>{
+  "packageNo": "PKG-20260619-0001",
+  "boxType": "small",
+  "weight": 1.25,
+  "width": 300,
+  "height": 200,
+  "depth": 150,
+  "items": [
+    {
+      "allocationId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "itemId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      "quantity": 3
+    }
+  ]
+}</code></pre>
+        <h3>POST /api/internal/wms/outbound/shipments (packingId branch)</h3>
+        <pre><code>{
+  "packingId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "carrierCode": "cj-logistics",
+  "trackingNo": "1234567890",
+  "shippedAt": "2026-06-19T00:00:00.000Z"
+}</code></pre>
+        <h3>GET /api/internal/wms/inventory/snapshots</h3>
+        <pre><code>GET /api/internal/wms/inventory/snapshots?snapshotDate=2026-06-19&amp;warehouseId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa&amp;page=1&amp;size=20</code></pre>
+        <h3>스냅샷 조회 성공 응답</h3>
+        <pre><code>{
+  "success": true,
+  "requestId": "req-wms-snapshot-001",
+  "timestamp": "2026-06-19T00:00:00.000Z",
+  "data": {
+    "items": [
+      {
+        "snapshotId": "ffffffff-ffff-4fff-8fff-ffffffffffff",
+        "snapshotDate": "2026-06-19",
+        "snapshotAt": "2026-06-19T14:59:59.999Z",
+        "warehouseId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "locationId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "itemId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "quantity": "20",
+        "allocatedQuantity": "4",
+        "availableQuantity": "16",
+        "sourceLedgerId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        "runId": "99999999-9999-4999-8999-999999999999",
+        "previousSnapshotId": null,
+        "isCurrent": true,
+        "generatedAt": "2026-06-19T00:05:00.000Z"
+      }
+    ],
+    "page": 1,
+    "size": 20,
+    "total": 1
+  }
+}</code></pre>
+        <h3>POST /api/internal/wms/inventory/snapshots/generate</h3>
+        <pre><code>{
+  "snapshotDate": "2026-06-19",
+  "mode": "rebuild",
+  "warehouseId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>표준 에러</h2>
+        <table>
+          <tbody>
+            <tr><th><code>TENANT_REQUIRED</code></th><td><code>X-Tenant-Id</code>가 없습니다.</td></tr>
+            <tr><th><code>WMS_MODULE_NOT_ENABLED</code></th><td>tenant module 목록에 <code>wms</code>가 없습니다.</td></tr>
+            <tr><th><code>WMS_PERMISSION_DENIED</code></th><td>auth-iam permission check 결과가 거부되었습니다.</td></tr>
+            <tr><th><code>WMS_RESOURCE_NOT_FOUND</code></th><td>tenant 범위에서 창고/로케이션/품목/재고를 찾을 수 없습니다.</td></tr>
+            <tr><th><code>WMS_INSUFFICIENT_STOCK</code></th><td>출고 할당 또는 출하에 필요한 가용/할당 재고가 부족합니다.</td></tr>
+            <tr><th><code>WMS_PACKING_NOT_FOUND</code></th><td>tenant 범위에서 포장 작업을 찾을 수 없습니다.</td></tr>
+            <tr><th><code>WMS_PACKING_ALREADY_CONFIRMED</code></th><td>이미 확정된 포장 작업을 다시 수정하거나 확정하려고 했습니다.</td></tr>
+            <tr><th><code>WMS_PACKAGE_QUANTITY_MISMATCH</code></th><td>패키지별 포장 수량 합계가 allocation 수량과 일치하지 않습니다.</td></tr>
+            <tr><th><code>WMS_SHIPMENT_NOT_READY</code></th><td>포장 확정 전 출하를 시도했습니다.</td></tr>
+            <tr><th><code>WMS_SHIPMENT_ALREADY_SHIPPED</code></th><td>이미 출하 완료된 포장/출고 건을 다시 출하하려고 했습니다.</td></tr>
+            <tr><th><code>WMS_SNAPSHOT_DATE_REQUIRED</code></th><td>스냅샷 조회 또는 생성 요청에 <code>snapshotDate</code>가 없습니다.</td></tr>
+            <tr><th><code>WMS_SNAPSHOT_NOT_READY</code></th><td>요청한 일자의 스냅샷이 아직 생성되지 않았습니다.</td></tr>
+            <tr><th><code>WMS_SNAPSHOT_REBUILD_CONFLICT</code></th><td>같은 tenant/date의 스냅샷 생성 또는 재생성이 이미 진행 중입니다.</td></tr>
+            <tr><th><code>WMS_LEDGER_NOT_FOUND</code></th><td>보정 대상 <code>correctedLedgerId</code> 원장을 찾을 수 없습니다.</td></tr>
+            <tr><th><code>WMS_LEDGER_REFERENCE_MISMATCH</code></th><td>보정 대상 원장의 warehouse/location/item 조합이 요청과 다릅니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>일 단위 재고 스냅샷 구현 기준</h2>
+        <table>
+          <tbody>
+            <tr><th>상태</th><td><span class="tag done">Implemented</span> Postman collection과 구현을 함께 갱신합니다.</td></tr>
+            <tr><th>조회 목적</th><td>특정 business date의 warehouse/location/item별 보유 수량, 할당 수량, 가용 수량을 조회합니다.</td></tr>
+            <tr><th>정합성 기준</th><td>조회 API는 현재고를 역산하지 않고 <code>wms_inventory_daily_snapshots</code> read model만 읽습니다. 해당 read model은 <code>wms_inventory_ledger</code>의 cutoff balance에서 생성합니다.</td></tr>
+            <tr><th>날짜 기준</th><td><code>snapshotDate</code>는 <code>YYYY-MM-DD</code> 형식입니다. tenant timezone 설정 전까지 business date 기본값은 <code>Asia/Seoul</code>입니다.</td></tr>
+            <tr><th>권한</th><td>조회는 <code>wms.inventory.read</code>, 생성/재생성은 신설 권한 <code>wms.inventory.snapshot.generate</code>를 사용합니다.</td></tr>
+            <tr><th>응답 envelope</th><td>목록 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용하고 <code>meta</code>는 사용하지 않습니다.</td></tr>
+            <tr><th>생성 명령</th><td>자동 일마감 배치가 기본이며, 운영자가 수동으로 생성/재생성할 때는 <code>mode</code>를 <code>generate</code> 또는 <code>rebuild</code>로 보냅니다. 완료 시 <code>wms.inventory.snapshot.generated</code> 이벤트를 저장합니다.</td></tr>
+            <tr><th>보정 추적</th><td>과거일 보정은 <code>effectiveDate</code>, <code>correctedLedgerId</code>, <code>correctionReason</code>으로 추적하고, 스냅샷은 <code>previousSnapshotId</code>와 <code>isCurrent</code>로 보정 전/후 수량을 보관합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>포장/출하 구현 기준</h2>
+        <table>
+          <tbody>
+            <tr><th>목표 흐름</th><td><code>outbound allocation -> packing work -> package registration -> packing confirm -> shipment confirm</code></td></tr>
+            <tr><th>호환성</th><td>기존 allocationId 직접 출하 요청은 유지하고, 포장 기반 출하는 같은 endpoint의 <code>packingId</code> branch로 처리합니다.</td></tr>
+            <tr><th>새 이벤트</th><td><code>wms.outbound.packed</code>를 추가합니다. 출하 완료 이벤트는 기존 <code>wms.outbound.shipped</code>를 유지합니다.</td></tr>
+            <tr><th>검증 상태</th><td><code>pnpm test:wms:local</code> 시나리오에 포장 생성, 포장 확정, 포장 기반 출하, 수량 불일치, 중복 출하 차단을 포함합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>연계 테스트 기준</h2>
+        <table>
+          <tbody>
+            <tr><th>Auth/IAM</th><td>WMS mutation 전에 <code>/api/auth/permissions/check</code> 호출 evidence를 남깁니다.</td></tr>
+            <tr><th>Tenant</th><td><code>/internal/tenants/{tenantId}/modules</code> 응답에 <code>wms</code>가 있는지 확인합니다.</td></tr>
+            <tr><th>Outbox</th><td>mutation마다 <code>outbox_events</code>에 pending row가 생기고 relay 처리 후 published가 됩니다.</td></tr>
+            <tr><th>Audit</th><td>SQS consumer가 WMS event를 audit log로 저장합니다.</td></tr>
+            <tr><th>Local verification</th><td><code>pnpm test:wms:local</code>로 WMS → Outbox Relay → LocalStack SQS → Audit Log 흐름을 검증합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer"><a href="../index.html">API 문서 허브로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

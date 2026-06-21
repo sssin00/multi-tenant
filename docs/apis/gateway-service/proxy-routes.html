@@ -77,6 +77,7 @@
           <span class="method">ANY</span>
           <code>/api/auth/**</code>
           <code>/api/admin/**</code>
+          <code>/api/app/**</code>
           <span class="tag done">ACTIVE</span>
         </div>
       </header>
@@ -94,7 +95,7 @@
             <tr><th>Tenant Status</th><td>gateway-service는 tenant-service를 직접 호출하지 않습니다. tenant status check는 Admin BFF와 이후 추가되는 BFF가 tenant-service 내부 API로 수행합니다.</td></tr>
             <tr><th>Security Headers</th><td>gateway-service가 공통 보안 header를 모든 응답에 추가합니다.</td></tr>
             <tr><th>CORS</th><td>운영 환경에서는 명시된 origin만 허용하고 wildcard origin을 사용하지 않습니다.</td></tr>
-            <tr><th>Timeout</th><td>Auth upstream은 기본 <code>3000ms</code>, Admin upstream은 기본 <code>5000ms</code>까지 기다립니다.</td></tr>
+            <tr><th>Timeout</th><td>Auth upstream은 기본 <code>3000ms</code>, Admin/App upstream은 기본 <code>5000ms</code>까지 기다립니다.</td></tr>
             <tr><th>Retry</th><td><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 timeout, network error, <code>502</code>, <code>503</code>, <code>504</code>에 대해 기본 1회 재시도합니다.</td></tr>
             <tr><th>Rate Limit</th><td>Redis fixed window 방식으로 route group별 요청 수를 제한합니다.</td></tr>
             <tr><th>Body</th><td><code>GET</code>, <code>HEAD</code>를 제외한 요청 body는 upstream으로 전달합니다.</td></tr>
@@ -113,6 +114,7 @@
               <tbody>
                 <tr><th><code>/api/auth/**</code></th><td><code>AUTH_IAM_SERVICE_URL</code>로 전달합니다. 구현된 auth-iam-service의 base path와 맞도록 upstream URL은 <code>/api/auth</code>까지 포함합니다.</td></tr>
                 <tr><th><code>/api/admin/**</code></th><td><code>ADMIN_BFF_SERVICE_URL</code>로 전달합니다. admin-bff-service는 auth-iam 권한 확인과 tenant-service 내부 조회를 수행합니다.</td></tr>
+                <tr><th><code>/api/app/**</code></th><td><code>USER_BFF_SERVICE_URL</code>로 전달합니다. user-bff-service는 사용자 app shell, navigation, WMS 화면 조회 API를 조합하고 tenant-service, auth-iam-service, wms-service를 내부 호출합니다.</td></tr>
                 <tr><th>tenant 관리 API</th><td>gateway는 tenant-service를 외부 API surface로 직접 proxy하지 않습니다. <code>/api/admin/tenants/**</code> 요청은 admin-bff-service를 거쳐 tenant-service 내부 API로 위임합니다.</td></tr>
               </tbody>
             </table>
@@ -126,8 +128,9 @@
               <tbody>
                 <tr><th>auth-iam-service</th><td><code>/api/auth/login</code>, <code>/api/auth/token/refresh</code>, <code>/api/auth/me</code>를 gateway proxy로 호출합니다.</td></tr>
                 <tr><th>admin-bff-service</th><td><code>/api/admin/**</code> 요청을 전달하며, admin-bff-service가 auth-iam-service와 tenant-service를 내부 호출합니다. tenant status check도 admin-bff-service가 tenant-service 내부 API로 수행합니다.</td></tr>
+                <tr><th>user-bff-service</th><td><code>/api/app/**</code> 요청을 전달하며, user-bff-service가 tenant active check, app permission/menu 조합, WMS 화면 조회 API 조합을 수행합니다.</td></tr>
                 <tr><th>tenant-service</th><td>gateway-service는 tenant-service를 직접 호출하지 않습니다.</td></tr>
-                <tr><th>Gateway 비대상 서비스</th><td><code>user-bff-service</code>는 구현 후 <code>/api/app/**</code> route만 추가합니다. <code>wms-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code> 같은 domain/platform/worker service는 구현 여부와 관계없이 gateway upstream으로 추가하지 않습니다.</td></tr>
+                <tr><th>Gateway 비대상 서비스</th><td><code>wms-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code> 같은 domain/platform/worker service는 구현 여부와 관계없이 gateway upstream으로 추가하지 않습니다.</td></tr>
               </tbody>
             </table>
           </div>
@@ -159,6 +162,7 @@
               <tbody>
                 <tr><th>원칙</th><td>gateway-service는 tenant-service를 직접 호출하지 않습니다.</td></tr>
                 <tr><th>Admin API</th><td><code>/api/admin/**</code> 요청은 admin-bff-service로 전달하고, admin-bff-service가 <code>GET /internal/tenants/{tenantId}/status</code>를 호출해 active tenant만 통과시킵니다.</td></tr>
+                <tr><th>App API</th><td><code>/api/app/**</code> 요청은 user-bff-service로 전달하고, user-bff-service가 <code>GET /internal/tenants/{tenantId}/status</code>를 호출해 active tenant만 통과시킵니다.</td></tr>
                 <tr><th>Gateway env</th><td>gateway-service 환경에는 <code>TENANT_SERVICE_URL</code>, <code>TENANT_INTERNAL_AUTH_SECRET</code>, <code>GATEWAY_TENANT_STATUS_CHECK_ENABLED</code>를 두지 않습니다.</td></tr>
               </tbody>
             </table>
@@ -173,11 +177,12 @@
                 <tr><th>저장소</th><td>로컬 Docker 환경은 compose Redis를 사용하고, AWS 배포 환경은 ElastiCache Redis를 사용합니다.</td></tr>
                 <tr><th><code>REDIS_URL</code></th><td>gateway-service가 rate limit 저장소로 연결할 Redis URL입니다. ECS 배포에서는 CDK가 ElastiCache endpoint로 주입합니다.</td></tr>
                 <tr><th>Algorithm</th><td><code>INCR</code>와 <code>EXPIRE</code>를 사용하는 60초 fixed window 방식입니다.</td></tr>
-                <tr><th>Route group</th><td><code>/api/auth/**</code>는 <code>auth</code>, <code>/api/admin/**</code>는 <code>admin</code>입니다.</td></tr>
+                <tr><th>Route group</th><td><code>/api/auth/**</code>는 <code>auth</code>, <code>/api/admin/**</code>는 <code>admin</code>, <code>/api/app/**</code>는 <code>app</code>입니다.</td></tr>
                 <tr><th>인증 후 Key</th><td><code>rate-limit:{env}:gateway:{tenantId}:{userId}:{routeGroup}</code></td></tr>
                 <tr><th>인증 전 Key</th><td><code>rate-limit:{env}:gateway:anonymous:{ip}:{routeGroup}</code></td></tr>
                 <tr><th><code>auth</code></th><td>기본 <code>60 requests / 60 seconds</code></td></tr>
                 <tr><th><code>admin</code></th><td>기본 <code>300 requests / 60 seconds</code></td></tr>
+                <tr><th><code>app</code></th><td>기본 <code>600 requests / 60 seconds</code></td></tr>
                 <tr><th>초과 응답</th><td><code>429 RATE_LIMIT_EXCEEDED</code></td></tr>
                 <tr><th>Redis 장애</th><td><code>503 RATE_LIMIT_UNAVAILABLE</code></td></tr>
                 <tr><th>응답 Header</th><td><code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code></td></tr>
@@ -194,6 +199,7 @@
               <tbody>
                 <tr><th><code>GATEWAY_AUTH_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/auth/**</code> upstream timeout입니다. 기본값은 <code>3000</code>입니다.</td></tr>
                 <tr><th><code>GATEWAY_ADMIN_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/admin/**</code> upstream timeout입니다. 기본값은 <code>5000</code>입니다.</td></tr>
+                <tr><th><code>GATEWAY_APP_UPSTREAM_TIMEOUT_MS</code></th><td><code>/api/app/**</code> upstream timeout입니다. 기본값은 <code>5000</code>입니다.</td></tr>
                 <tr><th><code>GATEWAY_SAFE_METHOD_RETRIES</code></th><td>safe method 재시도 횟수입니다. 기본값은 <code>1</code>입니다.</td></tr>
                 <tr><th>Retry method</th><td><code>GET</code>, <code>HEAD</code>, <code>OPTIONS</code>만 재시도합니다.</td></tr>
                 <tr><th>Retry condition</th><td>network error, timeout, upstream <code>502</code>, <code>503</code>, <code>504</code> 응답입니다.</td></tr>
@@ -305,6 +311,21 @@
 }</code></pre>
             <pre><code>{
   "success": false,
+  "requestId": "req_01HZABC125_APP",
+  "timestamp": "2026-06-18T00:00:00.000Z",
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Rate limit exceeded",
+    "details": {
+      "routeGroup": "app",
+      "limit": 600,
+      "windowSeconds": 60,
+      "resetAt": 1760000000
+    }
+  }
+}</code></pre>
+            <pre><code>{
+  "success": false,
   "requestId": "req_01HZABC126",
   "timestamp": "2026-06-09T10:00:01.000Z",
   "error": {
@@ -313,6 +334,20 @@
     "details": {
       "route": "admin",
       "upstreamUrl": "http://admin-bff-service:3000/api/admin",
+      "timeoutMs": 5000
+    }
+  }
+}</code></pre>
+            <pre><code>{
+  "success": false,
+  "requestId": "req_01HZABC127",
+  "timestamp": "2026-06-18T00:00:01.000Z",
+  "error": {
+    "code": "GATEWAY_TIMEOUT",
+    "message": "Upstream request timed out",
+    "details": {
+      "route": "app",
+      "upstreamUrl": "http://user-bff-service:3000/api/app",
       "timeoutMs": 5000
     }
   }

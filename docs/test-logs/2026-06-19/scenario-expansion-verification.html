@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2026-06-19 테스트 시나리오 보강 검증 로그</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Test Log · 2026-06-19</p>
+        <h1>테스트 시나리오 보강 검증</h1>
+        <p class="lead">
+          전체 시스템 테스트 시나리오를 보강하고 Docker compose 로컬 환경에서 다시 실행한 기록입니다.
+          Gateway/BFF 경유, tenant mismatch, User BFF app shell, app audit, WMS 현재고 list envelope, 스냅샷 empty filter 회귀 검증을 추가했습니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>검증 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>실행 시각</th><td>2026-06-19 15:24:13 KST</td></tr>
+            <tr><th>환경</th><td>Docker compose local, PostgreSQL <code>55432</code>, LocalStack <code>4566</code></td></tr>
+            <tr><th>서비스 상태</th><td><span class="tag done">healthy</span> gateway, auth-iam, tenant, admin-bff, user-bff, wms, audit-log, outbox-relay, postgres, redis, localstack</td></tr>
+            <tr><th>정적 검증</th><td><span class="tag done">통과</span> <code>node --check</code> on system/WMS scripts, docs HTML 60개 링크 확인</td></tr>
+            <tr><th>시나리오 결과</th><td><span class="tag done">통과</span> 시스템 31개 통과, WMS 하위 22개 통과</td></tr>
+            <tr><th>상세 리포트</th><td><a href="./system-test-scenarios-local-verification.html"><code>system-test-scenarios-local-verification.html</code></a></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>보강 항목</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>Scenario</th><th>보강 내용</th><th>최종 결과</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>NEG-TENANT-002</code></td><td>JWT tenant와 <code>X-Tenant-Id</code> 불일치 시 <code>403 TENANT_MISMATCH</code> 차단을 자동화했습니다.</td><td><span class="tag done">passed</span></td></tr>
+              <tr><td><code>GWBFF-CONN-002</code></td><td>gateway 경유 <code>GET /api/admin/access-control/screen-data</code>로 Admin BFF 조합 응답을 확인합니다.</td><td><span class="tag done">passed</span></td></tr>
+              <tr><td><code>USER-BFF-001</code></td><td>tenant_user 권한으로 <code>/api/app/me</code>, <code>/api/app/navigation</code>을 호출하고 권한 없는 메뉴가 숨겨지는지 확인합니다.</td><td><span class="tag done">passed</span></td></tr>
+              <tr><td><code>OBS-AUDIT-002</code></td><td>User BFF app shell 호출이 <code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code> 감사 로그로 저장되는지 requestId/action으로 조회합니다.</td><td><span class="tag done">passed</span></td></tr>
+              <tr><td><code>WMS-INV-001</code></td><td>현재고 조회가 <code>items/page/size/total</code> list envelope와 문자열 decimal 수량을 반환하는지 확인합니다.</td><td><span class="tag done">passed</span></td></tr>
+              <tr><td><code>WMS-SNAP-006</code></td><td>생성 완료된 snapshot run에서 미매칭 itemId 조회가 <code>items=[]</code>, <code>total=0</code> 정상 list envelope를 반환하는지 확인합니다.</td><td><span class="tag done">passed</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>테스트 보정</h2>
+        <table>
+          <tbody>
+            <tr><th>발견</th><td>새 <code>WMS-INV-001</code> 검증에서 <code>availableQuantity</code>가 API 계약대로 문자열 decimal <code>25.000</code>으로 반환됐으나 테스트가 <code>25</code>만 허용했습니다.</td></tr>
+            <tr><th>조치</th><td>기능 코드는 변경하지 않고 테스트 기대값을 numeric decimal 비교로 바꿨습니다.</td></tr>
+            <tr><th>재실행</th><td>수정 후 전체 시스템 시나리오를 다시 실행해 31개 항목이 모두 통과했습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>DB 증적</h2>
+        <p>최종 WMS runId는 <code>mqkjl93h</code>입니다.</p>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>이벤트</th><th>outbox status</th><th>outbox count</th><th>audit count</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>wms.inbound.confirmed</code></td><td><code>published</code></td><td>1</td><td>1</td></tr>
+              <tr><td><code>wms.inventory.adjusted</code></td><td><code>published</code></td><td>2</td><td>2</td></tr>
+              <tr><td><code>wms.inventory.snapshot.generated</code></td><td><code>published</code></td><td>3</td><td>3</td></tr>
+              <tr><td><code>wms.outbound.allocated</code></td><td><code>published</code></td><td>3</td><td>3</td></tr>
+              <tr><td><code>wms.outbound.packed</code></td><td><code>published</code></td><td>1</td><td>1</td></tr>
+              <tr><td><code>wms.outbound.shipped</code></td><td><code>published</code></td><td>2</td><td>2</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <table>
+          <tbody>
+            <tr><th>미발행 WMS outbox</th><td><code>0</code></td></tr>
+            <tr><th>app shell audit</th><td><code>system-scenario-1-tenant-user-app-context-expanded-1781850176741-1</code> and <code>system-scenario-1-tenant-user-navigation-expanded-1781850176741-1</code> each stored once</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer"><a href="../../test-scenarios/system-test-scenarios.html">전체 시스템 테스트 시나리오로 이동</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

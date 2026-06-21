@@ -21,7 +21,7 @@
             <tr><th>위치</th><td><code>apps/audit-log-service</code></td></tr>
             <tr><th>카테고리</th><td>Backend Service · Audit</td></tr>
             <tr><th>책임</th><td>감사 로그 저장, 검색/조회, 보존 정책, evidence 추적, requestId 기반 시스템 로그 연결</td></tr>
-            <tr><th>연동</th><td>auth-iam-service, tenant-service, WMS 등 도메인 서비스는 감사 대상 이벤트를 outbox에 저장하고, audit-log-service가 EventBridge/SQS 또는 raw event envelope를 소비해 audit record를 저장합니다. admin-bff-service는 운영자 조회 API를 위임하며, gateway-service는 audit-log-service를 직접 호출하지 않습니다.</td></tr>
+            <tr><th>연동</th><td>auth-iam-service, tenant-service, WMS 등 도메인 서비스는 감사 대상 이벤트를 outbox에 저장하고, audit-log-service가 EventBridge/SQS 또는 raw event envelope를 소비해 audit record를 저장합니다. user-bff-service는 자체 outbox가 없는 app shell 감사 이벤트를 EventBridge로 best-effort 발행할 수 있으며, 내부 POST API는 local/호환 fallback으로 유지합니다. admin-bff-service는 운영자 조회 API를 위임하며, gateway-service는 audit-log-service를 직접 호출하지 않습니다.</td></tr>
             <tr><th>주의</th><td>감사 로그는 시스템 로그와 분리하고, 수정/삭제가 아닌 append-only 저장 원칙을 따릅니다.</td></tr>
           </tbody>
         </table>
@@ -46,7 +46,7 @@
         <table>
           <tbody>
             <tr><th>상태</th><td><span class="tag done">1차 구현 · Outbox Relay SQS 소비 경로 연결</span></td></tr>
-            <tr><th>완료 범위</th><td><code>apps/audit-log-service</code> 기본 폴더, workspace 인식용 <code>package.json</code>, <code>README.md</code>, NestJS bootstrap, app module, config, health/readiness, request context, access log, security headers, global exception filter, internal auth guard/decorator, local <code>audit_log</code> DB 생성 흐름, <code>audit_logs</code> Prisma schema와 조회/eventId index, Prisma DB lifecycle, append-only repository/service, 이벤트 기반 audit 저장 consumer, <code>AUDIT_EVENT_QUEUE_URL</code> SQS polling worker, <code>GET /api/internal/audit/logs</code>, Dockerfile, Docker/local/deploy compose 연결, Postman 조회 요청, CDK/ECS 리소스 구성, audit event queue/DLQ 연결, audit-log-service 전용 수동 GitHub Actions 배포 workflow 확인</td></tr>
+            <tr><th>완료 범위</th><td><code>apps/audit-log-service</code> 기본 폴더, workspace 인식용 <code>package.json</code>, <code>README.md</code>, NestJS bootstrap, app module, config, health/readiness, request context, access log, security headers, global exception filter, internal auth guard/decorator, local <code>audit_log</code> DB 생성 흐름, <code>audit_logs</code> Prisma schema와 조회/eventId index, Prisma DB lifecycle, append-only repository/service, 이벤트 기반 audit 저장 consumer, <code>AUDIT_EVENT_QUEUE_URL</code> SQS polling worker, <code>GET /api/internal/audit/logs</code>, User BFF internal-api fallback용 <code>POST /api/internal/audit/logs</code>, Dockerfile, Docker/local/deploy compose 연결, Postman 조회/기록 요청, CDK/ECS 리소스 구성, audit event queue/DLQ 연결, audit-log-service 전용 수동 GitHub Actions 배포 workflow 확인</td></tr>
             <tr><th>남은 범위</th><td>dev AWS에서 Outbox Relay → SQS → audit-log-service end-to-end 증적 확보, DLQ/replay 운영 기준, 감사 로그 보존 정책 확정</td></tr>
             <tr><th>선행 조건</th><td>내부 서비스 인증 secret, audit DB 이름, Admin BFF 조회 query 계약, 이벤트 payload 최소화, 민감정보 저장 금지 기준</td></tr>
             <tr><th>API 문서</th><td><code>docs/apis/audit-log-service/index.html</code></td></tr>
@@ -61,6 +61,7 @@
           <div class="card"><strong>Audit Store</strong><p>PostgreSQL + Prisma 기반 <code>audit_logs</code> 저장소를 만들고 append-only 원칙을 적용합니다.</p></div>
           <div class="card"><strong>Audit Event Consumer</strong><p>업무 행위 완료 이벤트를 소비해 append-only 감사 record를 저장합니다.</p></div>
           <div class="card"><strong>GET /api/internal/audit/logs</strong><p>Admin BFF가 tenant 범위의 감사 로그를 조건별로 조회하는 API입니다.</p></div>
+          <div class="card"><strong>POST /api/internal/audit/logs</strong><p>User BFF app shell 감사 이벤트를 internal-api fallback으로 저장하는 내부 API입니다.</p></div>
           <div class="card"><strong>Admin BFF 연동</strong><p><code>GET /api/admin/audit-logs</code>를 실제 audit-log-service 조회 API로 연결합니다.</p></div>
           <div class="card"><strong>Security</strong><p>password, token, secret, Authorization, SQL, stack trace, 민감 개인정보 원문 저장을 금지합니다.</p></div>
         </div>
@@ -209,7 +210,7 @@
           <tbody>
             <tr><th>저장 금지</th><td><code>password</code>, <code>accessToken</code>, <code>refreshToken</code>, <code>Authorization</code>, cookie, secret, API key, private key, SQL, stack trace</td></tr>
             <tr><th>마스킹</th><td>email, phone, 사업자등록번호처럼 운영상 식별이 필요한 값은 원문 대신 마스킹 값이나 별도 identifier만 저장합니다.</td></tr>
-            <tr><th>실패 정책</th><td>업무 API는 audit-log-service HTTP 저장 응답에 결합하지 않습니다. 저장 실패는 outbox-relay-service의 retry, failed 상태, DLQ 또는 replay 정책으로 처리합니다.</td></tr>
+            <tr><th>실패 정책</th><td>도메인 업무 API는 audit-log-service HTTP 저장 응답에 결합하지 않습니다. 저장 실패는 outbox-relay-service의 retry, failed 상태, DLQ 또는 replay 정책으로 처리합니다. User BFF app shell 감사는 best-effort HTTP 기록이며 실패 시 warning log만 남깁니다.</td></tr>
             <tr><th>권한</th><td>외부 조회는 Admin BFF의 <code>audit.logs.read</code> permission을 통과한 요청만 audit-log-service로 전달됩니다.</td></tr>
           </tbody>
         </table>
@@ -231,7 +232,7 @@
       <section>
         <h2>테스트 시나리오</h2>
         <table>
-          <tr><th>AUDIT-001</th><td>내부 인증이 유효한 서비스는 감사 로그를 저장할 수 있다.</td></tr>
+          <tr><th>AUDIT-001</th><td>내부 인증이 유효한 user-bff-service는 app shell 감사 로그를 저장할 수 있다.</td></tr>
           <tr><th>AUDIT-002</th><td>필수 필드가 누락된 audit record는 <code>VALIDATION_FAILED</code>로 거절된다.</td></tr>
           <tr><th>AUDIT-003</th><td>Admin BFF는 tenant, action, 기간 조건으로 감사 로그를 조회할 수 있다.</td></tr>
           <tr><th>AUDIT-004</th><td>저장된 감사 로그는 수정/삭제 API 없이 append-only 원칙을 유지한다.</td></tr>
@@ -279,6 +280,15 @@
 
       <section>
         <h2>개발 기록</h2>
+        <article>
+          <h3>2026-06-19 User BFF App Audit EventBridge 전환 반영</h3>
+          <ul>
+            <li>User BFF app shell 감사는 <code>USER_BFF_APP_AUDIT_PUBLISHER_TYPE=eventbridge</code> 환경에서 EventBridge로 발행하고, CDK rule이 audit event SQS queue로 전달한 뒤 audit-log-service의 기존 SQS consumer 경로로 append-only 저장하는 기준으로 정리했습니다.</li>
+            <li><code>POST /api/internal/audit/logs</code>는 local/기존 배포 호환을 위한 <code>internal-api</code> fallback으로 유지합니다. 이 API는 계속 <code>user-bff-service</code> caller만 허용합니다.</li>
+            <li>감사 저장 장애 정책은 EventBridge 발행 실패와 내부 POST 실패 모두 User BFF warning log로 남기고 원 app shell 응답을 차단하지 않는 best-effort 기준으로 유지합니다.</li>
+            <li>관련 API 문서와 User BFF 개발 문서를 EventBridge 우선/fallback 구조로 갱신했습니다.</li>
+          </ul>
+        </article>
         <article>
           <h3>2026-06-17 Prisma 정합성과 LocalStack SQS 소비 검증</h3>
           <ul>
@@ -345,7 +355,7 @@
         <article>
           <h3>2026-06-15 내부 저장/조회 API 구현</h3>
           <ul>
-            <li>초기 구현에서는 <code>POST /api/internal/audit/logs</code> 저장 API를 추가했으나, 최종 저장 경로는 이벤트 기반 consumer로 전환했습니다.</li>
+            <li>초기 구현에서는 범용 <code>POST /api/internal/audit/logs</code> 저장 API를 추가했으나, 도메인 서비스의 최종 저장 경로는 이벤트 기반 consumer로 전환했습니다. 2026-06-18에는 자체 outbox가 없는 User BFF app shell 감사에 제한된 내부 POST 기록 API를 사용했고, 2026-06-19부터는 EventBridge 우선, 내부 POST fallback 기준으로 정리했습니다.</li>
             <li><code>GET /api/internal/audit/logs</code>를 추가해 <code>admin-bff-service</code>가 tenant 범위, 기간, actor, action, resource, result, requestId 조건으로 page 조회할 수 있게 했습니다.</li>
             <li>로컬 <code>audit_log</code> DB에 테스트 감사 로그를 저장하고 같은 tenant/action 조건으로 조회되는 것을 확인했습니다.</li>
             <li><code>docs/apis/audit-log-service/index.html</code>을 구현된 API 계약과 응답 예시 기준으로 업데이트했습니다.</li>
@@ -363,7 +373,7 @@
         <article>
           <h3>2026-06-15 auth-iam-service audit 저장 client 실제 연동 확인</h3>
           <ul>
-            <li>초기 REST 저장 client 연동은 로컬에서 검증했으나, 저장 경로를 처음부터 이벤트 기반으로 운영하기 위해 <code>auth-iam-service</code>의 audit 저장 client와 <code>AUDIT_LOG_SERVICE_URL</code> 의존성을 제거했습니다.</li>
+            <li>초기 REST 저장 client 연동은 로컬에서 검증했으나, 도메인 저장 경로를 처음부터 이벤트 기반으로 운영하기 위해 <code>auth-iam-service</code>의 audit 저장 client와 <code>AUDIT_LOG_SERVICE_URL</code> 의존성을 제거했습니다.</li>
             <li>현재 <code>auth-iam-service</code>는 업무 변경 transaction 안에서 <code>outbox_events</code>를 저장하고, audit-log-service는 발행된 이벤트를 소비해 저장합니다.</li>
             <li>검증 결과 <code>audit_log.audit_logs</code>에 <code>request_id=req-auth-audit-client-verify</code>, <code>action=auth.audit.client.verified</code>, <code>result=success</code> record가 저장됐습니다.</li>
             <li>로컬 compose에는 <code>audit-log-service</code>와 <code>audit-log-service-db-push</code>가 등록되어 있고, <code>auth-iam-service</code>는 audit-log-service health check에 의존하지 않습니다.</li>
@@ -446,7 +456,16 @@
           <ul>
             <li>audit-log-service는 외부 조회 surface를 직접 제공하지 않고, Admin BFF가 <code>/api/admin/audit-logs</code>를 소유하는 기준으로 정리했습니다.</li>
             <li>외부 감사 로그 조회 요청은 <code>gateway-service</code> → <code>admin-bff-service</code> → <code>audit-log-service</code> 순서로만 처리합니다.</li>
-            <li>저장은 내부 REST API가 아니라 이벤트 기반으로 처리하며, gateway-service에서 audit-log-service로 직접 proxy하지 않습니다.</li>
+            <li>도메인 감사 저장은 이벤트 기반으로 처리하며, gateway-service에서 audit-log-service로 직접 proxy하지 않습니다. User BFF처럼 자체 outbox가 없는 BFF 소유 best-effort 이벤트는 EventBridge 직접 발행을 우선 사용하고, 내부 인증 POST API는 호환 fallback으로 제한합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-18 User BFF 감사 기록 API 연결</h3>
+          <ul>
+            <li><code>POST /api/internal/audit/logs</code>를 추가해 <code>user-bff-service</code>가 app shell 감사 이벤트를 직접 기록할 수 있게 했습니다.</li>
+            <li>내부 인증 허용 서비스 기본값과 Docker env의 <code>AUDIT_INTERNAL_AUTH_ALLOWED_SERVICES</code>에 <code>user-bff-service</code>를 추가했습니다.</li>
+            <li>User BFF는 <code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code> 이벤트를 best-effort로 기록하며, 기록 실패는 원 사용자 API 응답을 실패시키지 않습니다.</li>
+            <li>API 문서와 Postman 컬렉션에 user-bff caller 기반 내부 POST 기록 요청을 추가했습니다.</li>
           </ul>
         </article>
         <article>

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2026-06-19 WMS 로컬 회귀 검증 로그</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Test Log · 2026-06-19</p>
+        <h1>wms-service 로컬 회귀 검증</h1>
+        <p class="lead">
+          WMS 개선 작업 전 기준선을 잡기 위해 문서 기준을 확인하고, 기존 WMS 정상 흐름 검증에 오류/회귀 시나리오를 추가한 뒤 로컬에서 실행한 기록입니다.
+          검증은 WMS 내부 API, tenant-service, auth-iam-service, outbox-relay-service, LocalStack SQS, audit-log-service까지 연결해 수행했습니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>검증 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>실행 일시</th><td>2026-06-19 08:10 KST</td></tr>
+            <tr><th>검토 범위</th><td>작업 시작 시점의 <code>docs</code> 전체 파일 61개, HTML 문서 53개</td></tr>
+            <tr><th>환경</th><td>Local Docker compose, PostgreSQL <code>55432</code>, WMS <code>3005</code>, Auth/IAM <code>3001</code>, Tenant <code>3002</code>, LocalStack SQS</td></tr>
+            <tr><th>검증 명령</th><td><code>pnpm test:wms:local</code></td></tr>
+            <tr><th>정적 검증</th><td><code>node --check scripts/test/verify-local-wms-flow.mjs</code>, <code>pnpm --filter wms-service typecheck</code>, <code>pnpm --filter wms-service build</code>, HTML 기본 balance check</td></tr>
+            <tr><th>검증 결과</th><td><span class="tag done">통과</span> 11개 WMS 정상/오류/회귀 시나리오가 모두 통과했습니다.</td></tr>
+            <tr><th>관련 문서</th><td><a href="../../development/services/wms-service.html"><code>docs/development/services/wms-service.html</code></a>, <a href="../../test-scenarios/system-test-scenarios.html"><code>docs/test-scenarios/system-test-scenarios.html</code></a>, <a href="../../apis/wms-service/index.html"><code>docs/apis/wms-service/index.html</code></a></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>문서 기준</h2>
+        <table>
+          <thead>
+            <tr><th>문서</th><th>테스트 준비 기준</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>docs/design/rules/testing.html</code></td><td>멀티테넌트 격리, API envelope, 에러 코드, WMS 핵심 흐름, outbox 저장, 감사 로그 저장을 evidence와 함께 확인합니다.</td></tr>
+            <tr><td><code>docs/test-scenarios/system-test-scenarios.html</code></td><td>WMS 기준정보, 현재고, 재고 조정, 입고 확정, 출고 할당, 출하 완료, 재고 부족, 출하 중복, validation 오류를 시나리오로 관리합니다.</td></tr>
+            <tr><td><code>docs/apis/wms-service/index.html</code></td><td>WMS 내부 API는 표준 envelope, tenant header, internal auth, permission check, outbox/audit 연계를 지켜야 합니다.</td></tr>
+            <tr><td><code>docs/development/services/wms-service.html</code></td><td><code>pnpm test:wms:local</code>이 개선 전후 회귀 기준선으로 사용됩니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>실행 전 상태</h2>
+        <table>
+          <thead>
+            <tr><th>항목</th><th>확인 결과</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>PostgreSQL</td><td><code>multi-tenant-postgres</code> container running</td></tr>
+            <tr><td>LocalStack</td><td><code>multi-tenant-localstack</code> container running</td></tr>
+            <tr><td>auth-iam-service</td><td><code>GET http://127.0.0.1:3001/ready</code> returned <code>status=ready</code></td></tr>
+            <tr><td>tenant-service</td><td><code>GET http://127.0.0.1:3002/ready</code> returned <code>status=ready</code></td></tr>
+            <tr><td>wms-service</td><td><code>GET http://127.0.0.1:3005/ready</code> returned <code>status=ready</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>시나리오 결과</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>Scenario</th><th>검증 목적</th><th>결과</th><th>증적</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>WMS-INT-001</code></td><td>창고, 로케이션, 품목 생성과 목록 조회</td><td><span class="tag done">통과</span></td><td>warehouse <code>bc3dba5e-492a-4198-8352-86597cb2f32d</code>, location <code>8c8c37e8-4b14-4602-b3fc-1813c074c2b6</code>, item <code>c952ebf9-6c46-4914-94bc-2942271a8f54</code></td></tr>
+              <tr><td><code>WMS-INT-002</code></td><td>재고 조정과 <code>wms.inventory.adjusted</code> outbox/audit 저장</td><td><span class="tag done">통과</span></td><td>adjustment <code>772c39be-1beb-4c71-8728-5e1927a4c5fd</code>, eventId <code>35fe5c24-03a3-4ee9-8b48-0f43418ae5f2</code>, requestId <code>wms-mqk45bqz-int-002-adjust</code></td></tr>
+              <tr><td><code>WMS-INT-003</code></td><td>입고 확정과 <code>wms.inbound.confirmed</code> outbox/audit 저장</td><td><span class="tag done">통과</span></td><td>receipt <code>5c992045-667f-4733-90ef-805b794de05d</code>, eventId <code>55fdc211-c3cd-4d96-a0d3-57b2004f8b23</code>, requestId <code>wms-mqk45bqz-int-003-inbound</code></td></tr>
+              <tr><td><code>WMS-INT-004</code></td><td>출고 할당과 <code>wms.outbound.allocated</code> outbox/audit 저장</td><td><span class="tag done">통과</span></td><td>allocation <code>967aeb28-deb2-4ff6-8c55-093a756eb05b</code>, eventId <code>bdf9bef9-4c93-4311-9fc8-ad872d0da04f</code>, requestId <code>wms-mqk45bqz-int-004-allocate</code></td></tr>
+              <tr><td><code>WMS-INT-005</code></td><td>출하 완료와 <code>wms.outbound.shipped</code> outbox/audit 저장</td><td><span class="tag done">통과</span></td><td>shipment <code>967aeb28-deb2-4ff6-8c55-093a756eb05b</code>, eventId <code>6a5457fd-295c-48c8-8ce8-c2bd823b124d</code>, final quantity <code>18</code></td></tr>
+              <tr><td><code>WMS-WH-001</code></td><td>창고 code 중복 conflict</td><td><span class="tag done">통과</span></td><td><code>409 WMS_WAREHOUSE_CODE_CONFLICT</code></td></tr>
+              <tr><td><code>WMS-ITEM-001</code></td><td>품목 SKU 중복 conflict</td><td><span class="tag done">통과</span></td><td><code>409 WMS_ITEM_SKU_CONFLICT</code></td></tr>
+              <tr><td><code>WMS-API-001</code></td><td>tenant 누락과 invalid UUID error envelope</td><td><span class="tag done">통과</span></td><td><code>TENANT_REQUIRED</code>, <code>VALIDATION_FAILED</code>, requestId echo</td></tr>
+              <tr><td><code>WMS-INV-003</code></td><td>음수 재고 방지</td><td><span class="tag done">통과</span></td><td><code>WMS_INSUFFICIENT_STOCK</code>, failed request outbox count <code>0</code></td></tr>
+              <tr><td><code>WMS-OUT-002</code></td><td>재고 부족 출고 할당 실패</td><td><span class="tag done">통과</span></td><td><code>WMS_INSUFFICIENT_STOCK</code>, failed request outbox count <code>0</code></td></tr>
+              <tr><td><code>WMS-OUT-004</code></td><td>출하 중복 처리 방지</td><td><span class="tag done">통과</span></td><td><code>WMS_OUTBOUND_ALLOCATION_NOT_ALLOCATED</code>, failed request outbox count <code>0</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>테스트 준비 변경</h2>
+        <table>
+          <thead>
+            <tr><th>파일</th><th>변경 내용</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>scripts/test/verify-local-wms-flow.mjs</code></td><td>requestId를 실행 단위로 고유화하고, WMS 오류/회귀 helper와 실패 requestId outbox 미생성 검증을 추가했습니다.</td></tr>
+            <tr><td><code>docs/development/services/wms-service.html</code></td><td>추가된 WMS 회귀 시나리오와 검증 증거 기준을 기록했습니다.</td></tr>
+            <tr><td><code>docs/test-scenarios/system-test-scenarios.html</code></td><td><code>WMS-API-001</code>과 확장된 <code>WMS-FLOW-001</code> 기대 결과를 반영했습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>다음 검증 순서</h2>
+        <table>
+          <thead>
+            <tr><th>순서</th><th>명령</th><th>목적</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><code>pnpm --filter wms-service typecheck</code></td><td>WMS 타입과 Prisma client 생성 확인</td></tr>
+            <tr><td><code>2</code></td><td><code>pnpm --filter wms-service build</code></td><td>배포 빌드 기준 TypeScript 출력 확인</td></tr>
+            <tr><td><code>3</code></td><td><code>pnpm test:wms:local</code></td><td>WMS 정상 흐름, 오류 envelope, 재고 부족, 출하 중복 회귀 확인</td></tr>
+            <tr><td><code>4</code></td><td><code>pnpm test:system:local -- --iterations=1</code></td><td>Gateway/BFF/Auth/Tenant/WMS/Audit 전체 연결 회귀 확인</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

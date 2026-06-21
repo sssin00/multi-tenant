@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>아키텍처/인프라 상태 (2026-06-18)</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Infra · Architecture Snapshot</p>
+        <h1>아키텍처/인프라 상태</h1>
+        <p class="lead">
+          <code>2026-06-18</code> 기준 gateway, BFF, domain/platform service 연결 상태를 정리합니다.
+          로컬 런타임은 user-bff-service와 wms-service를 포함하지만, AWS CDK ECS 리소스는 아직 두 서비스를 포함하지 않습니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>오늘 변경 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>Gateway route</th><td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code> 세 route group을 사용합니다.</td></tr>
+            <tr><th>Gateway upstream</th><td><code>auth-iam-service</code>, <code>admin-bff-service</code>, <code>user-bff-service</code>만 직접 호출합니다.</td></tr>
+            <tr><th>BFF downstream</th><td>Admin BFF는 auth-iam, tenant, audit-log를 호출하고 User BFF는 auth-iam, tenant, wms, audit-log를 호출합니다.</td></tr>
+            <tr><th>Domain/Platform 연결</th><td>tenant-service, wms-service, audit-log-service, outbox-relay-service는 BFF 또는 내부 worker 경로에서 사용합니다.</td></tr>
+            <tr><th>CDK 차이</th><td>CDK stack은 아직 user-bff-service와 wms-service ECS 리소스를 만들지 않고, gateway task env에도 <code>USER_BFF_SERVICE_URL</code>을 주입하지 않습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>구조도</h2>
+        <figure style="margin: 20px 0 0;">
+          <img
+            src="./architecture.svg"
+            alt="2026-06-18 기준 gateway-service가 auth-iam-service, admin-bff-service, user-bff-service만 upstream으로 호출하고 BFF들이 tenant-service, wms-service, audit-log-service를 내부 호출하는 구조"
+            style="display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff;"
+          />
+          <figcaption style="margin-top: 10px; color: var(--muted); font-size: 13px;">
+            로컬 런타임: gateway → Auth/IAM/Admin BFF/User BFF. BFF → tenant/auth/wms/audit 내부 호출. domain/platform 서비스는 BFF 내부 호출로 연결합니다.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section>
+        <h2>CDK 포함 범위</h2>
+        <div class="grid">
+          <div class="card"><strong>CDK 포함</strong><p>gateway-service, auth-iam-service, tenant-service, admin-bff-service, audit-log-service, outbox-relay-service, audit event SQS queue/DLQ, Redis, ALB, Cloud Map.</p></div>
+          <div class="card"><strong>CDK 미포함</strong><p>user-bff-service ECS/ECR/Cloud Map/SG, wms-service ECS/ECR/Cloud Map/SG, RDS/Aurora, Route53 record, EventBridge bus, S3.</p></div>
+          <div class="card"><strong>후속 CDK 작업</strong><p>user-bff/wms 리소스 추가, gateway task env <code>USER_BFF_SERVICE_URL</code> 주입, service-specific deployment workflow 확장.</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>로컬 연결 검증 기준</h2>
+        <table>
+          <tbody>
+            <tr><th>Gateway config</th><td><code>apps/gateway-service/src/config/app.config.ts</code>는 route key <code>auth</code>, <code>admin</code>, <code>app</code>을 정의합니다.</td></tr>
+            <tr><th>Gateway env</th><td><code>docker/env/gateway-service/.env.*</code>에는 <code>AUTH_IAM_SERVICE_URL</code>, <code>ADMIN_BFF_SERVICE_URL</code>, <code>USER_BFF_SERVICE_URL</code>이 있습니다.</td></tr>
+            <tr><th>Compose</th><td><code>docker/local/docker-compose.yml</code>는 admin-bff-service와 user-bff-service를 포함하고, user-bff-service는 audit-log-service health 이후 시작합니다.</td></tr>
+            <tr><th>Test scenario</th><td><code>docs/test-scenarios/system-test-scenarios.html</code>의 <code>GWBFF-CONN-001</code> ~ <code>GWBFF-CONN-006</code>로 연결 정합성을 검증합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>검증</h2>
+        <pre><code>docker compose -f docker/local/docker-compose.yml config --quiet
+pnpm --filter gateway-service typecheck
+pnpm --filter user-bff-service typecheck</code></pre>
+        <p class="card-subheading">이 문서는 실제 AWS <code>cdk deploy</code> 결과가 아니라 현재 repository 코드와 로컬 compose 기준의 아키텍처 스냅샷입니다.</p>
+      </section>
+
+      <p class="footer">작성일: 2026-06-18 · 대상: <code>docs</code>, <code>docker/local</code>, <code>apps/gateway-service</code>, <code>apps/user-bff-service</code></p>
+    </main>
+  </body>
+</html>

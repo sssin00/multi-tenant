@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">2026-06-18 Gateway BFF Architecture</title>
+  <desc id="desc">Gateway routes auth, admin, and app traffic to Auth/IAM, Admin BFF, and User BFF. BFF services call domain and platform services internally.</desc>
+  <defs>
+    <style>
+      .page{fill:#f8fafc}
+      .lane{fill:#ffffff;stroke:#cbd5e1;stroke-width:1}
+      .box{fill:#fff;stroke:#334155;stroke-width:2;rx:10;ry:10}
+      .gateway{fill:#dcfce7;stroke:#16a34a}
+      .bff{fill:#e0f2fe;stroke:#0284c7}
+      .domain{fill:#fef3c7;stroke:#d97706}
+      .worker{fill:#f1f5f9;stroke:#64748b}
+      .data{fill:#fce7f3;stroke:#db2777}
+      .note{fill:#fff7ed;stroke:#f97316}
+      .title{font:700 22px Arial,sans-serif;fill:#0f172a}
+      .section{font:700 14px Arial,sans-serif;fill:#475569;text-transform:uppercase;letter-spacing:.04em}
+      .label{font:700 17px Arial,sans-serif;fill:#0f172a}
+      .text{font:14px Arial,sans-serif;fill:#334155}
+      .small{font:12px Arial,sans-serif;fill:#475569}
+      .edge{stroke:#475569;stroke-width:2.4;fill:none;marker-end:url(#arrow)}
+      .event{stroke:#64748b;stroke-width:2.4;fill:none;stroke-dasharray:8 6;marker-end:url(#arrowMuted)}
+      .blocked{stroke:#ef4444;stroke-width:2.6;stroke-dasharray:9 7;fill:none;marker-end:url(#arrowRed)}
+    </style>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L10,3.5 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowMuted" markerWidth="11" markerHeight="11" refX="9" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L10,3.5 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="11" markerHeight="11" refX="9" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L10,3.5 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <rect width="1440" height="900" class="page"/>
+  <text x="56" y="48" class="title">2026-06-18 기준 Gateway / BFF / Domain 연결</text>
+  <text x="56" y="76" class="text">로컬 런타임은 user-bff-service와 wms-service를 포함합니다. CDK ECS 리소스는 아직 user-bff/wms가 후속입니다.</text>
+
+  <rect x="48" y="104" width="210" height="640" class="lane"/>
+  <rect x="288" y="104" width="250" height="640" class="lane"/>
+  <rect x="568" y="104" width="300" height="640" class="lane"/>
+  <rect x="898" y="104" width="300" height="640" class="lane"/>
+  <rect x="1228" y="104" width="164" height="640" class="lane"/>
+
+  <text x="72" y="132" class="section">Clients</text>
+  <text x="312" y="132" class="section">External Gateway</text>
+  <text x="592" y="132" class="section">BFF / Auth Surface</text>
+  <text x="922" y="132" class="section">Domain / Platform</text>
+  <text x="1252" y="132" class="section">Async / Data</text>
+
+  <rect x="82" y="218" width="140" height="112" class="box"/>
+  <text x="110" y="256" class="label">External</text>
+  <text x="102" y="282" class="text">Web Admin</text>
+  <text x="106" y="304" class="text">Web WMS</text>
+
+  <rect x="320" y="166" width="186" height="304" class="box gateway"/>
+  <text x="350" y="206" class="label">gateway-service</text>
+  <text x="346" y="238" class="text">JWT validation</text>
+  <text x="346" y="262" class="text">tenant mismatch</text>
+  <text x="346" y="286" class="text">rate limit</text>
+  <text x="346" y="332" class="small">/api/auth</text>
+  <text x="346" y="358" class="small">/api/admin</text>
+  <text x="346" y="384" class="small">/api/app</text>
+
+  <rect x="616" y="158" width="206" height="92" class="box domain"/>
+  <text x="652" y="195" class="label">auth-iam-service</text>
+  <text x="650" y="222" class="text">login / JWT / RBAC</text>
+
+  <rect x="616" y="306" width="206" height="92" class="box bff"/>
+  <text x="650" y="343" class="label">admin-bff-service</text>
+  <text x="650" y="370" class="text">admin screen APIs</text>
+
+  <rect x="616" y="454" width="206" height="92" class="box bff"/>
+  <text x="654" y="491" class="label">user-bff-service</text>
+  <text x="650" y="518" class="text">app shell / WMS UI</text>
+
+  <rect x="946" y="254" width="206" height="92" class="box domain"/>
+  <text x="988" y="291" class="label">tenant-service</text>
+  <text x="986" y="318" class="text">status / modules</text>
+
+  <rect x="946" y="430" width="206" height="92" class="box domain"/>
+  <text x="998" y="467" class="label">wms-service</text>
+  <text x="976" y="494" class="text">warehouse / inventory</text>
+
+  <rect x="946" y="606" width="206" height="92" class="box worker"/>
+  <text x="982" y="643" class="label">audit-log-service</text>
+  <text x="984" y="670" class="text">append-only audit</text>
+
+  <rect x="1244" y="430" width="124" height="92" class="box data"/>
+  <text x="1270" y="467" class="label">WMS DB</text>
+  <text x="1262" y="494" class="text">outbox rows</text>
+
+  <rect x="1244" y="606" width="124" height="92" class="box worker"/>
+  <text x="1262" y="643" class="label">outbox</text>
+  <text x="1264" y="670" class="text">relay</text>
+
+  <path d="M222 274 H320" class="edge"/>
+  <text x="242" y="262" class="small">HTTPS</text>
+
+  <path d="M506 204 H616" class="edge"/>
+  <text x="528" y="191" class="small">auth route</text>
+
+  <path d="M506 352 H616" class="edge"/>
+  <text x="526" y="339" class="small">admin route</text>
+
+  <path d="M506 500 H616" class="edge"/>
+  <text x="536" y="487" class="small">app route</text>
+
+  <path d="M822 334 H884 V300 H946" class="edge"/>
+  <text x="846" y="288" class="small">tenant active check</text>
+
+  <path d="M822 482 H900 V324 H946" class="edge"/>
+  <text x="846" y="410" class="small">tenant active check</text>
+
+  <path d="M822 510 H946" class="edge"/>
+  <text x="846" y="533" class="small">WMS screen data</text>
+
+  <path d="M822 370 H860 V652 H946" class="edge"/>
+  <text x="776" y="586" class="small">audit lookup</text>
+
+  <path d="M822 528 H884 V682 H946" class="edge"/>
+  <text x="846" y="705" class="small">app shell audit</text>
+
+  <path d="M1152 476 H1244" class="edge"/>
+  <text x="1164" y="464" class="small">transaction</text>
+
+  <path d="M1306 522 V606" class="event"/>
+  <text x="1318" y="570" class="small">publish</text>
+
+  <path d="M1244 652 H1152" class="event"/>
+  <text x="1174" y="640" class="small">consume</text>
+
+  <rect x="56" y="766" width="1328" height="72" class="box"/>
+  <text x="82" y="796" class="text">CDK 포함: gateway, auth-iam, tenant, admin-bff, audit-log, outbox-relay, audit SQS/DLQ, Redis, ALB, Cloud Map</text>
+  <text x="82" y="822" class="text">CDK 후속: user-bff-service, wms-service ECS 리소스와 gateway task USER_BFF_SERVICE_URL 주입</text>
+</svg>

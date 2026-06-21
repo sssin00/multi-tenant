@@ -108,6 +108,38 @@ const permissions = [
   {
     code: "wms.inventory.adjust",
     description: "Adjust WMS inventory"
+  },
+  {
+    code: "wms.inventory.snapshot.generate",
+    description: "Generate and rebuild WMS inventory daily snapshots"
+  },
+  {
+    code: "wms.warehouses.manage",
+    description: "Manage WMS warehouses"
+  },
+  {
+    code: "wms.locations.manage",
+    description: "Manage WMS locations"
+  },
+  {
+    code: "wms.items.manage",
+    description: "Manage WMS items"
+  },
+  {
+    code: "wms.inbound.confirm",
+    description: "Confirm WMS inbound receipts"
+  },
+  {
+    code: "wms.outbound.allocate",
+    description: "Allocate WMS outbound inventory"
+  },
+  {
+    code: "wms.outbound.pack",
+    description: "Pack WMS outbound allocations"
+  },
+  {
+    code: "wms.outbound.ship",
+    description: "Ship WMS outbound orders"
   }
 ];
 
@@ -132,6 +164,7 @@ async function main() {
       id: adminUserId,
       displayName: "Demo Tenant Admin",
       passwordHash,
+      userType: "general_user",
       status: "active"
     },
     create: {
@@ -140,6 +173,7 @@ async function main() {
       email: "admin@demo.local",
       displayName: "Demo Tenant Admin",
       passwordHash,
+      userType: "general_user",
       status: "active"
     }
   });

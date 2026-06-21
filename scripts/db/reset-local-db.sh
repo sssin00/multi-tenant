@@ -5,9 +5,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker/local/docker-compose.yml"
 
-SERVICE_DATABASES=("auth_iam" "tenant" "audit_log")
-APP_SERVICES=("gateway-service" "auth-iam-service" "tenant-service" "admin-bff-service")
-INIT_SERVICES=("service-databases-init" "auth-iam-db-push" "tenant-service-db-push" "tenant-service-seed" "auth-iam-seed")
+SERVICE_DATABASES=("auth_iam" "tenant" "audit_log" "wms")
+APP_SERVICES=(
+  "gateway-service"
+  "auth-iam-service"
+  "tenant-service"
+  "admin-bff-service"
+  "user-bff-service"
+  "wms-service"
+  "audit-log-service"
+  "outbox-relay-service"
+)
+INIT_SERVICES=(
+  "service-databases-init"
+  "auth-iam-db-push"
+  "tenant-service-db-push"
+  "wms-service-db-push"
+  "audit-log-service-db-push"
+  "tenant-service-seed"
+  "auth-iam-seed"
+)
 
 log() {
   printf '\n[reset-local-db] %s\n' "$1"
@@ -58,4 +75,4 @@ log "Inserting API seed data"
 node "${REPO_ROOT}/scripts/db/seed-local-api.mjs"
 
 log "Done. Test account: admin@demo.local / Test1234!"
-log "TablePlus PostgreSQL: 127.0.0.1:55432, user postgres, password postgres, databases auth_iam, tenant, and audit_log"
+log "TablePlus PostgreSQL: 127.0.0.1:55432, user postgres, password postgres, databases auth_iam, tenant, audit_log, and wms"

@@ -30,7 +30,7 @@
           <tbody>
             <tr><th>인증</th><td>사용자 로그인, password 검증, JWT access token 발급, opaque refresh token 발급과 rotation을 담당합니다.</td></tr>
             <tr><th>세션 관리</th><td>refresh token hash 저장, refresh token revoke, logout, token 만료 정책을 관리합니다.</td></tr>
-            <tr><th>사용자 관리</th><td>tenant-scoped 사용자 생성, 조회, 상태 변경, 기본 프로필 관리를 제공합니다.</td></tr>
+            <tr><th>사용자 관리</th><td>tenant-scoped 일반 사용자 생성, 조회, 상태 변경, 기본 프로필 관리를 제공합니다.</td></tr>
             <tr><th>권한 관리</th><td>role, permission, user-role assignment, permission summary/check API를 제공합니다.</td></tr>
             <tr><th>연동 이벤트</th><td>사용자/권한 변경 시 audit 저장 대상 outbox event를 같은 transaction 안에서 저장합니다.</td></tr>
             <tr><th>제외 범위</th><td>tenant 생성 정책, WMS 업무 규칙, 화면별 데이터 조합은 소유하지 않습니다.</td></tr>
@@ -53,7 +53,7 @@
           <div class="card"><strong>Health</strong><p><code>GET /health</code>, <code>GET /ready</code></p></div>
           <div class="card"><strong>Context</strong><p><code>x-request-id</code>, <code>x-tenant-id</code>, <code>x-user-id</code> 수신과 로그 전파</p></div>
           <div class="card"><strong>Auth</strong><p>login, refresh, logout, JWT access token 발급</p></div>
-          <div class="card"><strong>User</strong><p>tenant-scoped 사용자 생성, 조회, 상태 관리</p></div>
+          <div class="card"><strong>User</strong><p>tenant-scoped 일반 사용자 생성, 조회, 상태 관리</p></div>
           <div class="card"><strong>Permission</strong><p>role, permission, warehouse scope, permission check</p></div>
           <div class="card"><strong>Later</strong><p>key rotation, dev AWS relay 검증, tenant bootstrap</p></div>
         </div>
@@ -84,8 +84,9 @@
               <p><label><input type="checkbox" checked disabled /> opaque refresh token 발급과 hash 저장 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> refresh token rotation과 revoke 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> tenant-scoped user CRUD와 사용자 상태 관리</label></p>
+              <p><label><input type="checkbox" checked disabled /> 사용자 타입 system_admin/general_user 분리와 general_user tenant 필수 적용</label></p>
               <p><label><input type="checkbox" checked disabled /> role, permission, user-role assignment와 permission summary/check API 구현</label></p>
-              <p><label><input type="checkbox" checked disabled /> system_admin과 tenant_admin scope 분리</label></p>
+              <p><label><input type="checkbox" checked disabled /> system_admin, tenant_admin, tenant_user 범위 분리</label></p>
               <p><label><input type="checkbox" checked disabled /> permission/user 변경 audit 대상 outbox event 저장</label></p>
               <p><label><input type="checkbox" checked disabled /> audit-log-service 직접 REST 저장 client 제거와 이벤트 기반 저장 전환</label></p>
               <p><label><input type="checkbox" checked disabled /> 사용자 생성/수정/상태 변경 audit 저장 시나리오 확인</label></p>
@@ -129,7 +130,7 @@
                 <td><code>P0</code></td>
                 <td>Tenant bootstrap과 최초 관리자 생성</td>
                 <td>tenant-service와 경계를 맞춰 최초 tenant admin 생성, system_admin 접근 경로, 중복 bootstrap 차단 기준을 정합니다.</td>
-                <td>tenant 생성 후 최초 관리자 계정과 tenant-scoped role이 안전하게 준비되고, system_admin과 tenant_admin scope가 섞이지 않습니다.</td>
+                <td>tenant 생성 후 최초 관리자 계정과 tenant-scoped role이 안전하게 준비되고, system_admin, tenant_admin, tenant_user 범위가 섞이지 않습니다.</td>
                 <td>tenant-service 개발 문서, Auth/IAM API 문서, multi-tenant 규칙, auth 규칙</td>
               </tr>
               <tr>
@@ -270,7 +271,8 @@
             <summary>User CRUD와 상태 관리</summary>
             <div class="detail-body">
               <div class="compact-grid">
-                <div class="card"><strong>Create</strong><p><code>POST /api/auth/users</code>는 <code>X-Tenant-Id</code> 기준으로 사용자를 생성합니다. email은 같은 tenant 안에서만 unique이며 password는 hash만 저장합니다.</p></div>
+                <div class="card"><strong>Create</strong><p><code>POST /api/auth/users</code>는 <code>X-Tenant-Id</code> 기준으로 <code>general_user</code>만 생성합니다. email은 같은 tenant 안에서만 unique이며 password는 hash만 저장합니다.</p></div>
+                <div class="card"><strong>User Type</strong><p>사용자는 <code>system_admin</code>과 <code>general_user</code>로 구분합니다. 일반 사용자는 tenant 값이 필수이고, <code>system_admin</code>은 별도 시스템 관리/bootstrap 경로에서만 다룹니다.</p></div>
                 <div class="card"><strong>Read</strong><p><code>GET /api/auth/users</code>와 <code>GET /api/auth/users/{userId}</code>는 항상 <code>tenantId</code> 조건을 포함합니다. cross-tenant 조회는 <code>404 AUTH_USER_NOT_FOUND</code>로 실패합니다.</p></div>
                 <div class="card"><strong>Update</strong><p><code>PATCH /api/auth/users/{userId}</code>는 email과 displayName 변경을 지원합니다. email 중복은 tenant 안에서 <code>409 AUTH_USER_EMAIL_CONFLICT</code>로 차단합니다.</p></div>
                 <div class="card"><strong>Status</strong><p><code>PATCH /api/auth/users/{userId}/status</code>는 <code>active</code>, <code>inactive</code>, <code>locked</code>를 지원하며 active가 아닌 상태로 바뀌면 refresh token을 revoke합니다.</p></div>
@@ -523,6 +525,13 @@
                 <td>request headers, response JSON, DB query 조건 또는 log</td>
               </tr>
               <tr>
+                <td><code>AIS-USER-001</code></td>
+                <td>Tenant-scoped 사용자 API는 일반 사용자만 생성한다</td>
+                <td><code>P0</code></td>
+                <td><code>POST /api/auth/users</code>에서 <code>userType</code> 생략 또는 <code>general_user</code>는 tenant 포함 사용자로 저장되고, <code>system_admin</code>은 <code>400 VALIDATION_FAILED</code>로 실패한다.</td>
+                <td>request body, response JSON, <code>auth_users.user_type</code>/<code>tenant_id</code> row 확인, outbox payload</td>
+              </tr>
+              <tr>
                 <td><code>AIS-PERM-001</code></td>
                 <td>Permission check가 tenant와 scope를 함께 검증한다</td>
                 <td><code>P0</code></td>
@@ -731,6 +740,15 @@
             <li><code>DELETE /api/auth/users/{userId}</code>는 hard delete가 아니라 <code>inactive</code> 전환으로 처리합니다.</li>
             <li><code>pnpm --filter auth-iam-service typecheck</code>와 <code>pnpm --filter auth-iam-service build</code>가 통과했습니다.</li>
             <li>로컬 DB/Redis 연결 상태에서 생성, 목록, 상세, 수정, 상태 변경, 소프트 삭제, cross-tenant 상세 조회 차단, 상태 변경 후 refresh token 재사용 실패를 확인했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-18 사용자 타입 분리와 일반 사용자 Tenant 필수 적용</h3>
+          <ul>
+            <li><code>AuthUser</code>에 <code>userType</code>을 추가하고 <code>system_admin</code>, <code>general_user</code> 값을 정의했습니다.</li>
+            <li>tenant-scoped 사용자 CRUD는 <code>general_user</code>만 생성/관리하도록 제한했습니다. <code>userType</code>을 생략하면 <code>general_user</code>로 저장되고, <code>system_admin</code> 생성 시도는 <code>400 VALIDATION_FAILED</code>로 실패합니다.</li>
+            <li>일반 사용자는 기존 <code>X-Tenant-Id</code> 필수 검증과 DB <code>tenantId</code> 저장 조건을 통해 tenant 값을 반드시 가지도록 유지합니다.</li>
+            <li><code>GET /api/auth/me</code>와 사용자 응답 객체에 <code>userType</code>을 포함하도록 계약을 갱신했습니다.</li>
           </ul>
         </article>
         <article>

@@ -87,13 +87,13 @@
               <tr>
                 <td><code>GET /api/auth/users</code></td>
                 <td>Admin</td>
-                <td>tenant-scoped 사용자 목록을 조회합니다.</td>
+                <td>tenant-scoped 일반 사용자 목록을 조회합니다.</td>
                 <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
                 <td><code>POST /api/auth/users</code></td>
                 <td>Admin</td>
-                <td>tenant 사용자를 생성합니다. 중복 실행 위험이 있으므로 <code>Idempotency-Key</code>를 사용합니다.</td>
+                <td>tenant 일반 사용자를 생성합니다. 중복 실행 위험이 있으므로 <code>Idempotency-Key</code>를 사용합니다.</td>
                 <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
@@ -296,6 +296,7 @@
             <tr><th>Endpoint</th><td><code>GET /api/auth/me</code></td></tr>
             <tr><th>Auth context</th><td>gateway가 검증한 access token에서 전달한 <code>X-Tenant-Id</code>, <code>X-User-Id</code>를 사용합니다.</td></tr>
             <tr><th>Response data</th><td><code>user</code>, <code>roles</code>, sorted <code>permissions</code></td></tr>
+            <tr><th>User type</th><td>응답 사용자에는 <code>userType</code>을 포함합니다. 일반 사용자는 <code>general_user</code>이며 tenant 값을 반드시 가집니다.</td></tr>
             <tr><th>JWT rule</th><td>JWT에는 role/permission을 넣지 않고, 현재 사용자 화면 구성에 필요한 권한 정보는 이 API 응답으로 제공합니다.</td></tr>
             <tr><th>Status rule</th><td>사용자가 <code>active</code>가 아니면 <code>403 AUTH_ACCOUNT_LOCKED</code>로 실패합니다.</td></tr>
             <tr><th>Errors</th><td><code>400 TENANT_REQUIRED</code>, <code>401 AUTH_INVALID_TOKEN</code>, <code>403 AUTH_ACCOUNT_LOCKED</code>, <code>404 AUTH_USER_NOT_FOUND</code></td></tr>
@@ -311,6 +312,7 @@
       "tenantId": "tenant-uuid",
       "email": "worker@example.com",
       "displayName": "Worker",
+      "userType": "general_user",
       "status": "active",
       "createdAt": "2026-06-09T00:00:00.000Z",
       "updatedAt": "2026-06-09T00:00:00.000Z"
@@ -334,7 +336,8 @@
         <table>
           <tbody>
             <tr><th>Tenant</th><td>모든 사용자 API는 <code>X-Tenant-Id</code>가 필요하며, DB 접근 조건에 <code>tenantId</code>를 포함합니다.</td></tr>
-            <tr><th>Create</th><td><code>POST /api/auth/users</code>는 <code>email</code>, <code>displayName</code>, <code>password</code>, optional <code>status</code>를 받습니다. 기본 상태는 <code>active</code>입니다.</td></tr>
+            <tr><th>User type</th><td>사용자는 <code>system_admin</code>과 <code>general_user</code>로 구분합니다. 이 tenant-scoped 사용자 API는 <code>general_user</code>만 생성/관리하며, 일반 사용자는 항상 tenant 값을 가져야 합니다.</td></tr>
+            <tr><th>Create</th><td><code>POST /api/auth/users</code>는 <code>email</code>, <code>displayName</code>, <code>password</code>, optional <code>status</code>, optional <code>userType</code>을 받습니다. <code>userType</code> 기본값은 <code>general_user</code>이고 <code>system_admin</code>은 <code>400 VALIDATION_FAILED</code>로 거부합니다.</td></tr>
             <tr><th>List</th><td><code>GET /api/auth/users?page=1&amp;size=20&amp;status=active&amp;email=worker</code> 형식을 지원합니다. list 응답은 <code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code>만 사용합니다.</td></tr>
             <tr><th>Detail</th><td><code>GET /api/auth/users/{userId}</code>는 다른 tenant 사용자를 <code>404 AUTH_USER_NOT_FOUND</code>로 숨깁니다.</td></tr>
             <tr><th>Update</th><td><code>PATCH /api/auth/users/{userId}</code>는 <code>email</code>과 <code>displayName</code> 변경을 지원합니다.</td></tr>
@@ -352,7 +355,7 @@
               <tr><th>Endpoint</th><th>Body 또는 query</th><th>Response data</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>POST /api/auth/users</code></td><td><code>email</code>, <code>displayName</code>, <code>password</code>, optional <code>status</code></td><td>User object</td></tr>
+              <tr><td><code>POST /api/auth/users</code></td><td><code>email</code>, <code>displayName</code>, <code>password</code>, optional <code>status</code>, optional <code>userType=general_user</code></td><td>User object</td></tr>
               <tr><td><code>GET /api/auth/users</code></td><td><code>page</code>, <code>size</code>, optional <code>status</code>, <code>email</code></td><td><code>items</code>, <code>page</code>, <code>size</code>, <code>total</code></td></tr>
               <tr><td><code>GET /api/auth/users/{userId}</code></td><td>path <code>userId</code></td><td>User object</td></tr>
               <tr><td><code>PATCH /api/auth/users/{userId}</code></td><td>optional <code>email</code>, <code>displayName</code>. At least one is required.</td><td>User object</td></tr>
@@ -365,6 +368,7 @@
   "email": "worker@example.com",
   "displayName": "Worker",
   "password": "user-password",
+  "userType": "general_user",
   "status": "active"
 }</code></pre>
         <pre><code>{
@@ -376,6 +380,7 @@
     "tenantId": "tenant-uuid",
     "email": "worker@example.com",
     "displayName": "Worker",
+    "userType": "general_user",
     "status": "active",
     "createdAt": "2026-06-09T00:00:00.000Z",
     "updatedAt": "2026-06-09T00:00:00.000Z"

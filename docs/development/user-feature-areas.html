@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>사용자별 기능 영역 정의서</title>
+    <link rel="stylesheet" href="../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">User Feature Areas</p>
+        <h1>사용자별 기능 영역 정의서</h1>
+        <p class="lead">
+          현재 구현된 인증, BFF, WMS, 감사/이벤트 흐름을 기준으로 사용자 타입과 역할별 기능 영역을 정리합니다.
+          이 문서는 화면 메뉴와 권한 설계, 테스트 시나리오, 향후 web-admin/web-wms 구현의 기준으로 사용합니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>기준</h2>
+        <table>
+          <tbody>
+            <tr><th>기준일</th><td><code>2026-06-21</code></td></tr>
+            <tr><th>사용자 타입</th><td>코드상 사용자 타입은 <code>system_admin</code>과 <code>general_user</code>입니다.</td></tr>
+            <tr><th>Tenant 역할</th><td><code>general_user</code>에게 tenant role을 부여해 <code>tenant_admin</code>, <code>tenant_user</code>, WMS 담당자 역할을 구성합니다.</td></tr>
+            <tr><th>중요 경계</th><td><code>system_admin</code>은 tenant-scoped 사용자 API로 생성하거나 tenant role에 섞지 않습니다. 현재 구현은 이 분리를 검증하고, 전용 system admin bootstrap/API는 후속 범위입니다.</td></tr>
+            <tr><th>검증 증거</th><td><a href="../test-logs/2026-06-21/frontend-wms-api-verification.html"><code>frontend-wms-api-verification.html</code></a>에서 33개 시나리오 통과를 확인했습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>사용자 분류</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>분류</th>
+                <th>식별 기준</th>
+                <th>주요 목적</th>
+                <th>현재 구현 상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>system_admin</code></td>
+                <td>사용자 타입 <code>system_admin</code></td>
+                <td>플랫폼 전체 tenant 운영, bootstrap, 시스템 관리 정책을 담당하는 별도 영역입니다.</td>
+                <td>tenant-scoped API에서 생성/role mapping을 차단합니다. 전용 bootstrap과 운영 API는 후속입니다.</td>
+              </tr>
+              <tr>
+                <td><code>tenant_admin</code></td>
+                <td><code>general_user</code> + tenant 전체 scope role</td>
+                <td>자기 tenant의 사용자, role, permission, tenant module/domain, audit 조회, WMS 운영 권한을 관리합니다.</td>
+                <td>Admin BFF와 Auth/IAM permission check로 구현되어 있습니다. warehouse scope assignment는 차단합니다.</td>
+              </tr>
+              <tr>
+                <td><code>tenant_user</code></td>
+                <td><code>general_user</code> + 업무 role</td>
+                <td>WMS app shell, navigation, WMS 조회/작업 API를 부여받은 권한 범위 안에서 사용합니다.</td>
+                <td>User BFF app shell/navigation과 WMS 화면 조회 API가 구현되어 있습니다. 재고 조회 화면은 <code>wms.inventory.read</code>, 창고/자재 관리 화면은 관리 권한에 따라 노출됩니다.</td>
+              </tr>
+              <tr>
+                <td>WMS 담당자</td>
+                <td><code>general_user</code> + WMS permission set</td>
+                <td>창고/로케이션/품목, 재고, 입고, 출고, 포장, 출하, 스냅샷 업무를 수행합니다.</td>
+                <td>권한별 WMS API가 구현되어 있으며, lot/serial과 작업 지시는 후속입니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>기능 영역 매트릭스</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>기능 영역</th>
+                <th><code>system_admin</code></th>
+                <th><code>tenant_admin</code></th>
+                <th><code>tenant_user</code> / WMS 담당자</th>
+                <th>구현 상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>로그인과 세션</td>
+                <td>전용 bootstrap/운영 경로 후속</td>
+                <td>로그인, refresh token rotation, logout</td>
+                <td>로그인, refresh token rotation, logout</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>Tenant 생성/상태/module/domain 관리</td>
+                <td>플랫폼 운영 목표 영역</td>
+                <td>권한 보유 시 Admin BFF로 수행</td>
+                <td>불가</td>
+                <td><span class="tag done">Implemented via Admin BFF</span></td>
+              </tr>
+              <tr>
+                <td>Tenant 사용자 관리</td>
+                <td>tenant-scoped API에서는 불가</td>
+                <td><code>general_user</code> 생성, 수정, 상태 변경</td>
+                <td>불가</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>Role/Permission 관리</td>
+                <td><code>system.*</code> 권한을 tenant role에 연결 불가</td>
+                <td>permission 생성/조회, role 생성/수정, role-permission 교체, user-role 부여/회수</td>
+                <td>불가</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>감사 로그 조회</td>
+                <td>플랫폼 운영 목표 영역</td>
+                <td><code>audit.logs.read</code> 권한으로 관리자 조회</td>
+                <td>불가</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>App shell과 navigation</td>
+                <td>업무 화면 대상 아님</td>
+                <td>권한 보유 시 app context 확인 가능</td>
+                <td><code>/api/app/me</code>, <code>/api/app/navigation</code> 사용</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>WMS 기준정보</td>
+                <td>직접 업무 처리 대상 아님</td>
+                <td>권한 부여/운영 관리</td>
+                <td><code>wms.warehouses.manage</code>, <code>wms.locations.manage</code>, <code>wms.items.manage</code>로 수행</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>WMS 재고 조회/조정</td>
+                <td>직접 업무 처리 대상 아님</td>
+                <td>권한 부여/운영 관리</td>
+                <td><code>wms.inventory.read</code>, <code>wms.inventory.adjust</code>로 수행</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>일 단위 재고 스냅샷</td>
+                <td>직접 업무 처리 대상 아님</td>
+                <td>권한 부여/운영 관리</td>
+                <td><code>wms.inventory.read</code>로 조회, <code>wms.inventory.snapshot.generate</code>로 수동 생성/재생성</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>입고 확정</td>
+                <td>직접 업무 처리 대상 아님</td>
+                <td>권한 부여/운영 관리</td>
+                <td><code>wms.inbound.confirm</code>로 수행</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>출고 할당</td>
+                <td>직접 업무 처리 대상 아님</td>
+                <td>권한 부여/운영 관리</td>
+                <td><code>wms.outbound.allocate</code>로 수행</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>포장</td>
+                <td>직접 업무 처리 대상 아님</td>
+                <td>권한 부여/운영 관리</td>
+                <td><code>wms.outbound.pack</code>으로 포장 작업/패키지/확정 수행</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>출하</td>
+                <td>직접 업무 처리 대상 아님</td>
+                <td>권한 부여/운영 관리</td>
+                <td><code>wms.outbound.ship</code>으로 direct 출하 또는 포장 기반 출하 수행</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td>WMS 화면 데이터 조합</td>
+                <td>대상 아님</td>
+                <td>권한 정책과 메뉴 노출 기준 관리</td>
+                <td>web-wms가 User BFF를 통해 사용 예정</td>
+                <td><span class="tag todo">Planned</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>권한 코드 묶음</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>역할/영역</th>
+                <th>대표 권한</th>
+                <th>비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Tenant 운영 관리자</td>
+                <td><code>tenant.tenants.read</code>, <code>tenant.tenants.create</code>, <code>tenant.tenants.update</code>, <code>tenant.tenants.updateStatus</code>, <code>tenant.modules.manage</code>, <code>tenant.domains.manage</code></td>
+                <td>Admin BFF가 tenant-service 내부 API로 위임합니다.</td>
+              </tr>
+              <tr>
+                <td>사용자/RBAC 관리자</td>
+                <td><code>auth.users.read</code>, <code>auth.users.create</code>, <code>auth.users.update</code>, <code>auth.roles.read</code>, <code>auth.roles.create</code>, <code>auth.roles.update</code>, <code>auth.rolePermissions.manage</code>, <code>auth.userRoles.manage</code></td>
+                <td>tenant-scoped <code>general_user</code>와 tenant role만 관리합니다.</td>
+              </tr>
+              <tr>
+                <td>감사 조회자</td>
+                <td><code>audit.logs.read</code></td>
+                <td>Admin BFF가 audit-log-service 조회 API로 위임합니다.</td>
+              </tr>
+              <tr>
+                <td>WMS 기준정보 담당자</td>
+                <td><code>wms.warehouses.manage</code>, <code>wms.locations.manage</code>, <code>wms.items.manage</code></td>
+                <td>read 전용 권한 분리 여부는 후속 결정입니다.</td>
+              </tr>
+              <tr>
+                <td>WMS 재고 담당자</td>
+                <td><code>wms.inventory.read</code>, <code>wms.inventory.adjust</code>, <code>wms.inventory.snapshot.generate</code></td>
+                <td>현재고, 조정, 과거 일 단위 스냅샷 조회/수동 생성을 담당합니다.</td>
+              </tr>
+              <tr>
+                <td>WMS 입출고/포장 담당자</td>
+                <td><code>wms.inbound.confirm</code>, <code>wms.outbound.allocate</code>, <code>wms.outbound.pack</code>, <code>wms.outbound.ship</code></td>
+                <td>상태 변경은 WMS 업무 row, inventory ledger, outbox event를 같은 transaction에 저장합니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>구현과 후속 범위</h2>
+        <div class="grid two">
+          <div class="card">
+            <strong>구현 완료</strong>
+            <p>tenant/user/role/permission 관리, tenant admin과 tenant user 범위 분리, User BFF app shell/navigation, WMS 기준정보/재고/스냅샷/입고/출고/포장/출하, outbox/audit 검증.</p>
+          </div>
+          <div class="card">
+            <strong>후속</strong>
+            <p>system admin 전용 bootstrap/API, tenant proxy 접근 정책, User BFF WMS 화면 조합 API, web-admin/web-wms 화면, lot/serial, 작업 지시, ERP retry.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>관련 문서</h2>
+        <div class="link-row">
+          <a class="tag" href="./service-feature-definitions.html">서비스별 기능 정의서</a>
+          <a class="tag" href="./services/auth-iam-service.html">auth-iam-service</a>
+          <a class="tag" href="./services/admin-bff-service.html">admin-bff-service</a>
+          <a class="tag" href="./services/user-bff-service.html">user-bff-service</a>
+          <a class="tag" href="./services/wms-service.html">wms-service</a>
+          <a class="tag" href="../design/rules/auth-permission.html">Auth/Permission 규칙</a>
+          <a class="tag" href="../design/rules/multi-tenant.html">Multi-Tenant 규칙</a>
+          <a class="tag" href="../test-scenarios/system-test-scenarios.html">시스템 테스트 시나리오</a>
+        </div>
+      </section>
+
+      <p class="footer"><a href="../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>
