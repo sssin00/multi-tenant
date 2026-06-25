@@ -88,8 +88,8 @@
           <tbody>
             <tr><th>인증</th><td>필수. <code>Authorization: Bearer {token}</code>이 필요합니다. 단, 로그인과 토큰 갱신 endpoint는 JWT 없이 auth-iam-service로 전달합니다.</td></tr>
             <tr><th>Public 예외</th><td><code>/health</code>, <code>/ready</code>, <code>POST /api/auth/login</code>, <code>POST /api/auth/token/refresh</code>입니다.</td></tr>
-            <tr><th>Tenant</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 차단합니다.</td></tr>
-            <tr><th>JWT Claim</th><td><code>sub</code>, <code>tenantId</code>만 request context에 반영합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</td></tr>
+            <tr><th>Tenant</th><td>JWT <code>tenantId</code>가 있고 <code>X-Tenant-Id</code>와 다르면 <code>403 TENANT_MISMATCH</code>로 차단합니다. tenant 없는 JWT는 <code>system_admin</code>에만 허용합니다.</td></tr>
+            <tr><th>JWT Claim</th><td><code>sub</code>, <code>type</code>, optional <code>tenantId</code>만 request context에 반영합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</td></tr>
             <tr><th>JWT Signature</th><td><code>HS256</code>, <code>RS256</code> 서명 검증을 지원합니다. 로컬 기본값은 <code>HS256</code>입니다.</td></tr>
             <tr><th>JWT Issuer/Audience</th><td><code>iss</code>는 <code>JWT_ISSUER</code>, <code>aud</code>는 <code>JWT_AUDIENCE</code>와 일치해야 합니다.</td></tr>
             <tr><th>Tenant Status</th><td>gateway-service는 tenant-service를 직접 호출하지 않습니다. tenant status check는 Admin BFF와 이후 추가되는 BFF가 tenant-service 내부 API로 수행합니다.</td></tr>
@@ -217,7 +217,7 @@
             <table>
               <tbody>
                 <tr><th><code>X-Request-Id</code></th><td>요청에 없으면 gateway-service가 생성하고 응답과 upstream 요청에 전파합니다.</td></tr>
-                <tr><th><code>X-Tenant-Id</code></th><td>JWT <code>tenantId</code>를 기준으로 upstream 요청에 전파합니다.</td></tr>
+                <tr><th><code>X-Tenant-Id</code></th><td>JWT <code>tenantId</code>가 있으면 이를 기준으로 upstream 요청에 전파합니다. tenant 없는 <code>system_admin</code> 요청은 header가 없으면 tenant를 전파하지 않습니다.</td></tr>
                 <tr><th><code>X-User-Id</code></th><td>JWT <code>sub</code>를 기준으로 upstream 요청에 전파합니다.</td></tr>
               </tbody>
             </table>

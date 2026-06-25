@@ -6,7 +6,9 @@
 
 Docker Compose 프로젝트 이름은 `multi-tenant-local`로 고정합니다. Docker Desktop이나 `docker compose ls`에서 로컬 개발 스택이 이 이름으로 표시됩니다.
 
-현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `tenant-service`, `audit-log-service`, `outbox-relay-service`, `admin-bff-service`, `gateway-service`, `wms-service`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. PostgreSQL 인스턴스는 공유하되 서비스별 database를 분리하며, 로컬에서는 `service-databases-init`이 `auth_iam`, `tenant`, `audit_log`, `wms` database를 idempotent하게 생성합니다. `auth-iam-db-push`, `tenant-service-db-push`, `audit-log-service-db-push`, `wms-service-db-push`는 PostgreSQL 준비 후 각 서비스 Prisma schema를 자기 database에 반영하고 종료되는 초기화 작업입니다. 이후 고정 id, camelCase permission code, tenant setting처럼 현재 API가 표현하지 못하는 기준값은 DB seed로 유지하고, tenant status와 module 활성화처럼 API로 가능한 항목은 `scripts/db/seed-local-api.mjs`가 서비스 API를 호출해 반영합니다.
+현재 로컬 compose는 구현이 완료된 `auth-iam-service`, `tenant-service`, `audit-log-service`, `outbox-relay-service`, `admin-bff-service`, `user-bff-service`, `gateway-service`, `wms-service`, `web-admin`, `web-wms`와 공용 의존성인 PostgreSQL, Redis, LocalStack을 실행합니다. PostgreSQL 인스턴스는 공유하되 서비스별 database를 분리하며, 로컬에서는 `service-databases-init`이 `auth_iam`, `tenant`, `audit_log`, `wms` database를 idempotent하게 생성합니다. `auth-iam-db-push`, `tenant-service-db-push`, `audit-log-service-db-push`, `wms-service-db-push`는 PostgreSQL 준비 후 각 서비스 Prisma schema를 자기 database에 반영하고 종료되는 초기화 작업입니다. 이후 고정 id, camelCase permission code, tenant setting처럼 현재 API가 표현하지 못하는 기준값은 DB seed로 유지하고, tenant status와 module 활성화처럼 API로 가능한 항목은 `scripts/db/seed-local-api.mjs`가 서비스 API를 호출해 반영합니다.
+
+로컬에서도 업무 API는 gateway만 통과합니다. `admin-bff-service`와 `user-bff-service`는 compose 내부 네트워크에만 노출하고 host port를 열지 않습니다. 브라우저와 Postman의 `/api/admin/**`, `/api/app/**` 요청은 `http://localhost:3000` gateway를 사용합니다.
 
 로컬 기본값은 `outbox-relay-service`가 `mock` publisher를 사용하고 `audit-log-service`의 SQS consumer는 꺼둡니다. dev/staging/prod env 파일은 감사 이벤트 저장을 위해 `OUTBOX_PUBLISHER_TYPE=sqs`, `AUDIT_EVENT_CONSUMER_ENABLED=true`를 사용하며, queue URL은 CDK 관리형 audit event queue 또는 환경별 override 값으로 주입합니다.
 
@@ -30,17 +32,23 @@ Health check:
 curl http://localhost:3000/health
 curl http://localhost:3001/health
 curl http://localhost:3002/health
-curl http://localhost:3003/health
 curl http://localhost:3005/health
 curl http://localhost:3006/health
 curl http://localhost:3007/health
 curl http://localhost:3000/ready
 curl http://localhost:3001/ready
 curl http://localhost:3002/ready
-curl http://localhost:3003/ready
 curl http://localhost:3005/ready
 curl http://localhost:3006/ready
 curl http://localhost:3007/ready
+```
+
+Web:
+
+```text
+web-admin: http://localhost:5173
+web-wms: http://localhost:5174
+api gateway: http://localhost:3000
 ```
 
 직접 호출 테스트 데이터:
@@ -179,7 +187,6 @@ Health check:
 curl http://localhost:3000/health
 curl http://localhost:3001/health
 curl http://localhost:3002/health
-curl http://localhost:3003/health
 curl http://localhost:3006/health
 curl http://localhost:3007/health
 ```

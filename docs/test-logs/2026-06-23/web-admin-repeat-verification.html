@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2026-06-23 web-admin 5회 반복 검증</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Verification Log</p>
+        <h1>2026-06-23 web-admin 5회 반복 검증</h1>
+        <p class="lead">테스트 시나리오 보강, 테스트, 문제점 수정, 재테스트, 결과 저장, 문서 최신화 과정을 5회 반복한 기록입니다.</p>
+      </header>
+
+      <section>
+        <h2>실행 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>실행일</th><td>2026-06-23</td></tr>
+            <tr><th>환경</th><td>local gateway <code>http://localhost:3000</code>, web-admin Docker <code>http://localhost:5173</code>, Admin BFF, Auth/IAM, tenant-service, audit-log-service</td></tr>
+            <tr><th>정적 검증</th><td>각 회차 <code>pnpm --filter web-admin typecheck</code>, <code>pnpm --filter web-admin build</code> 통과</td></tr>
+            <tr><th>배포 검증</th><td>2회차 수정 후 <code>docker compose -f docker/local/docker-compose.yml up -d --no-deps --build web-admin</code> 완료, 최종 <code>multi-tenant-web-admin</code> healthy</td></tr>
+            <tr><th>최종 결과</th><td><span class="tag done">PASS</span> 5회 반복 후 남은 실패 항목 없음</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>반복 결과</h2>
+        <table>
+          <thead>
+            <tr><th>회차</th><th>보강 시나리오</th><th>API runId</th><th>브라우저 Evidence</th><th>수정 사항</th><th>결과</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>로그인 화면, super admin 로그인, 6개 관리자 메뉴 스타일 기준</td>
+              <td><code>web-admin-repeat-1-mqqayhy8</code></td>
+              <td>로그인 화면 footer/이전 서비스명 0건, 6개 메뉴 heading 일치, <code>API 데이터</code> 0건, 가로 오버플로우 0건, console error 0건</td>
+              <td>검증 절차를 화면별 핵심 heading visible 후 DOM/style을 읽도록 보강했습니다.</td>
+              <td><span class="tag done">PASS</span></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>고객사 생성 모달, 필수 모듈 잠금, 등록 버튼 상태</td>
+              <td><code>web-admin-repeat-2-mqqb2qt1</code></td>
+              <td>모달 본문 <code>overflow-y=auto</code>, footer visible, <code>Auth</code>/<code>Tenant</code> checked disabled, <code>WMS</code> selectable</td>
+              <td>필수 업체명/도메인이 비어 있어도 등록 버튼이 활성으로 보이는 문제를 수정했습니다. 버튼 disabled와 submit guard를 같은 조건으로 통일했습니다.</td>
+              <td><span class="tag done">PASS after fix</span></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>고객사 상세/수정 모달 조회 모드와 수정 모드</td>
+              <td><code>web-admin-repeat-3-mqqb5tin</code></td>
+              <td>조회 모드 input 0건, 수정 모드 흰 입력 필드 3개(고객사 이름, 도메인, 연락처), 읽기 전용 텍스트 필드 4개, disabled input 0건, 상태 변경 컨트롤 유지</td>
+              <td>추가 코드 수정 없음. 현재 상세/수정 모달 구현이 기대 결과와 일치함을 확인했습니다.</td>
+              <td><span class="tag done">PASS</span></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>테넌트 관리자 메뉴 권한과 고객사 API 접근 제한</td>
+              <td><code>web-admin-repeat-4-mqqb79p6</code></td>
+              <td>테넌트 관리자 navigation에서 <code>tenants</code> 미포함, <code>/tenants</code> 직접 접근 시 <code>접근 제한</code> 화면 표시, 가로 오버플로우 0건</td>
+              <td>현재 구현에 맞춰 시나리오 기대 결과를 redirect가 아닌 접근 제한 화면으로 명확히 보강했습니다.</td>
+              <td><span class="tag done">PASS</span></td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>실패 로그인, super admin 재로그인, 전체 화면 최종 회귀, 고객사 생성 버튼 재확인</td>
+              <td><code>web-admin-repeat-5-mqqb9f7q</code></td>
+              <td><code>AUTH_INVALID_CREDENTIALS</code> 표시, super admin <code>전체 테넌트</code> scope, 6개 메뉴 스타일 기준 통과, 생성 모달 버튼 disabled before true/after false, console error 0건</td>
+              <td>추가 코드 수정 없음. 2회차 수정 사항의 회귀가 없음을 확인했습니다.</td>
+              <td><span class="tag done">PASS</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>API Evidence</h2>
+        <table>
+          <thead>
+            <tr><th>회차</th><th>검증 API</th><th>대표 결과</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td><code>/api/admin/me</code>, <code>/api/admin/dashboard</code>, <code>/api/admin/tenants</code>, <code>/api/admin/access-control/screen-data</code>, <code>/api/admin/audit-logs</code></td><td>모두 <code>200 success=true</code>, tenant total 11, WMS module total 10, audit total 293</td></tr>
+            <tr><td>2</td><td>active tenant filter, keyword filter, active user filter, audit result filter</td><td>모두 <code>200 success=true</code>, <code>keyword=web-admin</code> total 3</td></tr>
+            <tr><td>3</td><td>tenant list 1건, tenant detail, dashboard, access-control, audit</td><td>tenant detail <code>d52955d3-9e02-40cb-bbf4-9fae82091822</code> 조회 성공</td></tr>
+            <tr><td>4</td><td>tenant admin login, me, tenants direct, dashboard, access-control, audit</td><td>tenant admin navigation에서 <code>tenants</code> 제외, tenants API <code>403 AUTH_ADMIN_SCOPE_MISMATCH</code></td></tr>
+            <tr><td>5</td><td>invalid login, super admin login, me, dashboard, tenant filter, access-control role filter, audit</td><td>invalid login <code>401 AUTH_INVALID_CREDENTIALS</code>, 이후 super admin API 모두 <code>200 success=true</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>문서 반영</h2>
+        <table>
+          <tbody>
+            <tr><th>테스트 시나리오</th><td><a href="../../test-scenarios/web-admin-test-scenarios.html"><code>docs/test-scenarios/web-admin-test-scenarios.html</code></a>에 <code>WEB-ADMIN-UX-002</code>, <code>WEB-ADMIN-TENANT-008</code>을 추가하고 <code>WEB-ADMIN-AUTH-002A</code> 기대 결과를 현재 구현과 맞췄습니다.</td></tr>
+            <tr><th>개발 문서</th><td><a href="../../development/services/web-admin.html"><code>docs/development/services/web-admin.html</code></a>에 5회 반복 검증과 고객사 생성 모달 버튼 상태 수정 내역을 기록했습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a> · <a href="../../development/services/web-admin.html">web-admin 개발과정</a> · <a href="../../test-scenarios/web-admin-test-scenarios.html">web-admin 테스트 시나리오</a></p>
+    </main>
+  </body>
+</html>

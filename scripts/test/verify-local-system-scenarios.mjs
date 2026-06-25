@@ -7,7 +7,6 @@ const config = {
   gatewayBaseUrl: process.env.LOCAL_GATEWAY_URL ?? "http://127.0.0.1:3000",
   authBaseUrl: process.env.LOCAL_AUTH_IAM_SERVICE_URL ?? "http://127.0.0.1:3001",
   tenantBaseUrl: process.env.LOCAL_TENANT_SERVICE_URL ?? "http://127.0.0.1:3002",
-  adminBffBaseUrl: process.env.LOCAL_ADMIN_BFF_SERVICE_URL ?? "http://127.0.0.1:3003",
   wmsBaseUrl: process.env.LOCAL_WMS_SERVICE_URL ?? "http://127.0.0.1:3005",
   auditBaseUrl: process.env.LOCAL_AUDIT_LOG_SERVICE_URL ?? "http://127.0.0.1:3006",
   outboxBaseUrl: process.env.LOCAL_OUTBOX_RELAY_SERVICE_URL ?? "http://127.0.0.1:3007",
@@ -57,12 +56,11 @@ async function main() {
 async function runIteration(iteration) {
   const suffix = `${Date.now()}-${iteration}`;
 
-  await scenario(iteration, "SETUP-READY-001", "전체 서비스 readiness 확인", async () => {
+  await scenario(iteration, "SETUP-READY-001", "외부 노출 서비스 readiness 확인", async () => {
     const targets = [
       ["gateway-service", `${config.gatewayBaseUrl}/ready`],
       ["auth-iam-service", `${config.authBaseUrl}/ready`],
       ["tenant-service", `${config.tenantBaseUrl}/ready`],
-      ["admin-bff-service", `${config.adminBffBaseUrl}/ready`],
       ["wms-service", `${config.wmsBaseUrl}/ready`],
       ["audit-log-service", `${config.auditBaseUrl}/ready`],
       ["outbox-relay-service", `${config.outboxBaseUrl}/ready`]
@@ -687,6 +685,15 @@ async function runIteration(iteration) {
     });
     assertListEnvelope(materials);
 
+    const locations = await api("GET", "/api/app/wms/locations?page=1&size=20", {
+      requestId: requestId(iteration, "wms-app-locations"),
+      tenantId: config.tenantId,
+      accessToken: state.accessToken
+    });
+    assertListEnvelope(locations);
+    assert(locations.body.data.items.length >= 1, "locations should include generated rows");
+    assert(locations.body.data.items.every((item) => typeof item.warehouseId === "string"), "location warehouseId should be present");
+
     const inventorySummary = await api("GET", "/api/app/wms/inventory-summary?page=1&size=20", {
       requestId: requestId(iteration, "wms-app-inventory-summary"),
       tenantId: config.tenantId,
@@ -695,6 +702,57 @@ async function runIteration(iteration) {
     assert(inventorySummary.body.data.pageTotals, "inventory summary should include pageTotals");
     assertQuantityTotals(inventorySummary.body.data.pageTotals, "inventorySummary.pageTotals");
     assertPageData(inventorySummary.body.data.inventory, "inventorySummary.inventory");
+    const firstInventoryItem = inventorySummary.body.data.inventory.items[0];
+    assert(firstInventoryItem, "inventory summary should include at least one row for filter verification");
+
+    const inventorySnapshots = await api("GET", `/api/app/wms/inventory-snapshots?snapshotDate=${todayKst()}&page=1&size=20`, {
+      requestId: requestId(iteration, "wms-app-inventory-snapshots"),
+      tenantId: config.tenantId,
+      accessToken: state.accessToken
+    });
+    assert(inventorySnapshots.body.data.pageTotals, "inventory snapshots should include pageTotals");
+    assertQuantityTotals(inventorySnapshots.body.data.pageTotals, "inventorySnapshots.pageTotals");
+    assertPageData(inventorySnapshots.body.data.snapshots, "inventorySnapshots.snapshots");
+    assert(inventorySnapshots.body.data.snapshots.items.length >= 1, "inventory snapshots should include generated rows");
+
+    const filteredSnapshots = await api(
+      "GET",
+      `/api/app/wms/inventory-snapshots?snapshotDate=${todayKst()}&warehouseId=${firstInventoryItem.warehouseId}&locationId=${firstInventoryItem.locationId}&itemId=${firstInventoryItem.materialId}&page=1&size=20`,
+      {
+        requestId: requestId(iteration, "wms-app-inventory-snapshots-filtered"),
+        tenantId: config.tenantId,
+        accessToken: state.accessToken
+      }
+    );
+    assertPageData(filteredSnapshots.body.data.snapshots, "filteredInventorySnapshots.snapshots");
+    assert(filteredSnapshots.body.data.snapshots.items.length >= 1, "filtered inventory snapshots should include generated rows");
+    assert(
+      filteredSnapshots.body.data.snapshots.items.every(
+        (item) =>
+          item.warehouseId === firstInventoryItem.warehouseId &&
+          item.locationId === firstInventoryItem.locationId &&
+          item.materialId === firstInventoryItem.materialId
+      ),
+      "filtered inventory snapshots should match warehouse/location/material filters"
+    );
+
+    const outboundPackings = await api("GET", "/api/app/wms/outbound-packings?page=1&size=20", {
+      requestId: requestId(iteration, "wms-app-outbound-packings"),
+      tenantId: config.tenantId,
+      accessToken: state.accessToken
+    });
+    assertListEnvelope(outboundPackings);
+    assert(outboundPackings.body.data.items.length >= 1, "outbound packings should include generated rows");
+    assert(outboundPackings.body.data.items.every((item) => typeof item.packageCount === "number"), "packing packageCount should be numeric");
+
+    const outboundAllocations = await api("GET", "/api/app/wms/outbound-allocations?page=1&size=20", {
+      requestId: requestId(iteration, "wms-app-outbound-allocations"),
+      tenantId: config.tenantId,
+      accessToken: state.accessToken
+    });
+    assertListEnvelope(outboundAllocations);
+    assert(outboundAllocations.body.data.items.length >= 1, "outbound allocations should include generated rows");
+    assert(outboundAllocations.body.data.items.every((item) => typeof item.orderNo === "string"), "allocation orderNo should be present");
 
     const dashboard = await api("GET", "/api/app/wms/dashboard", {
       requestId: requestId(iteration, "wms-app-dashboard"),
@@ -704,6 +762,12 @@ async function runIteration(iteration) {
     assert(Number.isInteger(dashboard.body.data.inventory.totalBalances), "dashboard totalBalances should be an integer");
     assert(Number.isInteger(dashboard.body.data.inventory.sampledBalanceCount), "dashboard sampledBalanceCount should be an integer");
     assertQuantityTotals(dashboard.body.data.inventory.pageTotals, "dashboard.inventory.pageTotals");
+    assert(dashboard.body.data.operations.outboundAllocations.canView === true, "admin should see outbound allocation queue");
+    assert(Number.isInteger(dashboard.body.data.operations.outboundAllocations.total), "dashboard outbound allocation total should be an integer");
+    assert(Number.isInteger(dashboard.body.data.operations.outboundAllocations.sampledCount), "dashboard outbound allocation sampledCount should be an integer");
+    assert(dashboard.body.data.operations.outboundPackings.canView === true, "admin should see outbound packing queue");
+    assert(Number.isInteger(dashboard.body.data.operations.outboundPackings.total), "dashboard outbound packing total should be an integer");
+    assert(Number.isInteger(dashboard.body.data.operations.outboundPackings.sampledCount), "dashboard outbound packing sampledCount should be an integer");
     assert(dashboard.body.data.visibleActions.inventory === true, "dashboard visibleActions.inventory should be true");
     assert(dashboard.body.data.visibleActions.warehouses === true, "admin should see warehouse action");
     assert(dashboard.body.data.visibleActions.materials === true, "admin should see material action");
@@ -715,6 +779,16 @@ async function runIteration(iteration) {
     });
     assertPageData(tenantUserInventory.body.data.inventory, "tenantUser.inventorySummary.inventory");
 
+    const tenantUserDashboard = await api("GET", "/api/app/wms/dashboard", {
+      requestId: requestId(iteration, "tenant-user-wms-app-dashboard"),
+      tenantId: config.tenantId,
+      accessToken: state.tenantUserAccessToken
+    });
+    assert(tenantUserDashboard.body.data.operations.outboundAllocations.canView === false, "tenant_user should not see outbound allocation queue");
+    assert(tenantUserDashboard.body.data.operations.outboundAllocations.total === null, "tenant_user outbound allocation total should be null");
+    assert(tenantUserDashboard.body.data.operations.outboundPackings.canView === false, "tenant_user should not see outbound packing queue");
+    assert(tenantUserDashboard.body.data.operations.outboundPackings.total === null, "tenant_user outbound packing total should be null");
+
     const tenantUserWarehouses = await api("GET", "/api/app/wms/warehouses?page=1&size=20", {
       requestId: requestId(iteration, "tenant-user-wms-app-warehouses-denied"),
       tenantId: config.tenantId,
@@ -724,7 +798,34 @@ async function runIteration(iteration) {
     assert(tenantUserWarehouses.status === 403, `tenant_user warehouse screen expected 403, got ${tenantUserWarehouses.status}`);
     assert(tenantUserWarehouses.body.error?.code === "FORBIDDEN", `expected FORBIDDEN, got ${tenantUserWarehouses.body.error?.code}`);
 
-    return `warehouses=${warehouses.body.data.total}, materials=${materials.body.data.total}, inventory=${inventorySummary.body.data.inventory.total}, tenantUserWarehouseStatus=${tenantUserWarehouses.status}`;
+    const tenantUserLocations = await api("GET", "/api/app/wms/locations?page=1&size=20", {
+      requestId: requestId(iteration, "tenant-user-wms-app-locations-denied"),
+      tenantId: config.tenantId,
+      accessToken: state.tenantUserAccessToken,
+      allowFailure: true
+    });
+    assert(tenantUserLocations.status === 403, `tenant_user location screen expected 403, got ${tenantUserLocations.status}`);
+    assert(tenantUserLocations.body.error?.code === "FORBIDDEN", `expected FORBIDDEN, got ${tenantUserLocations.body.error?.code}`);
+
+    const tenantUserPackings = await api("GET", "/api/app/wms/outbound-packings?page=1&size=20", {
+      requestId: requestId(iteration, "tenant-user-wms-app-packings-denied"),
+      tenantId: config.tenantId,
+      accessToken: state.tenantUserAccessToken,
+      allowFailure: true
+    });
+    assert(tenantUserPackings.status === 403, `tenant_user outbound packing screen expected 403, got ${tenantUserPackings.status}`);
+    assert(tenantUserPackings.body.error?.code === "FORBIDDEN", `expected FORBIDDEN, got ${tenantUserPackings.body.error?.code}`);
+
+    const tenantUserAllocations = await api("GET", "/api/app/wms/outbound-allocations?page=1&size=20", {
+      requestId: requestId(iteration, "tenant-user-wms-app-allocations-denied"),
+      tenantId: config.tenantId,
+      accessToken: state.tenantUserAccessToken,
+      allowFailure: true
+    });
+    assert(tenantUserAllocations.status === 403, `tenant_user outbound allocation screen expected 403, got ${tenantUserAllocations.status}`);
+    assert(tenantUserAllocations.body.error?.code === "FORBIDDEN", `expected FORBIDDEN, got ${tenantUserAllocations.body.error?.code}`);
+
+    return `warehouses=${warehouses.body.data.total}, locations=${locations.body.data.total}, materials=${materials.body.data.total}, inventory=${inventorySummary.body.data.inventory.total}, snapshots=${inventorySnapshots.body.data.snapshots.total}, filteredSnapshots=${filteredSnapshots.body.data.snapshots.total}, allocations=${outboundAllocations.body.data.total}, packings=${outboundPackings.body.data.total}, tenantUserWarehouseStatus=${tenantUserWarehouses.status}, tenantUserLocationStatus=${tenantUserLocations.status}, tenantUserPackingStatus=${tenantUserPackings.status}, tenantUserAllocationStatus=${tenantUserAllocations.status}`;
   });
 
   await scenario(iteration, "OBS-AUDIT-002", "app shell 감사 로그 requestId 조회", async () => {

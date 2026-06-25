@@ -23,7 +23,7 @@ export class InternalAuditLogsController {
     return this.success(req, result);
   }
 
-  @InternalService({ allowedServices: ["user-bff-service"] })
+  @InternalService({ allowedServices: ["user-bff-service", "admin-bff-service"] })
   @Post()
   async record(@Body() body: AuditEventCommand, @Req() req: AuditRequest) {
     const result = await this.auditLogsService.recordFromEvent({

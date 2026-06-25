@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">web-wms Desktop 1차 화면 설계</title>
+  <desc id="desc">WMS 운영 콘솔의 로그인, 대시보드, 재고 현황, 재고 스냅샷, 기준정보, 출고 작업, 권한 제한 화면 설계 이미지</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#15242f" flood-opacity="0.14" />
+    </filter>
+    <style>
+      .bg { fill: #eef2f5; }
+      .panel { fill: #ffffff; stroke: #d9e2e9; stroke-width: 1; }
+      .dark { fill: #15242f; }
+      .brand { fill: #1f7a72; }
+      .muted { fill: #61727f; }
+      .text { fill: #17202a; font-family: Inter, Arial, sans-serif; }
+      .white { fill: #ffffff; font-family: Inter, Arial, sans-serif; }
+      .small { font-size: 20px; }
+      .body { font-size: 24px; }
+      .label { font-size: 22px; font-weight: 700; }
+      .title { font-size: 38px; font-weight: 700; }
+      .h2 { font-size: 30px; font-weight: 700; }
+      .chip { fill: #e5f6ef; }
+      .chipText { fill: #12683f; font-family: Inter, Arial, sans-serif; font-size: 18px; font-weight: 700; }
+      .warn { fill: #eef1f4; }
+      .warnText { fill: #6a7782; font-family: Inter, Arial, sans-serif; font-size: 18px; font-weight: 700; }
+      .line { stroke: #cfd9e1; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1120" class="bg" />
+  <text x="64" y="74" class="text title">web-wms Desktop 1차 화면 설계</text>
+  <text x="64" y="114" class="text body muted">운영자용 WMS 화면은 조회 밀도, 빠른 검색, 권한별 작업 노출을 우선합니다.</text>
+
+  <g transform="translate(64 160)" filter="url(#shadow)">
+    <rect width="352" height="874" rx="12" class="dark" />
+    <rect x="28" y="30" width="54" height="54" rx="10" class="brand" />
+    <text x="96" y="55" class="white label">WMS 운영</text>
+    <text x="96" y="86" class="white small" opacity="0.68">멀티테넌트 창고</text>
+
+    <g transform="translate(28 132)">
+      <rect width="296" height="54" rx="8" fill="#f4f8fb" />
+      <text x="54" y="35" class="text label">대시보드</text>
+      <text x="18" y="35" class="text small">01</text>
+    </g>
+    <g transform="translate(28 198)">
+      <rect width="296" height="54" rx="8" class="dark" />
+      <text x="54" y="35" class="white label">재고 현황</text>
+      <text x="18" y="35" class="white small" opacity="0.68">02</text>
+    </g>
+    <g transform="translate(28 264)">
+      <rect width="296" height="54" rx="8" class="dark" />
+      <text x="54" y="35" class="white label">재고 스냅샷</text>
+      <text x="18" y="35" class="white small" opacity="0.68">03</text>
+    </g>
+    <g transform="translate(28 330)">
+      <rect width="296" height="54" rx="8" class="dark" />
+      <text x="54" y="35" class="white label">기준정보</text>
+      <text x="18" y="35" class="white small" opacity="0.68">04</text>
+    </g>
+    <g transform="translate(28 396)">
+      <rect width="296" height="54" rx="8" class="dark" />
+      <text x="54" y="35" class="white label">출고 작업</text>
+      <text x="18" y="35" class="white small" opacity="0.68">05</text>
+    </g>
+    <g transform="translate(28 462)">
+      <rect width="296" height="54" rx="8" class="dark" />
+      <text x="54" y="35" class="white label">권한 제한</text>
+      <text x="18" y="35" class="white small" opacity="0.68">06</text>
+    </g>
+
+    <rect x="28" y="760" width="296" height="82" rx="10" fill="#22313d" stroke="#354757" />
+    <text x="48" y="793" class="white small" opacity="0.68">테넌트</text>
+    <text x="48" y="824" class="white label">aaaaaaaa...aaaa</text>
+  </g>
+
+  <g transform="translate(456 160)">
+    <rect width="1080" height="98" rx="12" class="panel" />
+    <text x="32" y="40" class="text small" fill="#1f7a72" font-weight="700">Desktop 1차 범위</text>
+    <text x="32" y="76" class="text h2">WMS 운영 콘솔</text>
+    <text x="876" y="43" class="text label">창고 운영자</text>
+    <text x="792" y="73" class="text small muted">operator@example.com</text>
+  </g>
+
+  <g transform="translate(456 292)">
+    <rect width="250" height="144" rx="10" class="panel" />
+    <text x="22" y="44" class="text label">재고 레코드</text>
+    <text x="22" y="90" class="text h2">128</text>
+    <text x="22" y="122" class="text small muted">표본 20건</text>
+
+    <rect x="276" width="250" height="144" rx="10" class="panel" />
+    <text x="298" y="44" class="text label">총 수량</text>
+    <text x="298" y="90" class="text h2">12,840</text>
+    <text x="298" y="122" class="text small muted">현재 페이지 합계</text>
+
+    <rect x="552" width="250" height="144" rx="10" class="panel" />
+    <text x="574" y="44" class="text label">가용 수량</text>
+    <text x="574" y="90" class="text h2">10,680</text>
+    <text x="574" y="122" class="text small muted">할당 제외</text>
+
+    <rect x="828" width="250" height="144" rx="10" class="panel" />
+    <text x="850" y="44" class="text label">할당 수량</text>
+    <text x="850" y="90" class="text h2">2,160</text>
+    <text x="850" y="122" class="text small muted">출고 작업 대기</text>
+  </g>
+
+  <g transform="translate(456 474)">
+    <rect width="520" height="232" rx="10" class="panel" />
+    <text x="24" y="42" class="text label">출고 진행</text>
+    <line x1="24" y1="64" x2="496" y2="64" class="line" />
+    <text x="24" y="108" class="text small muted">출고 할당</text>
+    <text x="406" y="108" class="text small" font-weight="700">36건</text>
+    <text x="24" y="154" class="text small muted">포장 작업</text>
+    <text x="406" y="154" class="text small" font-weight="700">18건</text>
+
+    <rect x="560" width="520" height="232" rx="10" class="panel" />
+    <text x="584" y="42" class="text label">사용 가능 작업</text>
+    <rect x="584" y="78" width="110" height="34" rx="17" class="chip" />
+    <text x="606" y="101" class="chipText">재고 조회</text>
+    <rect x="708" y="78" width="110" height="34" rx="17" class="chip" />
+    <text x="730" y="101" class="chipText">창고 관리</text>
+    <rect x="832" y="78" width="110" height="34" rx="17" class="chip" />
+    <text x="854" y="101" class="chipText">품목 관리</text>
+    <rect x="584" y="132" width="110" height="34" rx="17" class="chip" />
+    <text x="606" y="155" class="chipText">포장 처리</text>
+    <rect x="708" y="132" width="110" height="34" rx="17" class="warn" />
+    <text x="730" y="155" class="warnText">출하 제한</text>
+  </g>
+
+  <g transform="translate(456 748)">
+    <rect width="1080" height="286" rx="10" class="panel" />
+    <text x="24" y="44" class="text label">화면별 주요 설계</text>
+    <line x1="24" y1="68" x2="1056" y2="68" class="line" />
+
+    <g transform="translate(24 96)">
+      <text x="0" y="0" class="text label">재고 현황</text>
+      <text x="0" y="34" class="text small muted">창고, 로케이션, 품목 조건으로 현재고를 조회합니다.</text>
+      <rect x="0" y="58" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="82" class="text small">A-01-01 · MAT-1001 · 420</text>
+      <rect x="0" y="104" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="128" class="text small">B-02-03 · MAT-1002 · 760</text>
+    </g>
+
+    <g transform="translate(380 96)">
+      <text x="0" y="0" class="text label">스냅샷/기준정보</text>
+      <text x="0" y="34" class="text small muted">일자별 재고와 창고, 로케이션, 품목을 비교합니다.</text>
+      <rect x="0" y="58" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="82" class="text small">2026-06-22 · SEOUL-DC</text>
+      <rect x="0" y="104" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="128" class="text small">품목 · 로케이션 · 상태</text>
+    </g>
+
+    <g transform="translate(736 96)">
+      <text x="0" y="0" class="text label">출고/권한</text>
+      <text x="0" y="34" class="text small muted">출고 할당, 포장 상태와 권한 제한을 표시합니다.</text>
+      <rect x="0" y="58" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="82" class="text small">SO-20260622-001 · 할당</text>
+      <rect x="0" y="104" width="300" height="36" rx="6" fill="#fff0d5" />
+      <text x="14" y="128" class="text small">스냅샷 생성 권한 없음</text>
+    </g>
+  </g>
+</svg>

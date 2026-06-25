@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -15,6 +16,14 @@ import { PrismaService } from "../database/prisma.service.js";
 import { UserStatus, UserType } from "../generated/prisma/enums.js";
 import { JwtSigner } from "./jwt-signer.js";
 import { PasswordHasher } from "./password-hasher.js";
+
+const ADMIN_LOGIN_PERMISSIONS = new Set([
+  "tenant.tenants.read",
+  "auth.users.read",
+  "auth.roles.read",
+  "auth.permissions.read",
+  "audit.logs.read"
+]);
 
 export interface LoginCommand {
   email?: unknown;
@@ -36,7 +45,7 @@ export type LoginResult = TokenPairResult;
 export interface MeResult {
   user: {
     id: string;
-    tenantId: string;
+    tenantId: string | null;
     email: string;
     displayName: string;
     userType: UserType;
@@ -70,6 +79,28 @@ export interface RevokeResult {
   revokedCount: number;
 }
 
+interface LoginUserRecord {
+  id: string;
+  tenantId: string | null;
+  email: string;
+  displayName: string;
+  passwordHash: string;
+  userType: UserType;
+  status: UserStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  userRoles?: Array<{
+    role: {
+      code: string;
+      rolePermissions: Array<{
+        permission: {
+          code: string;
+        };
+      }>;
+    };
+  }>;
+}
+
 @Injectable()
 export class AuthService {
   private readonly config = getAppConfig();
@@ -85,14 +116,9 @@ export class AuthService {
 
   async login(command: LoginCommand): Promise<LoginResult> {
     const input = this.validateLoginCommand(command);
-    const user = await this.prismaService.authUser.findUnique({
-      where: {
-        tenantId_email: {
-          tenantId: input.tenantId,
-          email: input.email
-        }
-      }
-    });
+    const user = input.tenantId
+      ? await this.findTenantLoginUser(input.tenantId, input.email)
+      : await this.resolveAdminLoginUser(input.email, input.password);
 
     if (!user) {
       throw this.invalidCredentials();
@@ -105,12 +131,11 @@ export class AuthService {
       });
     }
 
-    const isPasswordValid = await this.passwordHasher.verify(input.password, user.passwordHash);
-    if (!isPasswordValid) {
+    if (input.tenantId && !(await this.passwordHasher.verify(input.password, user.passwordHash))) {
       throw this.invalidCredentials();
     }
 
-    const { accessToken, expiresIn } = this.jwtSigner.signAccessToken(user.id, user.tenantId);
+    const { accessToken, expiresIn } = this.jwtSigner.signAccessToken(user.id, user.tenantId, user.userType);
     const refreshToken = this.createOpaqueToken();
     const refreshExpiresIn = this.config.auth.refreshTokenTtlSeconds;
     const expiresAt = new Date(Date.now() + refreshExpiresIn * 1000);
@@ -131,6 +156,89 @@ export class AuthService {
       refreshExpiresIn,
       tokenType: "Bearer"
     };
+  }
+
+  private async findTenantLoginUser(tenantId: string, email: string): Promise<LoginUserRecord | null> {
+    return this.prismaService.authUser.findUnique({
+      where: {
+        tenantId_email: {
+          tenantId,
+          email
+        }
+      }
+    });
+  }
+
+  private async resolveAdminLoginUser(email: string, password: string): Promise<LoginUserRecord | null> {
+    const users = await this.prismaService.authUser.findMany({
+      where: {
+        email
+      },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: {
+                rolePermissions: {
+                  include: {
+                    permission: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: [
+        {
+          userType: "desc"
+        },
+        {
+          createdAt: "asc"
+        }
+      ]
+    });
+
+    const matches: LoginUserRecord[] = [];
+    for (const user of users) {
+      if (!this.isAdminLoginEligible(user)) {
+        continue;
+      }
+
+      if (await this.passwordHasher.verify(password, user.passwordHash)) {
+        matches.push(user);
+      }
+    }
+
+    if (matches.length > 1) {
+      throw new ConflictException({
+        code: "AUTH_LOGIN_AMBIGUOUS",
+        message: "Multiple administrator accounts match this email",
+        details: {
+          fields: {
+            email: "email matches multiple administrator accounts"
+          }
+        }
+      });
+    }
+
+    return matches[0] ?? null;
+  }
+
+  private isAdminLoginEligible(user: LoginUserRecord): boolean {
+    if (user.userType === UserType.system_admin && user.tenantId === null) {
+      return true;
+    }
+
+    return user.userRoles?.some((userRole) => {
+      if (userRole.role.code === "tenant_admin") {
+        return true;
+      }
+
+      return userRole.role.rolePermissions.some((rolePermission) =>
+        ADMIN_LOGIN_PERMISSIONS.has(rolePermission.permission.code)
+      );
+    }) ?? false;
   }
 
   async refresh(command: RefreshCommand): Promise<TokenPairResult> {
@@ -161,7 +269,11 @@ export class AuthService {
         throw this.tenantMismatch("refresh_token");
       }
 
-      const { accessToken, expiresIn } = this.jwtSigner.signAccessToken(currentToken.userId, currentToken.tenantId);
+      const { accessToken, expiresIn } = this.jwtSigner.signAccessToken(
+        currentToken.userId,
+        currentToken.tenantId,
+        currentToken.user.userType
+      );
       const refreshToken = this.createOpaqueToken();
       const refreshExpiresIn = this.config.auth.refreshTokenTtlSeconds;
       const nextToken = await tx.refreshToken.create({
@@ -194,12 +306,10 @@ export class AuthService {
   }
 
   async me(context: AuthIamRequestContext): Promise<MeResult> {
-    const tenantId = this.requireTenantContext(context.tenantId);
     const userId = this.requireUserContext(context.userId);
-    const user = await this.prismaService.authUser.findFirst({
+    const user = await this.prismaService.authUser.findUnique({
       where: {
-        id: userId,
-        tenantId
+        id: userId
       },
       include: {
         userRoles: {
@@ -235,10 +345,32 @@ export class AuthService {
       });
     }
 
+    if (context.tenantId && user.tenantId !== context.tenantId) {
+      throw this.tenantMismatch("jwt_context");
+    }
+
+    if (!context.tenantId && user.userType !== UserType.system_admin) {
+      this.requireTenantContext(context.tenantId);
+    }
+
     const permissionCodes = new Set<string>();
-    for (const assignment of user.userRoles) {
-      for (const rolePermission of assignment.role.rolePermissions) {
-        permissionCodes.add(rolePermission.permission.code);
+    if (user.userType === UserType.system_admin) {
+      const permissions = await this.prismaService.permission.findMany({
+        select: {
+          code: true
+        },
+        orderBy: {
+          code: "asc"
+        }
+      });
+      for (const permission of permissions) {
+        permissionCodes.add(permission.code);
+      }
+    } else {
+      for (const assignment of user.userRoles) {
+        for (const rolePermission of assignment.role.rolePermissions) {
+          permissionCodes.add(rolePermission.permission.code);
+        }
       }
     }
 
@@ -253,11 +385,13 @@ export class AuthService {
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString()
       },
-      roles: user.userRoles.map((assignment) => ({
-        roleId: assignment.role.id,
-        roleCode: assignment.role.code,
-        warehouseId: assignment.warehouseId
-      })),
+      roles: user.userType === UserType.system_admin
+        ? [{ roleId: "system_admin", roleCode: "system_admin", warehouseId: null }]
+        : user.userRoles.map((assignment) => ({
+          roleId: assignment.role.id,
+          roleCode: assignment.role.code,
+          warehouseId: assignment.warehouseId
+        })),
       permissions: [...permissionCodes].sort()
     };
   }
@@ -308,7 +442,7 @@ export class AuthService {
       };
     }
 
-    if (!input.tenantId || !input.userId) {
+    if (!input.userId) {
       throw new BadRequestException({
         code: "VALIDATION_FAILED",
         message: "Validation failed",
@@ -322,7 +456,7 @@ export class AuthService {
 
     const result = await this.prismaService.refreshToken.updateMany({
       where: {
-        tenantId: input.tenantId,
+        ...(input.tenantId ? { tenantId: input.tenantId } : {}),
         userId: input.userId,
         revokedAt: null
       },
@@ -337,10 +471,10 @@ export class AuthService {
     };
   }
 
-  private validateLoginCommand(command: LoginCommand): { email: string; password: string; tenantId: string } {
+  private validateLoginCommand(command: LoginCommand): { email: string; password: string; tenantId?: string } {
     const email = typeof command.email === "string" ? command.email.trim().toLowerCase() : "";
     const password = typeof command.password === "string" ? command.password : "";
-    const tenant = this.validateTenant(command.tenantId, command.headerTenantId, true);
+    const tenant = this.validateTenant(command.tenantId, command.headerTenantId, false);
     const fields: Record<string, string> = {};
 
     if (tenant.error) {
@@ -368,7 +502,7 @@ export class AuthService {
     return {
       email,
       password,
-      tenantId: tenant.tenantId as string
+      ...(tenant.tenantId ? { tenantId: tenant.tenantId } : {})
     };
   }
 

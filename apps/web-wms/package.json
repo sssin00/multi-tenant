@@ -4,10 +4,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo \"web-wms build not configured yet\"",
-    "dev": "echo \"web-wms dev not configured yet\"",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "dev": "vite --host 0.0.0.0",
     "lint": "echo \"web-wms lint not configured yet\"",
     "test": "echo \"web-wms tests not configured yet\"",
-    "typecheck": "echo \"web-wms typecheck not configured yet\""
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.0",
+    "lucide-react": "^1.21.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "typescript": "^5.7.2",
+    "vite": "^8.0.16"
   }
 }

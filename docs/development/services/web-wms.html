@@ -11,16 +11,16 @@
       <header>
         <p class="eyebrow">Development Process</p>
         <h1>web-wms 개발과정</h1>
-        <p class="lead">WMS 사용자와 현장 작업자를 위한 React + Vite 프론트엔드 앱입니다.</p>
+        <p class="lead">WMS 운영자 Desktop 1차 화면을 제공하는 React + Vite 프론트엔드 앱입니다. Desktop 조회 화면과 재고/입고/출고 mutation 작업 패널은 구현 완료했고, PDA Web은 후속 범위입니다.</p>
       </header>
       <section>
         <h2>서비스/앱 역할</h2>
         <table>
           <tr><th>위치</th><td><code>apps/web-wms</code></td></tr>
           <tr><th>카테고리</th><td>Frontend App · WMS UI</td></tr>
-          <tr><th>대상</th><td>창고 운영자, 현장 작업자, PDA Web 사용자</td></tr>
-          <tr><th>연결</th><td><code>user-bff-service</code>를 통해 WMS 화면 데이터를 조회합니다.</td></tr>
-          <tr><th>초기 화면</th><td>대시보드, 기준정보, 재고, 입고, 출고</td></tr>
+          <tr><th>대상</th><td>창고 운영자 Desktop 사용자. 현장 작업자와 PDA Web 사용자는 후속 범위입니다.</td></tr>
+          <tr><th>연결</th><td>브라우저는 <code>gateway-service</code>의 <code>/api/app/**</code>만 호출하고, gateway가 <code>user-bff-service</code>로 proxy합니다.</td></tr>
+          <tr><th>현재 화면</th><td>로그인, 대시보드, 재고 현황, 재고 스냅샷, 기준정보, 출고 작업, 권한 제한</td></tr>
         </table>
       </section>
       <section>
@@ -28,10 +28,10 @@
         <table>
           <tbody>
             <tr><th>WMS App Shell</th><td>로그인 후 사용자, tenant, 활성 module, WMS navigation, route guard를 표시합니다.</td></tr>
-            <tr><th>대시보드</th><td>입고/출고 대기, 재고 현황, 작업 상태, 알림을 사용자용 BFF API로부터 조회해 표시합니다.</td></tr>
-            <tr><th>기준정보 화면</th><td>창고, 로케이션, 품목, 바코드 등 WMS 기준정보 조회와 선택 흐름을 제공합니다.</td></tr>
-            <tr><th>재고 화면</th><td>재고 검색, lot/serial 표시, 재고 조정 요청 흐름을 화면/API 계약에 맞춰 구현합니다.</td></tr>
-            <tr><th>입출고 작업 화면</th><td>입고 검수/적치, 출고 할당/피킹/출하 상태를 현장 작업 중심으로 제공합니다.</td></tr>
+            <tr><th>대시보드</th><td>재고 현황, 출고 할당/포장 작업, 사용자 권한 기반 visible action을 사용자용 BFF API로부터 조회해 표시합니다.</td></tr>
+            <tr><th>기준정보 화면</th><td>창고, 로케이션, 품목 기준정보를 조회하고 창고 코드, 로케이션 창고/코드, 품목 SKU 필터를 API query로 전달합니다.</td></tr>
+            <tr><th>재고 화면</th><td>현재고와 일 단위 재고 스냅샷을 조회하고 창고, 로케이션, 품목, 스냅샷 일자 필터를 API query로 전달합니다. 재고 조정과 입고 확정 mutation을 같은 화면에서 처리합니다.</td></tr>
+            <tr><th>출고 작업 화면</th><td>출고 할당과 포장 상태를 조회합니다. 할당 상태와 포장 상태는 각 API enum에 맞춰 별도 필터로 전달하고, 출고 할당, 포장 생성, 패키지 등록, 포장 확정, 출하 처리를 같은 화면에서 수행합니다.</td></tr>
             <tr><th>제외 범위</th><td>WMS 업무 규칙 계산, 권한 원장 관리, BFF를 우회한 도메인 서비스 직접 호출은 하지 않습니다.</td></tr>
           </tbody>
         </table>
@@ -39,17 +39,85 @@
       <section>
         <h2>구현 상태</h2>
         <table>
-          <tr><th>상태</th><td><span class="tag todo">착수 전</span></td></tr>
-          <tr><th>선행 조건</th><td><code>wms-service</code>의 1차 조회 API와 <code>user-bff-service</code> 화면 조합 API가 준비되었습니다.</td></tr>
+          <tr><th>상태</th><td><span class="tag done">Desktop 1차 조회/mutation API 연동 완료</span></td></tr>
+          <tr><th>선행 조건</th><td><code>wms-service</code>의 1차 조회/mutation API와 <code>user-bff-service</code> 화면 조합/proxy API가 준비되었습니다.</td></tr>
+          <tr><th>로컬 Docker</th><td><code>docker/local/docker-compose.yml</code>의 <code>web-wms</code> 서비스가 <code>http://localhost:5174</code>에서 nginx로 정적 파일을 제공하고 API base URL은 <code>http://localhost:3000</code> gateway로 빌드합니다.</td></tr>
           <tr><th>API 문서</th><td>사용자 화면 API 계약은 <a href="../../apis/user-bff-service/index.html"><code>docs/apis/user-bff-service/index.html</code></a>의 <code>/api/app/wms/**</code> endpoint를 기준으로 합니다.</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>현재 개발 순서</h2>
+        <p>web-wms는 실제 로그인 API부터 고정하고, app shell 권한 초기화, 조회 화면, mutation, PDA 순서로 진행합니다.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>순서</th>
+              <th>작업</th>
+              <th>상태</th>
+              <th>완료 기준</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>로그인 API 실연동</td><td><span class="tag done">완료</span></td><td><code>POST /api/auth/login</code> 성공 응답만 세션으로 저장하고 실패 시 오류 code와 requestId를 표시합니다.</td></tr>
+            <tr><td>2</td><td>App Shell 세션/권한 초기화</td><td><span class="tag done">완료</span></td><td><code>GET /api/app/me</code>, <code>GET /api/app/navigation</code>으로 tenant, 사용자, permission, 메뉴를 구성합니다.</td></tr>
+            <tr><td>3</td><td>Desktop 조회 화면 API 검증</td><td><span class="tag done">완료</span></td><td>대시보드, 재고, 스냅샷, 기준정보, 출고 조회 API와 화면 필터가 gateway 경유 query 계약에 맞춰 동작합니다.</td></tr>
+            <tr><td>4</td><td>업무 mutation 화면 연결</td><td><span class="tag done">완료</span></td><td>재고 조정, 입고 확정, 출고 할당/포장/출하 API에 화면 action과 자동 <code>Idempotency-Key</code>를 연결했습니다.</td></tr>
+            <tr><td>5</td><td>PDA Web 구현</td><td><span class="tag todo">후속</span></td><td>Desktop 1차 안정화 후 별도 PDA 화면으로 scan, retry, confirm 흐름을 구현합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>기술 스펙 결정</h2>
+        <p>web-wms는 창고 운영자와 PDA Web 작업자가 같은 WMS 업무 흐름을 쓰되, 화면 밀도와 조작 방식이 달라지는 앱입니다. 첫 구현은 서버 계약을 그대로 반영하는 얇은 프론트엔드로 시작하고, 업무 규칙은 <code>wms-service</code>와 <code>user-bff-service</code>에 둡니다.</p>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>영역</th>
+                <th>선택</th>
+                <th>이유</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th>런타임</th><td>React + Vite + TypeScript</td><td>프로젝트 공통 규칙과 AWS ECS 프론트엔드 배포 방향에 맞고, WMS 화면을 기능 단위로 빠르게 구성할 수 있습니다.</td></tr>
+              <tr><th>라우팅</th><td>React Router</td><td>로그인, dashboard, inventory, snapshot, master data, outbound, PDA 작업 화면을 URL과 권한 guard로 분리하기 쉽습니다.</td></tr>
+              <tr><th>서버 상태</th><td>TanStack Query</td><td>User BFF 조회 API의 loading, error, retry, cache invalidation을 화면별로 일관되게 다룰 수 있습니다.</td></tr>
+              <tr><th>클라이언트 상태</th><td>컴포넌트 local state 우선, 필요 시 React Context</td><td>현재 범위의 로그인 세션, 검색 조건, route 상태는 앱 내부 state로 충분하며 전역 업무 상태가 커질 때만 Context로 확장합니다.</td></tr>
+              <tr><th>API 클라이언트</th><td><code>fetch</code> 기반 래퍼 + <code>zod</code> 응답 검증</td><td>응답 envelope, <code>requestId</code>, 오류 code, ISO timestamp 규칙을 한 곳에서 처리하고 런타임 계약 불일치를 조기에 발견합니다.</td></tr>
+              <tr><th>폼</th><td>React controlled input + zod API 응답 검증</td><td>현재 구현은 로그인과 조회 필터 중심이라 제어 컴포넌트로 충분합니다. mutation 입력이 커질 때 form 라이브러리 도입을 재검토합니다.</td></tr>
+              <tr><th>스타일</th><td>CSS Modules + global design tokens</td><td>아직 공통 UI 패키지가 없으므로 앱 내부에서 예측 가능한 스타일 격리를 유지하고, 이후 공유 컴포넌트로 승격하기 쉽습니다.</td></tr>
+              <tr><th>아이콘</th><td>lucide-react</td><td>버튼, navigation, 상태 표시용 아이콘을 일관되게 제공하고 번들 부담이 작습니다.</td></tr>
+              <tr><th>검증</th><td>TypeScript, build, Vitest/RTL, 시나리오 기반 AI 검증</td><td>프로젝트 테스트 규칙상 첫 단계는 E2E 자동화보다 시나리오 evidence를 우선하며, UI 단위 회귀는 가벼운 테스트로 보강합니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section>
+        <h2>화면 설계 이미지</h2>
+        <figure class="card">
+          <img src="./web-wms-desktop-design.svg" alt="web-wms Desktop 1차 화면 설계 이미지" style="width: 100%; border-radius: 8px; border: 1px solid #d9e2e9; background: #eef2f5;" />
+          <figcaption>운영자 Desktop 1차 범위의 로그인, 대시보드, 재고 현황, 재고 스냅샷, 기준정보, 출고 작업, 권한 제한 화면 구조입니다.</figcaption>
+        </figure>
+        <figure class="card">
+          <img src="./web-wms-pda-design.svg" alt="web-wms PDA 화면 설계 이미지" style="width: 100%; border-radius: 8px; border: 1px solid #d9e2e9; background: #eef2f5;" />
+          <figcaption>PDA 작업 대기열, 스캔, 확정으로 이어지는 현장 작업자 후속 화면 설계입니다.</figcaption>
+        </figure>
+        <table>
+          <tr><th>이미지 자산</th><td><a href="./web-wms-desktop-design.svg">Desktop 설계 이미지</a>, <a href="./web-wms-pda-design.svg">PDA 설계 이미지</a></td></tr>
+          <tr><th>페이지 구성</th><td>Desktop 화면과 PDA 화면은 별도 이미지로 관리합니다. Desktop은 1차 개발 범위이며 PDA는 후속 범위입니다.</td></tr>
+          <tr><th>데스크톱 화면</th><td>로그인, 대시보드, 재고 현황, 재고 스냅샷, 기준정보, 출고 작업, 권한 제한</td></tr>
+          <tr><th>PDA Web 화면</th><td>PDA 작업 대기열, PDA 스캔, PDA 확정</td></tr>
+          <tr><th>화면 흐름</th><td>로그인 후 대시보드 진입, 사이드 메뉴 이동, PDA 작업 대기열에서 스캔/확정으로 이어지는 흐름을 이미지 기준으로 관리합니다.</td></tr>
+          <tr><th>설계 기준</th><td>운영자 데스크톱 화면은 빠른 검색과 목록 밀도를 우선하고, PDA 화면은 큰 touch target, scan 입력, 재시도 메시지를 우선합니다.</td></tr>
+          <tr><th>관리 방식</th><td>화면 설계는 문서용 SVG 이미지로 저장하고, HTML 문서에서 직접 확인합니다.</td></tr>
         </table>
       </section>
       <section>
         <h2>첫 구현 범위</h2>
         <div class="grid">
           <div class="card"><strong>App Shell</strong><p>로그인 후 메뉴, 테넌트, 사용자 컨텍스트 표시</p></div>
-          <div class="card"><strong>Inventory</strong><p>재고 목록, 검색, 조정 화면</p></div>
-          <div class="card"><strong>Inbound/Outbound</strong><p>입출고 목록과 작업 상태 화면</p></div>
+          <div class="card"><strong>Inventory</strong><p>재고 목록, 검색, snapshot 조회 화면</p></div>
+          <div class="card"><strong>Outbound</strong><p>출고 할당 목록과 포장 상태 화면</p></div>
         </div>
       </section>
       <section>
@@ -58,17 +126,24 @@
         <div class="grid two">
           <div class="card">
             <h3>완료</h3>
-            <p>아직 완료된 구현 TODO는 없습니다.</p>
+            <div class="task-list">
+              <p><label><input type="checkbox" checked disabled /> web-wms 기술 스펙과 선택 이유 정리</label></p>
+              <p><label><input type="checkbox" checked disabled /> Desktop/PDA 화면 설계를 SVG 이미지로 문서에 포함</label></p>
+              <p><label><input type="checkbox" checked disabled /> Desktop 메뉴명과 화면명을 한글 기준으로 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>apps/web-wms</code> React + Vite Desktop 1차 화면 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> 실제 로그인 API와 <code>/api/app/me</code>, <code>/api/app/navigation</code> 기반 app shell 연동</label></p>
+              <p><label><input type="checkbox" checked disabled /> Desktop 조회 API 시나리오 검증</label></p>
+              <p><label><input type="checkbox" checked disabled /> 재고, 스냅샷, 기준정보, 출고 화면 필터를 User BFF query 계약과 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> API validation 오류를 샘플 fallback으로 숨기지 않도록 처리</label></p>
+              <p><label><input type="checkbox" checked disabled /> 재고 조정, 입고 확정, 출고 할당/포장/출하 mutation 패널과 User BFF API 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> mutation 성공 후 dashboard, 재고, 스냅샷, 출고 목록 query invalidation 처리</label></p>
+            </div>
           </div>
           <div class="card">
             <h3>남은 작업</h3>
             <div class="task-list">
-              <p><label><input type="checkbox" disabled /> <code>apps/web-wms</code> React + Vite 기본 구조 생성</label></p>
-              <p><label><input type="checkbox" disabled /> 로그인 후 app shell, navigation, tenant/module 표시 구현</label></p>
-              <p><label><input type="checkbox" disabled /> WMS dashboard와 inventory summary 화면 구현</label></p>
-              <p><label><input type="checkbox" disabled /> 창고/로케이션/품목 기준정보 조회 화면 구현</label></p>
-              <p><label><input type="checkbox" disabled /> 재고 조회/조정 화면 구현</label></p>
-              <p><label><input type="checkbox" disabled /> 입고/출고 목록과 작업 상태 화면 구현</label></p>
+              <p><label><input type="checkbox" disabled /> 조회 API 네트워크 실패 fallback 수동 검증</label></p>
+              <p><label><input type="checkbox" disabled /> PDA Web scan 작업 화면 구현</label></p>
             </div>
           </div>
         </div>
@@ -77,22 +152,23 @@
         <h2>기능별 작업 내역</h2>
         <table>
           <tr><th>App Shell</th><td>사용자, tenant, 활성 module, 권한 summary를 기반으로 navigation과 route guard를 구성합니다.</td></tr>
-          <tr><th>Inventory</th><td>재고 검색, lot/serial 표시, 조정 요청 흐름을 WMS API 계약에 맞춰 구현합니다.</td></tr>
-          <tr><th>Inbound</th><td>입고 예정, 검수, 적치 상태를 현장 작업자가 빠르게 확인할 수 있게 구성합니다.</td></tr>
-          <tr><th>Outbound</th><td>출고 요청, 할당, 피킹, 출하 상태를 작업 중심 화면으로 정리합니다.</td></tr>
+          <tr><th>Inventory</th><td>현재고와 스냅샷 검색은 <code>warehouseId</code>, <code>locationId</code>, <code>itemId</code>, <code>snapshotDate</code> query를 WMS API 계약에 맞춰 전달합니다. 현재고 첫 행을 재고 조정/입고 확정 폼에 적용하고 mutation 성공 시 재조회합니다.</td></tr>
+          <tr><th>Inbound</th><td>입고 확정 폼은 창고, 로케이션, 품목, 수량, 참조 번호를 입력받아 <code>POST /api/app/wms/inbound/confirmations</code>를 호출합니다.</td></tr>
+          <tr><th>Outbound</th><td>출고 할당과 포장 상태 조회를 유지하면서 출고 할당, 포장 생성, 패키지 등록, 포장 확정, 출하 mutation을 같은 화면에서 수행합니다. 할당/포장 첫 행을 후속 작업 폼에 적용할 수 있습니다.</td></tr>
         </table>
       </section>
       <section>
         <h2>테스트 시나리오</h2>
         <table>
-          <tr><th>WEB-WMS-001</th><td>활성 tenant와 WMS module 권한이 있는 사용자는 WMS navigation을 볼 수 있다.</td></tr>
-          <tr><th>WEB-WMS-002</th><td>재고 목록 검색 조건과 paging이 API 응답과 화면 상태에 일치한다.</td></tr>
-          <tr><th>WEB-WMS-003</th><td>입고/출고 작업 상태 변경 후 목록과 상세 화면이 같은 상태를 표시한다.</td></tr>
+          <tr><th>문서</th><td><a href="../../test-scenarios/web-wms-test-scenarios.html"><code>docs/test-scenarios/web-wms-test-scenarios.html</code></a></td></tr>
+          <tr><th>최근 실행</th><td><a href="../../test-logs/2026-06-23/web-wms-mutation-verification.html"><code>docs/test-logs/2026-06-23/web-wms-mutation-verification.html</code></a></td></tr>
+          <tr><th>Verified</th><td>로그인, App Shell, 대시보드, 현재고, 스냅샷 전체/필터, 기준정보 코드/SKU 필터, 출고 할당/포장 상태 필터, 재고 조정, 입고 확정, 출고 할당, 직접 출하, 포장 생성, 패키지 등록, 포장 확정, 포장 기반 출하, app audit, 로그인 실패, tenant mismatch, API envelope, gateway 단일 경유, Desktop route 5회 반복 안정성</td></tr>
+          <tr><th>Backlog</th><td>조회 API 네트워크 실패 fallback 수동 검증, PDA Web scan 화면</td></tr>
         </table>
       </section>
       <section>
-        <h2>후속 작업</h2>
-        <p>현재 web-wms 착수 전 이어서 확정할 작업입니다. 이 표의 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
+        <h2>로드맵과 후속 작업</h2>
+        <p>현재 web-wms Desktop 1차 완료 항목과 이후 확정할 작업입니다. 후속 작업이 진행되면 관련 코드와 문서를 함께 갱신합니다.</p>
         <div class="wide-table">
           <table>
             <thead>
@@ -108,8 +184,8 @@
               <tr>
                 <td><code>P0</code></td>
                 <td>WMS 첫 화면 연동</td>
-                <td>User BFF의 <code>/api/app/wms/dashboard</code>, <code>/inventory-summary</code>, <code>/warehouses</code>, <code>/materials</code> 응답을 기준으로 dashboard, inventory summary, 기준정보 목록 화면을 구성합니다.</td>
-                <td>tenant와 permission summary가 반영된 첫 화면이 실제 API 응답으로 렌더링됩니다.</td>
+                <td>User BFF의 <code>/api/app/wms/dashboard</code>, <code>/inventory-summary</code>, <code>/inventory-snapshots</code>, <code>/warehouses</code>, <code>/locations</code>, <code>/materials</code>, <code>/outbound-allocations</code>, <code>/outbound-packings</code> 응답을 기준으로 dashboard, inventory summary, snapshot, 기준정보, 출고/포장 목록 화면을 구성했습니다.</td>
+                <td><span class="tag done">완료</span> tenant와 permission summary가 반영된 첫 화면이 실제 API 응답으로 렌더링되고, 조회 필터가 API query 계약에 맞춰 동작합니다.</td>
                 <td>user-bff-service 개발 문서, web-wms 개발 문서, wms-service API 문서</td>
               </tr>
               <tr>
@@ -132,6 +208,85 @@
       </section>
       <section>
         <h2>개발 기록</h2>
+        <article>
+          <h3>2026-06-23 WMS mutation 화면과 API 연동</h3>
+          <ul>
+            <li>재고 화면에 재고 조정과 입고 확정 작업 패널을 추가했습니다. 현재고 첫 행을 작업 폼에 적용할 수 있고, mutation 성공 시 requestId를 화면에 표시합니다.</li>
+            <li>출고 작업 화면에 출고 할당, 포장 생성, 패키지 등록, 포장 확정, 출하 처리 패널을 추가했습니다. 할당/포장 첫 행 적용 버튼과 작업 성공 후 query invalidation을 연결했습니다.</li>
+            <li>API client는 모든 POST mutation에 자동 <code>Idempotency-Key</code>를 생성하고, 실패 시 <code>error.code</code>와 requestId를 화면 오류로 표시합니다.</li>
+            <li>검증 명령: <code>pnpm --filter web-wms typecheck</code>, <code>pnpm --filter web-wms build</code>, <code>pnpm --filter user-bff-service typecheck</code>, <code>pnpm --filter user-bff-service build</code>.</li>
+            <li>gateway 경유 실 API run <code>web-wms-mut-mqpsvn8i</code>에서 재고 조정, 입고 확정, 직접 출하, 포장 생성/패키지/확정/출하가 모두 성공했습니다. 상세 evidence는 <a href="../../test-logs/2026-06-23/web-wms-mutation-verification.html"><code>docs/test-logs/2026-06-23/web-wms-mutation-verification.html</code></a>에 기록했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-23 web 기능/API 정합성 재확인</h3>
+          <ul>
+            <li>web-wms Desktop 1차 화면 기능이 User BFF의 <code>/api/app/wms/**</code> 조회 API와 계속 맞는지 gateway 기준으로 재검증했습니다.</li>
+            <li>run <code>web-api-align-mqprbszp</code>에서 대시보드, 현재고 전체/필터, 스냅샷 전체/필터, 창고/로케이션/품목 전체와 필터, 출고 할당/포장 전체와 상태 필터가 기대 응답을 반환했습니다.</li>
+            <li>정적 검증은 <code>pnpm --filter web-wms typecheck</code>, <code>pnpm --filter web-wms build</code>가 통과했습니다.</li>
+            <li>상세 evidence는 <a href="../../test-logs/2026-06-23/web-api-alignment-verification.html"><code>docs/test-logs/2026-06-23/web-api-alignment-verification.html</code></a>에 기록했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-22 web-wms API 계약 필터 보강</h3>
+          <ul>
+            <li><code>apps/web-wms/src/api-client.ts</code>에 WMS 조회 공통 query builder를 추가해 <code>page</code>, <code>size</code>, <code>code</code>, <code>sku</code>, <code>warehouseId</code>, <code>locationId</code>, <code>itemId</code>, <code>snapshotDate</code>, <code>outboundOrderId</code>, <code>status</code>를 User BFF API 계약에 맞춰 전달하도록 보강했습니다.</li>
+            <li>재고, 스냅샷, 기준정보, 출고 화면의 검색 폼을 실제 query 상태와 연결했습니다. 기준정보는 창고 코드, 로케이션 창고/코드, 품목 SKU를 각각 해당 API로 전달합니다.</li>
+            <li>출고 화면은 API enum 차이를 반영해 할당 상태(<code>allocated</code>, <code>shipped</code>)와 포장 상태(<code>packing</code>, <code>confirmed</code>, <code>shipped</code>, <code>cancelled</code>) 필터를 분리했습니다.</li>
+            <li>API가 <code>400 VALIDATION_FAILED</code>처럼 명확한 오류를 반환하는 경우 샘플 데이터 fallback으로 숨기지 않고 화면 오류로 드러나도록 수정했습니다. 네트워크 연결 실패 같은 비-API 오류만 샘플 fallback 대상입니다.</li>
+            <li>검증 명령: <code>pnpm --filter web-wms typecheck</code>, <code>pnpm --filter web-wms build</code>. gateway API 필터 7건과 브라우저 필터 화면 4개 메뉴를 확인했고, 출고 4필드 검색 폼 박스 겹침은 0건이었습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-22 web-wms 시나리오 보강과 5회 반복 검증</h3>
+          <ul>
+            <li><a href="../../test-scenarios/web-wms-test-scenarios.html"><code>docs/test-scenarios/web-wms-test-scenarios.html</code></a>에 반복 안정성, API envelope, gateway 단일 경유, Desktop route 화면 안정성 시나리오를 보강했습니다.</li>
+            <li>정적 검증은 <code>pnpm --filter web-wms typecheck</code>, <code>pnpm --filter user-bff-service typecheck</code>, <code>pnpm --filter web-wms build</code>가 모두 통과했습니다.</li>
+            <li>중간 점검에서 <code>web-admin</code>/<code>web-wms</code> Vite dev server 포트가 Docker 기준과 반대로 설정된 것을 발견했습니다. <code>apps/web-admin/vite.config.ts</code>는 <code>5173</code>, <code>apps/web-wms/vite.config.ts</code>는 <code>5174</code>와 <code>strictPort=true</code>로 수정했습니다.</li>
+            <li>최종 run <code>web-wms-repeat-mqov88h9</code>에서 API와 브라우저 화면 시나리오를 5회 반복했고 5/5회 모두 통과했습니다. 반복마다 inventory total 3, snapshots 3, filteredSnapshots 1, allocations 9, packings 6, app audit 2건, negative 2건을 확인했습니다.</li>
+            <li>브라우저 검증은 web-wms 기준 URL <code>http://127.0.0.1:5174</code>에서 수행했습니다. Docker compose 기준 web-wms URL도 <code>http://localhost:5174</code>입니다.</li>
+            <li>브라우저 network 검증에서 매 반복 API request 24건이 gateway <code>localhost:3000</code> 경유였고, BFF/domain service 직접 포트 <code>3001-3007</code> 호출은 0건이었습니다.</li>
+            <li>상세 evidence는 <a href="../../test-logs/2026-06-22/web-wms-scenario-verification.html"><code>docs/test-logs/2026-06-22/web-wms-scenario-verification.html</code></a>에 기록했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-22 web-user 시나리오 점검과 화면 검증</h3>
+          <ul>
+            <li>사용자용 WMS 화면 검증 문서를 <a href="../../test-scenarios/web-wms-test-scenarios.html"><code>docs/test-scenarios/web-wms-test-scenarios.html</code></a>로 추가했습니다. 저장소 기준 실제 앱명은 <code>web-wms</code>이며, user-facing WMS Desktop 화면을 검증 대상으로 둡니다.</li>
+            <li>API run <code>web-wms-scenario-mqors7uu</code>에서 로그인, app context, navigation, dashboard, warehouse/location/material, inventory summary, snapshot 전체/필터, outbound allocation/packing, app audit 2건, negative 2건까지 16개 요청이 통과했습니다.</li>
+            <li>브라우저에서 로그인 후 한글 메뉴 6개와 <code>/dashboard</code>, <code>/inventory</code>, <code>/snapshots</code>, <code>/master-data</code>, <code>/outbound</code>, <code>/permission</code> 화면 상태를 확인했습니다.</li>
+            <li>기준정보와 출고 작업 화면은 여러 API 결과를 조합하면서 데이터 출처 배지가 빠져 있던 gap을 발견했습니다. <code>Panel</code> header meta 영역을 추가하고 기존 <code>SourceBadge</code>를 재사용해 기준정보 3개 패널과 출고 2개 패널에 <code>API 데이터</code>/<code>샘플 데이터</code> 표시가 나오도록 수정했습니다.</li>
+            <li>검증 명령: <code>pnpm --filter web-wms typecheck</code>, <code>pnpm --filter web-wms build</code>, <code>pnpm --filter user-bff-service typecheck</code>, gateway API 시나리오, 브라우저 화면 시나리오.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-22 로그인 및 User BFF 실연동 검증</h3>
+          <ul>
+            <li><code>POST /api/auth/login</code>은 샘플 fallback 없이 실제 성공 응답만 세션으로 저장하도록 변경했습니다. JWT claim에서 <code>sub</code>, <code>tenantId</code>를 읽고 실패 시 <code>error.code</code>와 <code>requestId</code>를 화면에 표시합니다.</li>
+            <li>App Shell은 <code>GET /api/app/me</code>와 <code>GET /api/app/navigation</code> 응답을 먼저 확인한 뒤 tenant, 사용자, permission summary, 한글 메뉴와 route guard를 구성합니다.</li>
+            <li>재고 스냅샷 조회는 API 계약에 맞춰 기본 <code>snapshotDate</code>를 포함해 호출합니다.</li>
+            <li>로컬 gateway 실 API 검증을 완료했습니다. 대표 evidence: login <code>web-wms--api-auth-login-1782102453006-fe7058b2a3851</code>, app context <code>web-wms--api-app-me-1782102453127-61ba53207a6de8</code>, navigation <code>web-wms--api-app-navigation-1782102453205-57b76190fa4bf8</code>, dashboard <code>web-wms--api-app-wms-dashboard-1782102453230-04777e64f4af88</code>, inventory summary <code>web-wms--api-app-wms-inventory-summary-page-1-size-20-1782102453394-023c2ea3f83168</code>, snapshots <code>web-wms--api-app-wms-inventory-snapshots-snapshotDate-2026-06-22-page-1-size-20-1782102453425-e0d3a1cd31e458</code>.</li>
+            <li>검증 명령: <code>pnpm --filter web-wms typecheck</code>, <code>pnpm --filter web-wms build</code>, gateway API 시나리오 수동 검증.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-22 Desktop 1차 구현</h3>
+          <ul>
+            <li><code>apps/web-wms</code>에 React + Vite + TypeScript 기반 Desktop 앱을 구성했습니다. 개발 서버는 <code>pnpm --filter web-wms dev</code>로 실행합니다.</li>
+            <li>메뉴명과 화면명은 한글 기준으로 구현했습니다. 현재 메뉴는 대시보드, 재고 현황, 재고 스냅샷, 기준정보, 출고 작업, 권한 제한입니다.</li>
+            <li>API 클라이언트는 gateway의 <code>/api/auth/login</code>, <code>/api/app/me</code>, <code>/api/app/navigation</code>, <code>/api/app/wms/**</code> 응답 envelope를 처리합니다. 로그인과 app shell 초기화는 실제 API 성공만 허용하고, WMS 조회 화면은 네트워크 연결 실패 같은 비-API 오류에서만 샘플 데이터 표시로 전환합니다.</li>
+            <li>1차 개발 범위는 Desktop 화면만 포함합니다. PDA 화면은 <a href="./web-wms-pda-design.svg">PDA 화면 설계 이미지</a>로 유지하고 코드 구현은 후속 작업으로 분리합니다.</li>
+            <li><a href="./web-wms-desktop-design.svg">web-wms Desktop 화면 설계 이미지</a>와 <a href="./web-wms-pda-design.svg">web-wms PDA 화면 설계 이미지</a>를 문서에 포함했습니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-22 기술 스펙 및 화면 설계</h3>
+          <ul>
+            <li>문서와 코드 기준으로 web-wms 첫 구현 기술 스펙을 확정했습니다. 프론트엔드는 React + Vite + TypeScript를 기준으로 하고, API 호출은 gateway의 <code>/api/app/**</code> 경로를 통해 User BFF를 사용합니다.</li>
+            <li>Desktop과 PDA 화면 초안을 문서용 SVG 이미지로 정리했습니다. 이후 관리 기준은 Desktop 이미지와 PDA 이미지를 분리하는 방식으로 변경했습니다.</li>
+            <li>현재 User BFF WMS 화면 API는 조회 중심이므로 첫 프론트 구현은 dashboard, inventory summary, snapshot, master data, outbound 목록과 권한 차단 화면을 우선합니다. 재고 조정, 입고 확정, 출고 확정 등 mutation 화면은 User BFF API 계약이 추가된 뒤 연결합니다.</li>
+          </ul>
+        </article>
         <article>
           <h3>2026-06-12 착수 전 상태 점검</h3>
           <ul>

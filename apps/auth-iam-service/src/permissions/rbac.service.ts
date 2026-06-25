@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 
 import { PrismaService } from "../database/prisma.service.js";
-import { UserStatus } from "../generated/prisma/enums.js";
+import { UserStatus, UserType } from "../generated/prisma/enums.js";
 import { OutboxEventService } from "../outbox/outbox-event.service.js";
 import {
   asRecord,
@@ -19,7 +19,7 @@ import {
 
 export interface RoleResponse {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   code: string;
   name: string;
   description: string | null;
@@ -36,6 +36,13 @@ export interface UserRoleResponse {
   warehouseId: string | null;
   createdAt: string;
 }
+
+const BOOTSTRAP_SYSTEM_ADMIN_USER_ID =
+  process.env.AUTH_BOOTSTRAP_SYSTEM_ADMIN_USER_ID
+  ?? process.env.LOCAL_SEED_SYSTEM_ADMIN_USER_ID
+  ?? "99999999-9999-4999-8999-999999999999";
+
+type AdminActorLevel = "super_admin" | "system_admin" | "tenant_admin" | "tenant_user";
 
 @Injectable()
 export class RbacService {
@@ -106,12 +113,13 @@ export class RbacService {
   }
 
   async listRoles(context: CommandContext, query: Record<string, unknown>) {
-    const tenantId = requireTenant(context.tenantId);
+    const systemAdmin = await this.findSystemAdmin(context.userId);
+    const tenantId = systemAdmin && !context.tenantId ? undefined : requireTenant(context.tenantId);
     const page = readPage(query.page);
     const size = readSize(query.size);
     const code = readOptionalString(query.code)?.toLowerCase();
     const where = {
-      tenantId,
+      ...(tenantId ? { tenantId } : {}),
       ...(code ? { code: { contains: code } } : {})
     };
     const [items, total] = await Promise.all([
@@ -339,6 +347,7 @@ export class RbacService {
         throw this.roleNotFound();
       }
       this.assertTenantAdminAssignmentScope(role.code, warehouseId);
+      await this.assertCanAssignRole(context, tenantId, role.code);
 
       const existing = await tx.userRole.findFirst({
         where: {
@@ -460,8 +469,19 @@ export class RbacService {
   }
 
   async summary(context: CommandContext, query: Record<string, unknown>) {
-    const tenantId = requireTenant(context.tenantId);
     const userId = requireUuid(readOptionalString(query.userId) ?? context.userId ?? "", "userId");
+    const systemAdmin = await this.findSystemAdmin(userId);
+    if (systemAdmin) {
+      const permissions = await this.listAllPermissionCodes();
+      return {
+        userId,
+        tenantId: context.tenantId ?? null,
+        roles: [{ roleId: "system_admin", roleCode: "system_admin", warehouseId: null }],
+        permissions
+      };
+    }
+
+    const tenantId = requireTenant(context.tenantId);
     const assignments = await this.getActiveUserAssignments(tenantId, userId);
     const permissionCodes = this.collectPermissionCodes(assignments);
 
@@ -478,10 +498,25 @@ export class RbacService {
   }
 
   async check(context: CommandContext, body: unknown) {
-    const tenantId = requireTenant(context.tenantId);
     const input = asRecord(body);
     const userId = requireUuid(readOptionalString(input.userId) ?? context.userId ?? "", "userId");
     const permissionCode = readPermissionCode(input.permission ?? input.permissionCode, "permission");
+    const systemAdmin = await this.findSystemAdmin(userId);
+    if (systemAdmin) {
+      const scope = asRecord(input.scope);
+      const warehouseId = readOptionalUuid(scope.warehouseId, "scope.warehouseId");
+      return {
+        allowed: true,
+        userId,
+        tenantId: context.tenantId ?? null,
+        permission: permissionCode,
+        scope: {
+          warehouseId: warehouseId ?? null
+        }
+      };
+    }
+
+    const tenantId = requireTenant(context.tenantId);
     this.assertTenantPermissionCodes([permissionCode]);
     const scope = asRecord(input.scope);
     const warehouseId = readOptionalUuid(scope.warehouseId, "scope.warehouseId");
@@ -637,7 +672,7 @@ export class RbacService {
 
   private toRoleResponse(role: {
     id: string;
-    tenantId: string;
+    tenantId: string | null;
     code: string;
     name: string;
     description: string | null;
@@ -686,6 +721,83 @@ export class RbacService {
     if (roleCode === "system_admin") {
       throw this.adminScopeMismatch("system_admin cannot be created as a tenant-scoped role");
     }
+  }
+
+  private async findSystemAdmin(userId: string | undefined): Promise<boolean> {
+    if (!userId) {
+      return false;
+    }
+
+    const user = await this.prismaService.authUser.findUnique({
+      where: {
+        id: userId
+      },
+      select: {
+        tenantId: true,
+        userType: true,
+        status: true
+      }
+    });
+
+    return user?.userType === UserType.system_admin && user.tenantId === null && user.status === UserStatus.active;
+  }
+
+  private async findActorLevel(context: CommandContext, tenantId: string): Promise<AdminActorLevel> {
+    if (!context.userId) {
+      return "tenant_user";
+    }
+
+    if (context.userId === BOOTSTRAP_SYSTEM_ADMIN_USER_ID && await this.findSystemAdmin(context.userId)) {
+      return "super_admin";
+    }
+
+    if (await this.findSystemAdmin(context.userId)) {
+      return "system_admin";
+    }
+
+    const tenantAdminAssignment = await this.prismaService.userRole.findFirst({
+      where: {
+        userId: context.userId,
+        role: {
+          tenantId,
+          code: "tenant_admin"
+        },
+        user: {
+          tenantId,
+          status: UserStatus.active,
+          userType: UserType.general_user
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    return tenantAdminAssignment ? "tenant_admin" : "tenant_user";
+  }
+
+  private async assertCanAssignRole(context: CommandContext, tenantId: string, roleCode: string): Promise<void> {
+    if (roleCode !== "tenant_admin") {
+      return;
+    }
+
+    const actorLevel = await this.findActorLevel(context, tenantId);
+    if (actorLevel === "tenant_admin" || actorLevel === "tenant_user") {
+      throw this.adminScopeMismatch("Tenant administrators cannot assign tenant administrator roles");
+    }
+  }
+
+  private async listAllPermissionCodes(): Promise<string[]> {
+    const permissions = await this.prismaService.permission.findMany({
+      select: {
+        code: true
+      },
+      orderBy: {
+        code: "asc"
+      }
+    });
+
+    return permissions.map((permission) => permission.code);
   }
 
   private assertTenantPermissionCodes(permissionCodes: string[]) {

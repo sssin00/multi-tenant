@@ -65,8 +65,8 @@ services:
     restart: unless-stopped
     env_file:
       - ../env/admin-bff-service/.env.${COMPOSE_ENV:-local}
-    ports:
-      - "3003:3000"
+    expose:
+      - "3000"
     depends_on:
       auth-iam-service:
         condition: service_healthy

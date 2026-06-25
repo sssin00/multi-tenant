@@ -21,9 +21,9 @@
         <h2>점검 결과</h2>
         <table>
           <tbody>
-            <tr><th>점검일</th><td>2026-06-19</td></tr>
+            <tr><th>점검일</th><td>2026-06-22</td></tr>
             <tr><th>분류 기준</th><td>플랫폼 기반, 인증/권한, 감사/이벤트, WMS 도메인, BFF/프론트엔드, 운영 보안/인프라, 검증/문서로 나눕니다.</td></tr>
-            <tr><th>우선 흐름</th><td>audit-log/outbox 1차 구현, WMS 1차 API, user-bff app shell, gateway app route, user-bff 감사 로그 연동이 완료되었으므로, 다음은 user-bff-service의 WMS 화면 조합 API와 web-wms 첫 화면 계약으로 이어가는 순서가 자연스럽습니다. dev AWS end-to-end 증적과 운영 replay 기준은 운영 보강 단계로 유지합니다.</td></tr>
+            <tr><th>우선 흐름</th><td>audit-log/outbox 1차 구현, WMS 1차 API, user-bff app shell, gateway app route, user-bff 감사 로그 연동, User BFF WMS 화면 조회 API, web-wms Desktop 1차 화면 검증이 완료되었습니다. 다음은 dev AWS end-to-end 증적과 운영 replay 기준, PDA Web, WMS mutation 화면을 운영 보강 단계에서 확보하는 흐름입니다.</td></tr>
             <tr><th>상태 기준</th><td><code>P0</code>는 다음 구현 후보, <code>P1</code>은 통합 확장, <code>P2</code>는 운영 보강입니다.</td></tr>
           </tbody>
         </table>
@@ -41,7 +41,7 @@
               <tr><td>인증과 권한</td><td>tenant bootstrap, 운영 JWT, permission 성능과 정확성을 보강합니다.</td><td>최초 admin, RS256, permission cache, idempotency</td><td><code>P0</code>-<code>P2</code></td></tr>
               <tr><td>감사와 이벤트</td><td>변경 이력과 outbox event 발행을 dev AWS와 운영 재처리 기준까지 연결합니다.</td><td>Outbox Relay → SQS → audit 저장 증적, replay, metric</td><td><code>P1</code>-<code>P2</code></td></tr>
               <tr><td>WMS 도메인</td><td>WMS 1차 API 이후 도메인 정책과 운영 안정성을 보강합니다.</td><td>read 권한 분리, idempotency, lot/serial, task, ERP retry</td><td><code>P0</code>-<code>P2</code></td></tr>
-              <tr><td>BFF와 프론트엔드</td><td>관리자 화면과 WMS 사용자 화면을 BFF 계약에 연결합니다.</td><td>admin me, user-bff WMS 화면 API, web-admin, web-wms</td><td><code>P0</code>-<code>P1</code></td></tr>
+              <tr><td>BFF와 프론트엔드</td><td>관리자 화면과 WMS 사용자 화면을 BFF 계약에 연결합니다.</td><td>admin me, User BFF WMS 화면 API 운영 검증, web-admin, web-wms</td><td><code>P0</code>-<code>P1</code></td></tr>
               <tr><td>운영 보안과 인프라</td><td>운영 배포와 secret, 내부 인증, AWS 리소스 기준을 강화합니다.</td><td>Secrets Manager, internal auth allowlist, 배포 입력 검증</td><td><code>P1</code>-<code>P2</code></td></tr>
               <tr><td>검증과 문서</td><td>시나리오 기반 증거와 문서 상태를 구현 상태와 맞춥니다.</td><td>tenant isolation, API envelope, outbox/audit evidence</td><td><code>P1</code>-<code>P2</code></td></tr>
             </tbody>
@@ -245,8 +245,8 @@
               <tr>
                 <td><code>P1</code></td>
                 <td><code>user-bff-service</code></td>
-                <td>WMS dashboard와 기준정보 화면 조합 API</td>
-                <td>이미 구현된 <code>/api/app/me</code>, <code>/api/app/navigation</code> 위에 web-wms가 dashboard, warehouse selector, materials, inventory summary 화면을 BFF API로 구성할 수 있습니다.</td>
+                <td>WMS 화면 조회 API 운영 검증</td>
+                <td><code>/api/app/me</code>, <code>/api/app/navigation</code>, <code>/api/app/wms/dashboard</code>, selector, 현재고, 스냅샷, 출고 할당, 포장 목록 API가 구현되었고 web-wms Desktop 1차 화면과 조회 필터 query 검증까지 완료했습니다. 남은 작업은 dev AWS end-to-end 증적과 screen-data 단일 호출 필요성 판단입니다.</td>
                 <td><a href="./services/user-bff-service.html">user-bff-service</a>, <a href="./services/web-wms.html">web-wms</a></td>
               </tr>
               <tr>
@@ -259,8 +259,8 @@
               <tr>
                 <td><code>P1</code></td>
                 <td><code>web-wms</code></td>
-                <td>첫 화면 데이터 형태와 App shell 구현</td>
-                <td>user-bff 착수 조건의 web-wms 화면 데이터 형태가 정리되고 로그인 후 메뉴/tenant/user context가 표시됩니다.</td>
+                <td>Desktop 1차 화면과 조회 필터 API 연동</td>
+                <td><span class="tag done">완료</span> 로그인 후 메뉴/tenant/user context가 표시되고, 재고/스냅샷/기준정보/출고 조회 필터가 User BFF query 계약과 맞게 동작합니다.</td>
                 <td><a href="./services/web-wms.html">web-wms</a>, <a href="./services/user-bff-service.html">user-bff-service</a></td>
               </tr>
             </tbody>
@@ -373,15 +373,15 @@
             </thead>
             <tbody>
               <tr><td><code>gateway-service</code></td><td>1차 TODO 없음</td><td>운영 JWT key rotation, 내부 인증 확장, 배포 입력 검증 시 재점검합니다.</td></tr>
-              <tr><td><code>admin-bff-service</code></td><td><code>/api/admin/me</code>, audit-log-service 장애 처리 정책 보강</td><td>감사 로그 조회 연동은 완료되었고, 운영 실패 정책과 현재 사용자 화면 조합이 남았습니다.</td></tr>
+              <tr><td><code>admin-bff-service</code></td><td>audit-log-service 장애 처리 정책 보강, 운영 실패 정책</td><td>세션 초기화, tenant/user/role/permission/audit surface와 변경성 action audit 기록은 web-admin 화면 검증까지 완료되었습니다.</td></tr>
               <tr><td><code>tenant-service</code></td><td>tenant context, tenant error code, proxy access 정책</td><td>관리자 tenant 상세/module/domain API는 구현 완료되었습니다.</td></tr>
               <tr><td><code>auth-iam-service</code></td><td>system admin 별도 경로, tenant bootstrap, dev AWS outbox relay 감사 저장 증적, JWT 운영 key, cache, 검증 증거, throttling, idempotency</td><td>tenant-scoped 일반 사용자와 권한 기능은 1차 완료, 시스템 관리자/bootstrap과 운영/통합 보강 중심입니다.</td></tr>
-              <tr><td><code>user-bff-service</code></td><td>WMS dashboard/warehouse/materials/inventory-summary 화면 조합 API</td><td>기본 구조, app shell, navigation, audit-log best-effort 기록은 완료되었습니다.</td></tr>
+              <tr><td><code>user-bff-service</code></td><td>WMS 화면 조회 API 운영 검증과 screen-data 단일 호출 필요성 판단</td><td>기본 구조, app shell, navigation, audit-log best-effort 기록, WMS selector/재고/스냅샷/출고/포장/dashboard API는 완료되었습니다.</td></tr>
               <tr><td><code>wms-service</code></td><td>read 권한 분리 결정, idempotency, lot/serial, 작업 지시, ERP retry 기준</td><td>기본 구조, 기준정보, 재고, 입출고 1차 구현과 로컬 연계 검증은 완료되었습니다.</td></tr>
               <tr><td><code>outbox-relay-service</code></td><td>dev AWS SQS 감사 저장 증적, replay 승인, custom metric/alarm</td><td>Relay engine, SQS publisher, CDK audit queue/DLQ, Docker/workflow 배포 준비는 완료되었고 운영 검증이 남았습니다.</td></tr>
               <tr><td><code>audit-log-service</code></td><td>보관/마스킹/검색 성능, 운영 검증 증거</td><td>저장소, SQS consumer, 내부 조회 API는 구현되었고 운영 품질 보강이 남았습니다.</td></tr>
-              <tr><td><code>web-admin</code></td><td>관리자 화면 전체 구현</td><td>Admin BFF API 안정화 후 연결합니다.</td></tr>
-              <tr><td><code>web-wms</code></td><td>WMS 화면 데이터 형태와 초기 화면 구현</td><td>WMS 1차 API와 user-bff-service 이후 진행합니다.</td></tr>
+              <tr><td><code>web-admin</code></td><td>P1 화면 고도화와 운영 UX 보강</td><td>Desktop 1차 화면, 테넌트 사용자 추가, 사용자 상태 변경, role 해제, 역할 permission 교체, API/화면 시나리오 검증은 완료되었습니다.</td></tr>
+              <tr><td><code>web-wms</code></td><td>PDA Web, mutation 화면, 조회 API 네트워크 실패 fallback 수동 검증</td><td>Desktop 1차 화면, User BFF 실 API 연동, 조회 필터 query, API validation 오류 처리 검증은 완료되었습니다.</td></tr>
             </tbody>
           </table>
         </div>

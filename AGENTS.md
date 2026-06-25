@@ -49,8 +49,9 @@
 ## Multi-Tenant Rules
 
 - Every business API must have tenant context. Exceptions are login, token refresh, health check, public config, and tenant bootstrap APIs.
-- For authenticated requests, JWT `tenantId` is the source of truth.
-- If `X-Tenant-Id` is present, it must match JWT `tenantId`.
+- For authenticated tenant-scoped requests, JWT `tenantId` is the source of truth.
+- If JWT `tenantId` is present and `X-Tenant-Id` is also present, they must match.
+- Tenantless JWTs are allowed only for `system_admin`.
 - Tenant mismatch must fail with `403 TENANT_MISMATCH`.
 - Only `active` tenants may use business APIs.
 - `gateway-service` resolves tenant context and propagates it to BFF services.
@@ -61,6 +62,7 @@
 - Tenant-owned data access must always be constrained by `tenantId`.
 - Redis keys and S3 object keys must include tenant identifiers.
 - Users are separated into `system_admin` and `general_user` user types.
+- `system_admin` accounts may have no tenant value and may log in without tenant context for tenant administration.
 - `general_user` accounts must always have a tenant value.
 - Tenant-scoped user CRUD APIs create and manage only `general_user` accounts.
 - `system_admin` and `tenant_admin` must remain separate administrative scopes.
@@ -98,15 +100,16 @@
 ## Auth Rules
 
 - Access tokens use JWT.
+- Admin console login uses email/password only. `auth-iam-service` resolves the administrator scope server-side: `system_admin` receives no `tenantId`, and tenant administrators receive the resolved tenant `tenantId` in the JWT. Ordinary non-admin `general_user` login must continue to include tenant context.
 - Access tokens should default to a 30-minute expiration.
 - Refresh tokens use opaque tokens and should be stored server-side.
 - Refresh tokens should default to a 14-day expiration.
 - Refresh token rotation must issue a new token and revoke the previous token when refresh is used.
-- JWT claims include only `sub`, `tenantId`, `type`, `iat`, `exp`, `iss`, and `aud`.
+- JWT claims include only `sub`, optional `tenantId`, `type`, `iat`, `exp`, `iss`, and `aud`.
 - Do not put `roles` or `permissions` in JWT claims.
 - `auth-iam-service` is the source of truth for roles and permissions.
 - User type is stored on the auth user record. `system_admin` accounts require a separate system administration/bootstrap flow and must not be mixed into tenant-scoped user APIs.
-- `gateway-service` validates JWT signature/expiration, extracts `sub` and `tenantId`, and blocks basic tenant mismatch.
+- `gateway-service` validates JWT signature/expiration, extracts `sub`, `type`, and optional `tenantId`, and blocks basic tenant mismatch.
 - BFF services validate tenant readiness by calling `tenant-service` internal APIs before serving tenant-scoped business/admin/app APIs.
 - BFF services may fetch role/permission summaries for menu and button visibility.
 - Domain services must validate required permissions before executing business actions.
@@ -193,6 +196,7 @@
 - Do not add E2E automation unless the project explicitly decides to.
 - Test scenarios include `scenarioId`, `title`, `priority`, `preconditions`, `steps`, `expectedResult`, and `evidence`.
 - Required verification areas are multi-tenant isolation, API envelopes, error codes, WMS core workflows, outbox storage, and audit log storage.
+- Performance verification uses `docs/test-scenarios/performance-test-criteria.html` as the baseline for p95/p99 latency, error rate, outbox/audit delay, resource usage, and data consistency pass/fail criteria.
 - AI verification must follow the scenario steps and should not declare success without evidence.
 - Evidence may include response JSON, screen state, logs, `requestId`, outbox rows, audit logs, or DB confirmation.
 - On failure, record actual result, expected result, reproduction steps, and related `requestId`.

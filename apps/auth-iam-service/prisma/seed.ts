@@ -18,6 +18,8 @@ const prisma = new PrismaClient({
 
 const tenantId = process.env.LOCAL_SEED_TENANT_ID ?? "11111111-1111-4111-8111-111111111111";
 const adminUserId = "22222222-2222-4222-8222-222222222222";
+const systemAdminUserId = process.env.LOCAL_SEED_SYSTEM_ADMIN_USER_ID ?? "99999999-9999-4999-8999-999999999999";
+const systemAdminEmail = process.env.LOCAL_SEED_SYSTEM_ADMIN_EMAIL ?? "super@admin.local";
 const tenantAdminRoleId = "33333333-3333-4333-8333-333333333333";
 
 const permissions = [
@@ -153,6 +155,37 @@ async function hashPassword(password: string): Promise<string> {
 async function main() {
   const passwordHash = await hashPassword("Test1234!");
 
+  const existingSystemAdmin = await prisma.authUser.findFirst({
+    where: {
+      tenantId: null,
+      email: systemAdminEmail,
+      userType: "system_admin"
+    }
+  });
+
+  const systemAdmin = existingSystemAdmin
+    ? await prisma.authUser.update({
+        where: {
+          id: existingSystemAdmin.id
+        },
+        data: {
+          displayName: "Super Admin",
+          passwordHash,
+          status: "active"
+        }
+      })
+    : await prisma.authUser.create({
+        data: {
+          id: systemAdminUserId,
+          tenantId: null,
+          email: systemAdminEmail,
+          displayName: "Super Admin",
+          passwordHash,
+          userType: "system_admin",
+          status: "active"
+        }
+      });
+
   const user = await prisma.authUser.upsert({
     where: {
       tenantId_email: {
@@ -250,6 +283,9 @@ async function main() {
 
   console.log("Seeded auth-iam-service API test data");
   console.table({
+    systemAdminUserId: systemAdmin.id,
+    systemAdminEmail: systemAdmin.email,
+    systemAdminPassword: "Test1234!",
     tenantId,
     userId: user.id,
     email: user.email,

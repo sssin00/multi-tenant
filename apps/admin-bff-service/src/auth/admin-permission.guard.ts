@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -35,13 +34,6 @@ export class AdminPermissionGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<AdminBffRequest>();
     const tenantId = req.context?.tenantId;
     const userId = req.context?.userId;
-
-    if (!tenantId) {
-      throw new BadRequestException({
-        code: "TENANT_REQUIRED",
-        message: "Tenant context is required"
-      });
-    }
 
     if (!userId) {
       throw new UnauthorizedException({

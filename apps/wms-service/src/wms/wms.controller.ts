@@ -81,6 +81,11 @@ export class WmsController {
     return this.success(req, await this.wmsService.allocateOutbound(req.context, body));
   }
 
+  @Get("outbound/allocations")
+  async listOutboundAllocations(@Query() query: Record<string, unknown>, @Req() req: WmsRequest) {
+    return this.success(req, await this.wmsService.listOutboundAllocations(req.context, query));
+  }
+
   @Get("outbound/packings")
   async listOutboundPackings(@Query() query: Record<string, unknown>, @Req() req: WmsRequest) {
     return this.success(req, await this.wmsService.listOutboundPackings(req.context, query));

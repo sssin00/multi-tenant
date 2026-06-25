@@ -1,0 +1,228 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1320" viewBox="0 0 1800 1320" role="img" aria-labelledby="title desc">
+  <title id="title">Production target architecture for multi-tenant smart factory WMS</title>
+  <desc id="desc">Production-standard target architecture with non-overlapping zones and arrows for clients, edge, private ECS services, data and event resources, and operations resources.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#334155" />
+    </marker>
+    <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#2563eb" />
+    </marker>
+    <marker id="arrowAmber" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#b45309" />
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 38px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 18px Arial, sans-serif; fill: #475569; }
+      .zone-title { font: 700 20px Arial, sans-serif; fill: #0f172a; }
+      .zone-note { font: 400 14px Arial, sans-serif; fill: #64748b; }
+      .box-title { font: 700 17px Arial, sans-serif; fill: #0f172a; }
+      .box-text { font: 400 14px Arial, sans-serif; fill: #475569; }
+      .small { font: 400 13px Arial, sans-serif; fill: #475569; }
+      .tiny { font: 400 12px Arial, sans-serif; fill: #64748b; }
+      .zone { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; rx: 18; }
+      .public { fill: #eff6ff; stroke: #93c5fd; }
+      .private { fill: #f0fdf4; stroke: #86efac; }
+      .data { fill: #fff7ed; stroke: #fdba74; }
+      .ops { fill: #f5f3ff; stroke: #c4b5fd; }
+      .box { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.5; rx: 10; }
+      .existing { stroke: #16a34a; stroke-width: 2; }
+      .pending { stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 8 6; }
+      .bus { fill: #eef2ff; stroke: #818cf8; stroke-width: 1.5; rx: 10; }
+      .edge { stroke: #334155; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .edge-blue { stroke: #2563eb; stroke-width: 2.2; fill: none; marker-end: url(#arrowBlue); }
+      .edge-amber { stroke: #b45309; stroke-width: 1.9; fill: none; marker-end: url(#arrowAmber); stroke-dasharray: 8 6; opacity: 0.82; }
+      .edge-dashed { stroke: #64748b; stroke-width: 1.6; fill: none; marker-end: url(#arrow); stroke-dasharray: 8 6; opacity: 0.58; }
+      .line { stroke: #64748b; stroke-width: 1.8; fill: none; opacity: 0.9; }
+      .label { font: 700 12px Arial, sans-serif; fill: #334155; }
+      .badge { fill: #dcfce7; stroke: #86efac; rx: 12; }
+      .badge-text { font: 700 12px Arial, sans-serif; fill: #166534; }
+      .badge-gray { fill: #f1f5f9; stroke: #cbd5e1; rx: 12; }
+      .badge-gray-text { font: 700 12px Arial, sans-serif; fill: #475569; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1800" height="1320" />
+
+  <text x="70" y="70" class="title">Production Standard Architecture</text>
+  <text x="70" y="104" class="subtitle">Target operating model, not a live AWS inventory. External business APIs enter only through gateway-service.</text>
+  <rect x="1425" y="44" width="122" height="28" class="badge" />
+  <text x="1442" y="63" class="badge-text">CDK NOW</text>
+  <rect x="1565" y="44" width="178" height="28" class="badge-gray" />
+  <text x="1582" y="63" class="badge-gray-text">TARGET / PENDING</text>
+
+  <!-- External clients -->
+  <rect x="60" y="150" width="305" height="520" class="zone" />
+  <text x="90" y="190" class="zone-title">External Users</text>
+  <text x="90" y="216" class="zone-note">Browser and operations devices</text>
+
+  <rect x="95" y="265" width="235" height="76" class="box" />
+  <text x="120" y="296" class="box-title">web-admin</text>
+  <text x="120" y="322" class="box-text">System / tenant admin</text>
+
+  <rect x="95" y="385" width="235" height="76" class="box" />
+  <text x="120" y="416" class="box-title">web-wms desktop</text>
+  <text x="120" y="442" class="box-text">Inbound, inventory, outbound</text>
+
+  <rect x="95" y="505" width="235" height="76" class="box" />
+  <text x="120" y="536" class="box-title">WMS PDA</text>
+  <text x="120" y="562" class="box-text">Separate mobile surface</text>
+
+  <!-- Edge -->
+  <rect x="410" y="150" width="370" height="520" class="zone public" />
+  <text x="440" y="190" class="zone-title">Edge and Public Subnets</text>
+  <text x="440" y="216" class="zone-note">Internet-facing entry points</text>
+
+  <rect x="450" y="250" width="290" height="70" class="box pending" />
+  <text x="478" y="281" class="box-title">DNS</text>
+  <text x="478" y="306" class="box-text">External DNS now; Route53 later</text>
+
+  <rect x="450" y="370" width="290" height="82" class="box pending" />
+  <text x="478" y="402" class="box-title">Frontend Hosting</text>
+  <text x="478" y="428" class="box-text">ECS nginx or CloudFront/S3</text>
+
+  <rect x="450" y="520" width="290" height="82" class="box existing" />
+  <text x="478" y="552" class="box-title">ALB + ACM</text>
+  <text x="478" y="578" class="box-text">HTTPS 443, HTTP 80 redirects</text>
+
+  <!-- Private app subnets -->
+  <rect x="830" y="150" width="910" height="620" class="zone private" />
+  <text x="860" y="190" class="zone-title">Private App Subnets - ECS Fargate</text>
+  <text x="860" y="216" class="zone-note">Cloud Map discovery, service security groups, internal auth</text>
+
+  <rect x="875" y="340" width="240" height="92" class="box existing" />
+  <text x="905" y="374" class="box-title">gateway-service</text>
+  <text x="905" y="401" class="box-text">Only ALB target for APIs</text>
+  <text x="905" y="423" class="tiny">Routes auth/admin/app surfaces</text>
+
+  <rect x="1190" y="245" width="230" height="76" class="box existing" />
+  <text x="1218" y="276" class="box-title">auth-iam-service</text>
+  <text x="1218" y="302" class="box-text">JWT, refresh, RBAC</text>
+
+  <rect x="1190" y="360" width="230" height="76" class="box existing" />
+  <text x="1218" y="391" class="box-title">admin-bff-service</text>
+  <text x="1218" y="417" class="box-text">Admin screen APIs</text>
+
+  <rect x="1190" y="475" width="230" height="76" class="box existing" />
+  <text x="1218" y="506" class="box-title">user-bff-service</text>
+  <text x="1218" y="532" class="box-text">WMS screen APIs</text>
+
+  <rect x="1475" y="245" width="220" height="76" class="box existing" />
+  <text x="1502" y="276" class="box-title">tenant-service</text>
+  <text x="1502" y="302" class="box-text">Tenant readiness</text>
+
+  <rect x="1475" y="360" width="220" height="76" class="box existing" />
+  <text x="1502" y="391" class="box-title">wms-service</text>
+  <text x="1502" y="417" class="box-text">WMS business rules</text>
+
+  <rect x="1475" y="475" width="220" height="76" class="box existing" />
+  <text x="1502" y="506" class="box-title">audit-log-service</text>
+  <text x="1502" y="532" class="box-text">Append-only audit</text>
+
+  <rect x="1475" y="590" width="220" height="76" class="box existing" />
+  <text x="1502" y="621" class="box-title">outbox-relay-service</text>
+  <text x="1502" y="647" class="box-text">Publishes outbox events</text>
+
+  <rect x="890" y="700" width="805" height="44" class="bus" />
+  <text x="920" y="728" class="label">Internal data/event lane: tenantId + requestId + internal auth + service security groups</text>
+
+  <!-- Operations plane -->
+  <rect x="60" y="830" width="720" height="330" class="zone ops" />
+  <text x="90" y="870" class="zone-title">Deployment, Secrets, and Operations</text>
+  <text x="90" y="896" class="zone-note">Manual workflow_dispatch until automatic deploys are re-enabled</text>
+
+  <rect x="95" y="955" width="240" height="80" class="box existing" />
+  <text x="125" y="987" class="box-title">GitHub Actions OIDC</text>
+  <text x="125" y="1013" class="box-text">Manual deploy workflows</text>
+
+  <rect x="375" y="955" width="170" height="80" class="box existing" />
+  <text x="405" y="987" class="box-title">ECR</text>
+  <text x="405" y="1013" class="box-text">Image repositories</text>
+
+  <rect x="585" y="955" width="155" height="80" class="box existing" />
+  <text x="615" y="987" class="box-title">CloudWatch</text>
+  <text x="615" y="1013" class="box-text">Logs and metrics</text>
+
+  <rect x="95" y="1075" width="290" height="50" class="box existing" />
+  <text x="125" y="1107" class="box-title">Secrets Manager / SSM</text>
+
+  <rect x="425" y="1075" width="315" height="50" class="box pending" />
+  <text x="455" y="1107" class="box-title">Alarms and runbooks later</text>
+
+  <!-- Data and event plane -->
+  <rect x="830" y="830" width="910" height="330" class="zone data" />
+  <text x="860" y="870" class="zone-title">Data, Event, and Storage Plane</text>
+  <text x="860" y="896" class="zone-note">Tenant-scoped persistence and asynchronous integration</text>
+
+  <rect x="875" y="955" width="220" height="80" class="box pending" />
+  <text x="905" y="987" class="box-title">RDS / Aurora PG</text>
+  <text x="905" y="1013" class="box-text">External secret now</text>
+
+  <rect x="1130" y="955" width="190" height="80" class="box existing" />
+  <text x="1160" y="987" class="box-title">Redis</text>
+  <text x="1160" y="1013" class="box-text">Rate limit, cache</text>
+
+  <rect x="1355" y="955" width="185" height="80" class="box pending" />
+  <text x="1385" y="987" class="box-title">EventBridge</text>
+  <text x="1385" y="1013" class="box-text">Existing/context bus</text>
+
+  <rect x="1575" y="955" width="125" height="80" class="box existing" />
+  <text x="1602" y="987" class="box-title">SQS + DLQ</text>
+  <text x="1602" y="1013" class="box-text">Audit queue</text>
+
+  <rect x="875" y="1075" width="310" height="50" class="box pending" />
+  <text x="905" y="1107" class="box-title">S3 private files / presigned URLs</text>
+
+  <!-- Operating invariants -->
+  <rect x="60" y="1210" width="1680" height="68" class="box" />
+  <text x="90" y="1236" class="label">Operating invariants</text>
+  <text x="90" y="1262" class="small">ALB targets only gateway-service for APIs. Gateway calls only Auth/IAM, Admin BFF, and User BFF. BFF services validate tenant readiness before domain calls. Domain services are not direct gateway upstreams.</text>
+
+  <!-- Client and edge arrows -->
+  <path class="edge" d="M330 303 L450 303" />
+  <path class="edge" d="M330 423 L385 423 L385 411 L450 411" />
+  <path class="edge" d="M330 543 L385 543 L385 411 L450 411" />
+  <path class="edge" d="M595 320 L595 370" />
+  <path class="edge" d="M595 452 L595 520" />
+
+  <!-- API entry to gateway, kept in a dedicated empty lane -->
+  <path class="edge-blue" d="M740 561 L805 561 L805 386 L875 386" />
+  <text x="785" y="546" class="tiny">API only</text>
+
+  <!-- Gateway upstream arrows: vertical fan-out lane sits between gateway and upstream boxes -->
+  <path class="line" d="M1115 386 L1150 386 L1150 283 L1190 283" />
+  <path class="line" d="M1115 386 L1150 386 L1150 398 L1190 398" />
+  <path class="line" d="M1115 386 L1150 386 L1150 513 L1190 513" />
+  <path class="edge" d="M1182 283 L1190 283" />
+  <path class="edge" d="M1182 398 L1190 398" />
+  <path class="edge" d="M1182 513 L1190 513" />
+  <text x="1126" y="368" class="tiny">gateway upstreams</text>
+
+  <!-- BFF to domain service bus -->
+  <path class="line" d="M1420 398 L1448 398 L1448 283 L1475 283" />
+  <path class="line" d="M1420 398 L1448 398 L1448 513 L1475 513" />
+  <path class="line" d="M1420 513 L1448 513 L1448 398 L1475 398" />
+  <path class="line" d="M1420 513 L1448 513 L1448 283 L1475 283" />
+  <path class="line" d="M1420 513 L1448 513 L1448 513 L1475 513" />
+  <path class="edge" d="M1467 283 L1475 283" />
+  <path class="edge" d="M1467 398 L1475 398" />
+  <path class="edge" d="M1467 513 L1475 513" />
+  <text x="1427" y="244" class="tiny">BFF internal calls</text>
+
+  <!-- Domain and worker to internal lane, reduced to representative dependency paths -->
+  <path class="edge-dashed" d="M1695 398 L1720 398 L1720 708 L1695 708" />
+  <path class="edge-amber" d="M1695 628 L1730 628 L1730 738 L1695 738" />
+
+  <!-- Internal lane down to data plane, aligned to target columns -->
+  <path class="edge-dashed" d="M985 744 L985 955" />
+  <path class="edge-dashed" d="M1225 744 L1225 955" />
+  <path class="edge-amber" d="M1448 744 L1448 955" />
+  <path class="edge-amber" d="M1540 995 L1575 995" />
+
+  <!-- Ops arrows kept outside data/service boxes -->
+  <path class="edge-dashed" d="M335 995 L375 995" />
+  <path class="edge-dashed" d="M545 995 L585 995" />
+
+  <text x="70" y="1300" class="tiny">Legend: green border = currently represented in CDK or local deployment path; dashed gray border = target or currently external to CDK. Solid arrows are synchronous traffic; dashed arrows are data, event, deployment, or operations dependencies.</text>
+</svg>

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>성능 테스트 기준</title>
+    <link rel="stylesheet" href="../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Performance Test Criteria</p>
+        <h1>성능 테스트 기준</h1>
+        <p class="lead">
+          멀티테넌트 스마트 팩토리 1차 WMS 기준 성능 목표입니다.
+          평균 응답 시간이 아니라 p95/p99, 오류율, 자원 사용률, 이벤트 지연, 데이터 정합성을 함께 합격 조건으로 봅니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>기본 원칙</h2>
+        <table>
+          <tbody>
+            <tr><th>기준일</th><td><code>2026-06-23</code></td></tr>
+            <tr><th>대상</th><td>gateway, Admin BFF, User BFF, Auth/IAM, Tenant, WMS, Audit Log, Outbox Relay, web-admin, web-wms</td></tr>
+            <tr><th>측정 위치</th><td>외부 사용자의 요청은 <code>gateway-service</code> 진입점 기준으로 측정합니다. domain/internal service는 병목 분석용으로만 직접 측정합니다.</td></tr>
+            <tr><th>합격 기준</th><td>p95, p99, 오류율, 5xx, timeout, outbox/audit 지연, DB 정합성 조건을 모두 만족해야 통과입니다.</td></tr>
+            <tr><th>평균값 사용</th><td>평균 응답 시간은 참고값입니다. 합격/불합격은 p95/p99와 오류율로 판단합니다.</td></tr>
+            <tr><th>테넌트 격리</th><td>부하 중에도 tenant mismatch, cross-tenant 데이터 노출, 권한 우회, audit/outbox tenantId 누락은 0건이어야 합니다.</td></tr>
+            <tr><th>운영 리소스</th><td>운영 AWS/ERP 리소스는 성능 테스트에서 직접 호출하지 않습니다. local, mock, dev 환경만 사용합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>1차 합격 기준</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>Local Docker 기준</th>
+                <th>dev AWS 기준</th>
+                <th>운영 전 목표</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>전체 오류율</td><td><code>&lt;= 1%</code></td><td><code>&lt;= 0.5%</code></td><td><code>&lt;= 0.1%</code></td></tr>
+              <tr><td>5xx 오류</td><td><code>0건</code></td><td><code>0건</code></td><td><code>0건</code></td></tr>
+              <tr><td>Timeout</td><td><code>0건</code></td><td><code>&lt;= 0.1%</code></td><td><code>&lt;= 0.05%</code></td></tr>
+              <tr><td>Gateway health/readiness</td><td>p95 <code>100ms</code>, p99 <code>250ms</code></td><td>p95 <code>80ms</code>, p99 <code>200ms</code></td><td>p95 <code>50ms</code>, p99 <code>150ms</code></td></tr>
+              <tr><td>로그인/토큰 갱신</td><td>p95 <code>800ms</code>, p99 <code>1500ms</code></td><td>p95 <code>700ms</code>, p99 <code>1200ms</code></td><td>p95 <code>500ms</code>, p99 <code>1000ms</code></td></tr>
+              <tr><td>단순 조회 API</td><td>p95 <code>700ms</code>, p99 <code>1500ms</code></td><td>p95 <code>500ms</code>, p99 <code>1000ms</code></td><td>p95 <code>300ms</code>, p99 <code>800ms</code></td></tr>
+              <tr><td>BFF 조합 조회</td><td>p95 <code>900ms</code>, p99 <code>1800ms</code></td><td>p95 <code>800ms</code>, p99 <code>1500ms</code></td><td>p95 <code>500ms</code>, p99 <code>1000ms</code></td></tr>
+              <tr><td>WMS 스냅샷 조회</td><td>p95 <code>1200ms</code>, p99 <code>2500ms</code></td><td>p95 <code>1000ms</code>, p99 <code>2000ms</code></td><td>p95 <code>700ms</code>, p99 <code>1500ms</code></td></tr>
+              <tr><td>Mutation API</td><td>p95 <code>1200ms</code>, p99 <code>2500ms</code></td><td>p95 <code>1000ms</code>, p99 <code>2000ms</code></td><td>p95 <code>700ms</code>, p99 <code>1500ms</code></td></tr>
+              <tr><td>Outbox publish 지연</td><td>p95 <code>5s</code>, p99 <code>10s</code></td><td>p95 <code>5s</code>, p99 <code>15s</code></td><td>p95 <code>3s</code>, p99 <code>10s</code></td></tr>
+              <tr><td>Audit 저장 지연</td><td>p95 <code>5s</code>, p99 <code>10s</code></td><td>p95 <code>5s</code>, p99 <code>15s</code></td><td>p95 <code>3s</code>, p99 <code>10s</code></td></tr>
+              <tr><td>정합성 오류</td><td><code>0건</code></td><td><code>0건</code></td><td><code>0건</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>API 그룹별 기준</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>그룹</th>
+                <th>대표 API</th>
+                <th>dev AWS p95</th>
+                <th>dev AWS p99</th>
+                <th>비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Auth</td><td><code>POST /api/auth/login</code>, <code>POST /api/auth/token/refresh</code></td><td><code>700ms</code></td><td><code>1200ms</code></td><td>암호 검증과 refresh rotation 포함</td></tr>
+              <tr><td>Admin BFF</td><td><code>GET /api/admin/me</code>, <code>/dashboard</code>, <code>/access-control/screen-data</code></td><td><code>800ms</code></td><td><code>1500ms</code></td><td>여러 upstream 조합 조회</td></tr>
+              <tr><td>User BFF App Shell</td><td><code>GET /api/app/me</code>, <code>GET /api/app/navigation</code></td><td><code>700ms</code></td><td><code>1200ms</code></td><td>tenant status와 permission summary 포함</td></tr>
+              <tr><td>User BFF WMS</td><td><code>GET /api/app/wms/dashboard</code>, <code>/inventory-summary</code>, <code>/inventory-snapshots</code></td><td><code>1000ms</code></td><td><code>2000ms</code></td><td>스냅샷과 dashboard는 BFF 조합 비용 포함</td></tr>
+              <tr><td>WMS 조회</td><td>창고, 로케이션, 품목, 현재고, 출고 할당, 포장 목록</td><td><code>500ms</code></td><td><code>1000ms</code></td><td>기본 page size <code>20</code>, 최대 <code>100</code></td></tr>
+              <tr><td>WMS 변경</td><td>재고 조정, 입고 확정, 출고 할당, 포장 확정, 출하</td><td><code>1000ms</code></td><td><code>2000ms</code></td><td>DB transaction과 outbox insert 포함</td></tr>
+              <tr><td>Audit 조회</td><td><code>GET /api/admin/audit-logs</code></td><td><code>800ms</code></td><td><code>1500ms</code></td><td>기본 기간/tenant filter 사용</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>부하 프로파일</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>프로파일</th>
+                <th>목적</th>
+                <th>부하</th>
+                <th>지속 시간</th>
+                <th>합격 조건</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>PERF-SMOKE</code></td><td>스크립트와 환경 정상 여부 확인</td><td>1 tenant, 10 VU</td><td>5분</td><td>5xx 0건, 정합성 오류 0건</td></tr>
+              <tr><td><code>PERF-BASELINE</code></td><td>기준 성능 측정</td><td>1 tenant, 30 VU</td><td>10분</td><td>Local Docker 기준 충족</td></tr>
+              <tr><td><code>PERF-LOAD</code></td><td>정상 업무 시간 부하</td><td>3 tenants, tenant별 30 WMS user + 5 admin</td><td>30분</td><td>dev AWS 기준 충족</td></tr>
+              <tr><td><code>PERF-PEAK</code></td><td>피크 시간 부하</td><td><code>PERF-LOAD</code>의 2배</td><td>15분</td><td>오류율 <code>&lt;= 1%</code>, 5xx 0건, 정합성 오류 0건</td></tr>
+              <tr><td><code>PERF-SPIKE</code></td><td>순간 증가 대응</td><td>5분 안에 0 → peak → normal</td><td>15분</td><td>복구 후 p95가 5분 안에 정상 기준으로 회복</td></tr>
+              <tr><td><code>PERF-SOAK</code></td><td>장시간 안정성</td><td><code>PERF-LOAD</code> 기준</td><td>2시간</td><td>메모리 증가 추세 없음, connection 누수 없음, outbox backlog 지속 증가 없음</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>업무 Mix</h2>
+        <table>
+          <tbody>
+            <tr><th>읽기/쓰기 비율</th><td>WMS 일반 부하는 조회 <code>85%</code>, 변경 <code>15%</code>로 시작합니다. 피킹/출하 집중 시간은 조회 <code>70%</code>, 변경 <code>30%</code>를 별도 측정합니다.</td></tr>
+            <tr><th>사용자 비율</th><td>일반 WMS 사용자 <code>80%</code>, tenant 관리자 <code>15%</code>, system admin <code>5%</code> 이하로 구성합니다.</td></tr>
+            <tr><th>조회 분포</th><td>dashboard <code>15%</code>, 현재고 <code>25%</code>, 스냅샷 <code>10%</code>, 기준정보 <code>15%</code>, 출고/포장 목록 <code>25%</code>, app shell/navigation <code>10%</code></td></tr>
+            <tr><th>변경 분포</th><td>재고 조정 <code>15%</code>, 입고 확정 <code>20%</code>, 출고 할당 <code>25%</code>, 포장 <code>25%</code>, 출하 <code>15%</code></td></tr>
+            <tr><th>Think time</th><td>화면 기반 시나리오는 요청 사이 <code>1s</code>~<code>5s</code> 랜덤 think time을 둡니다. API 한계 측정은 별도 stress 프로파일에서만 think time을 줄입니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>데이터 규모</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr>
+                <th>항목</th>
+                <th>Local 기준</th>
+                <th>dev AWS 기준</th>
+                <th>운영 전 목표</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Tenant</td><td><code>1</code>~<code>3</code></td><td><code>3</code></td><td><code>10</code></td></tr>
+              <tr><td>창고</td><td>tenant별 <code>2</code>~<code>5</code></td><td>tenant별 <code>5</code></td><td>tenant별 <code>20</code></td></tr>
+              <tr><td>로케이션</td><td>tenant별 <code>50</code></td><td>tenant별 <code>500</code></td><td>tenant별 <code>5000</code></td></tr>
+              <tr><td>품목</td><td>tenant별 <code>1000</code></td><td>tenant별 <code>10000</code></td><td>tenant별 <code>100000</code></td></tr>
+              <tr><td>현재고 row</td><td>tenant별 <code>5000</code></td><td>tenant별 <code>100000</code></td><td>tenant별 <code>1000000</code></td></tr>
+              <tr><td>스냅샷 기간</td><td><code>7일</code></td><td><code>30일</code></td><td><code>180일</code></td></tr>
+              <tr><td>감사 로그</td><td>tenant별 <code>10000</code></td><td>tenant별 <code>100000</code></td><td>tenant별 <code>1000000</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>자원 기준</h2>
+        <table>
+          <tbody>
+            <tr><th>ECS CPU</th><td>정상 부하 5분 평균 <code>&lt;= 70%</code>, peak 중 5분 평균 <code>&lt;= 85%</code></td></tr>
+            <tr><th>ECS Memory</th><td>정상 부하 5분 평균 <code>&lt;= 75%</code>, peak 중 5분 평균 <code>&lt;= 85%</code>, soak 중 지속 증가 추세 없음</td></tr>
+            <tr><th>DB CPU</th><td>정상 부하 5분 평균 <code>&lt;= 70%</code>, peak 중 5분 평균 <code>&lt;= 85%</code></td></tr>
+            <tr><th>DB Connection</th><td>connection pool 사용률 <code>&lt;= 70%</code>, connection acquisition timeout <code>0건</code></td></tr>
+            <tr><th>Redis</th><td>rate limit/session 용도별 명령 실패 <code>0건</code>, memory eviction <code>0건</code></td></tr>
+            <tr><th>SQS/Outbox</th><td>pending backlog가 부하 종료 후 <code>5분</code> 안에 정상 범위로 회복해야 합니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>필수 Evidence</h2>
+        <table>
+          <tbody>
+            <tr><th>성능 결과</th><td>p50, p90, p95, p99, max latency, RPS/TPS, status code 분포, 오류율</td></tr>
+            <tr><th>정합성</th><td>재고 balance, ledger, snapshot, allocation, packing, shipment, outbox, audit row 대조 결과</td></tr>
+            <tr><th>멀티테넌트</th><td>tenant별 latency와 오류율, tenantId 누락/교차 노출 0건 확인</td></tr>
+            <tr><th>관측성</th><td>requestId 샘플, outbox eventId, auditId, 서비스 로그, CloudWatch 또는 Docker stats</td></tr>
+            <tr><th>환경</th><td>git commit, Docker image tag, compose/CDK 설정, DB row 규모, 테스트 도구와 버전</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>불합격 기준</h2>
+        <div class="grid two">
+          <div class="card">
+            <strong>즉시 실패</strong>
+            <p>5xx 1건 이상, 정합성 오류 1건 이상, tenant 교차 데이터 노출, 권한 우회, outbox/audit 누락이 발견되면 응답 시간이 좋아도 실패입니다.</p>
+          </div>
+          <div class="card">
+            <strong>조건부 실패</strong>
+            <p>p95 또는 p99 기준 초과, timeout 발생, outbox backlog 회복 실패, CPU/메모리/DB connection 기준 초과는 병목 분석 후 재측정해야 합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <p class="footer"><a href="./system-test-scenarios.html">전체 시스템 테스트 시나리오로 이동</a> · <a href="../design/rules/testing.html">테스트 규칙으로 이동</a> · <a href="../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

@@ -250,6 +250,15 @@ export class TenantsService {
           }
         });
       }
+      if (input.contactPhone) {
+        await tx.tenantSetting.create({
+          data: {
+            tenantId: createdTenant.id,
+            key: "contactPhone",
+            value: input.contactPhone
+          }
+        });
+      }
       await this.outboxEventService.record(tx, {
         context: {
           tenantId: createdTenant.id,
@@ -361,6 +370,13 @@ export class TenantsService {
     const existingTenant = await this.prismaService.tenant.findUnique({
       where: {
         id: tenantId
+      },
+      include: {
+        domains: {
+          orderBy: {
+            createdAt: "asc"
+          }
+        }
       }
     });
 
@@ -368,17 +384,70 @@ export class TenantsService {
       throw this.notFound();
     }
 
-    if (existingTenant.name === input.name) {
-      return this.toTenantResponse(existingTenant);
+    if (input.domain) {
+      await this.ensureDomainAvailable(input.domain, tenantId);
     }
 
-    const updatedTenant = await this.prismaService.tenant.update({
-      where: {
-        id: tenantId
-      },
-      data: {
-        name: input.name
+    const updatedTenant = await this.prismaService.$transaction(async (tx) => {
+      const tenant = await tx.tenant.update({
+        where: {
+          id: tenantId
+        },
+        data: {
+          name: input.name
+        }
+      });
+
+      if (input.domain) {
+        const primaryDomain = existingTenant.domains[0];
+        if (!primaryDomain) {
+          await tx.tenantDomain.create({
+            data: {
+              tenantId,
+              domain: input.domain
+            }
+          });
+        } else if (primaryDomain.domain !== input.domain) {
+          await tx.tenantDomain.update({
+            where: {
+              id: primaryDomain.id
+            },
+            data: {
+              domain: input.domain
+            }
+          });
+        }
       }
+
+      if (input.hasContactPhone) {
+        if (input.contactPhone) {
+          await tx.tenantSetting.upsert({
+            where: {
+              tenantId_key: {
+                tenantId,
+                key: "contactPhone"
+              }
+            },
+            update: {
+              value: input.contactPhone
+            },
+            create: {
+              tenantId,
+              key: "contactPhone",
+              value: input.contactPhone
+            }
+          });
+        } else {
+          await tx.tenantSetting.deleteMany({
+            where: {
+              tenantId,
+              key: "contactPhone"
+            }
+          });
+        }
+      }
+
+      return tenant;
     });
 
     return this.toTenantResponse(updatedTenant);
@@ -720,17 +789,19 @@ export class TenantsService {
     });
   }
 
-  private validateCreateBody(body: unknown): { name: string; domain?: string } {
+  private validateCreateBody(body: unknown): { name: string; domain?: string; contactPhone?: string } {
     if (!this.isRecord(body)) {
       throw this.validationFailed("body", "Request body must be an object");
     }
 
     const name = this.readRequiredString(body.name, "name", 100);
     const domain = this.readOptionalDomain(body.domain);
+    const contactPhone = this.readOptionalString(body.contactPhone, "contactPhone", 30);
 
     return {
       name,
-      domain
+      domain,
+      contactPhone
     };
   }
 
@@ -741,6 +812,8 @@ export class TenantsService {
     code?: string;
     name?: string;
     domain?: string;
+    keyword?: string;
+    moduleCode?: string;
   } {
     return {
       page: this.readPageNumber(query.page),
@@ -748,7 +821,9 @@ export class TenantsService {
       status: query.status === undefined ? undefined : this.readTenantStatus(query.status, "status"),
       code: this.readOptionalSearchString(query.code, "code", 50),
       name: this.readOptionalSearchString(query.name, "name", 100),
-      domain: this.readOptionalSearchString(query.domain, "domain", 253)
+      domain: this.readOptionalSearchString(query.domain, "domain", 253),
+      keyword: this.readOptionalSearchString(query.keyword, "keyword", 100),
+      moduleCode: this.readOptionalModuleCode(query.moduleCode, "moduleCode")
     };
   }
 
@@ -757,6 +832,8 @@ export class TenantsService {
     code?: string;
     name?: string;
     domain?: string;
+    keyword?: string;
+    moduleCode?: string;
   }): Prisma.TenantWhereInput {
     const where: Prisma.TenantWhereInput = {};
     if (query.status) {
@@ -784,6 +861,40 @@ export class TenantsService {
         }
       };
     }
+    if (query.keyword) {
+      where.OR = [
+        {
+          code: {
+            contains: query.keyword,
+            mode: "insensitive"
+          }
+        },
+        {
+          name: {
+            contains: query.keyword,
+            mode: "insensitive"
+          }
+        },
+        {
+          domains: {
+            some: {
+              domain: {
+                contains: query.keyword,
+                mode: "insensitive"
+              }
+            }
+          }
+        }
+      ];
+    }
+    if (query.moduleCode) {
+      where.modules = {
+        some: {
+          moduleCode: query.moduleCode,
+          enabled: true
+        }
+      };
+    }
 
     return where;
   }
@@ -799,7 +910,12 @@ export class TenantsService {
     };
   }
 
-  private validateUpdateBody(body: unknown): { name: string } {
+  private validateUpdateBody(body: unknown): {
+    name: string;
+    domain?: string;
+    contactPhone?: string;
+    hasContactPhone: boolean;
+  } {
     if (!this.isRecord(body)) {
       throw this.validationFailed("body", "Request body must be an object");
     }
@@ -809,7 +925,10 @@ export class TenantsService {
     }
 
     return {
-      name: this.readRequiredString(body.name, "name", 100)
+      name: this.readRequiredString(body.name, "name", 100),
+      domain: this.readOptionalDomain(body.domain),
+      contactPhone: this.readOptionalString(body.contactPhone, "contactPhone", 30),
+      hasContactPhone: Object.prototype.hasOwnProperty.call(body, "contactPhone")
     };
   }
 
@@ -913,6 +1032,14 @@ export class TenantsService {
     }
 
     return moduleCode;
+  }
+
+  private readOptionalModuleCode(value: unknown, field: string): string | undefined {
+    if (value === undefined || value === null || value === "") {
+      return undefined;
+    }
+
+    return this.readModuleCode(value, field);
   }
 
   private async generateUniqueTenantCode(input: { name: string; domain?: string }): Promise<string> {
@@ -1061,17 +1188,39 @@ export class TenantsService {
     return this.normalizeDomain(value);
   }
 
-  private async ensureDomainAvailable(domain: string): Promise<void> {
+  private readOptionalString(value: unknown, field: string, maxLength: number): string | undefined {
+    if (value === undefined || value === null || value === "") {
+      return undefined;
+    }
+
+    if (typeof value !== "string") {
+      throw this.validationFailed(field, `${field} must be a string`);
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return undefined;
+    }
+
+    if (trimmed.length > maxLength) {
+      throw this.validationFailed(field, `${field} must be ${maxLength} characters or less`);
+    }
+
+    return trimmed;
+  }
+
+  private async ensureDomainAvailable(domain: string, allowedTenantId?: string): Promise<void> {
     const existingDomain = await this.prismaService.tenantDomain.findUnique({
       where: {
         domain
       },
       select: {
-        id: true
+        id: true,
+        tenantId: true
       }
     });
 
-    if (existingDomain) {
+    if (existingDomain && existingDomain.tenantId !== allowedTenantId) {
       throw new ConflictException({
         code: "TENANT_DOMAIN_CONFLICT",
         message: "Tenant domain already exists"

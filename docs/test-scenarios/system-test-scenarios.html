@@ -105,7 +105,7 @@
             </thead>
             <tbody>
               <tr><td>1</td><td>로컬 데이터 초기화</td><td><code>pnpm db:reset:local</code>, <code>pnpm seed:local</code></td><td>seed tenant가 active이고 <code>auth</code>, <code>tenant</code>, <code>wms</code> module이 활성화됩니다.</td></tr>
-              <tr><td>2</td><td>서비스 readiness</td><td><code>/ready</code> on gateway, admin-bff, auth-iam, tenant, wms, audit, outbox-relay</td><td>각 서비스가 <code>ready</code>를 반환하고 requestId가 로그에 남습니다.</td></tr>
+              <tr><td>2</td><td>서비스 readiness</td><td><code>/ready</code> on gateway, auth-iam, tenant, wms, audit, outbox-relay</td><td>외부 노출 서비스가 <code>ready</code>를 반환하고 requestId가 로그에 남습니다. Admin/User BFF는 host port 없이 compose 내부 healthcheck와 gateway 경유 API 시나리오로 확인합니다.</td></tr>
               <tr><td>3</td><td>Gateway/BFF 연결</td><td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code></td><td>gateway route map은 Auth/IAM, Admin BFF, User BFF upstream으로 구성되고 domain/platform service는 BFF 내부 호출 경로로 연결됩니다.</td></tr>
               <tr><td>4</td><td>관리자 로그인</td><td><code>POST /api/auth/login</code></td><td>JWT claim이 규칙에 맞고 refresh token이 발급됩니다.</td></tr>
               <tr><td>5</td><td>Tenant 관리</td><td><code>/api/admin/tenants/**</code></td><td>tenant 생성, 상세, 상태, module, domain 변경이 envelope와 audit/outbox 기준을 만족합니다.</td></tr>
@@ -163,7 +163,7 @@
                 <td>BFF downstream 연결 정합성</td>
                 <td><code>P0</code></td>
                 <td>admin-bff-service와 user-bff-service 환경 파일을 확인할 수 있습니다.</td>
-                <td>BFF별 env와 readiness check를 확인하고 직접 <code>/ready</code>를 호출합니다.</td>
+                <td>BFF별 env와 readiness check를 확인하고 필요 시 <code>docker compose exec</code>로 컨테이너 내부 <code>/ready</code>를 호출합니다.</td>
                 <td>Admin BFF는 auth-iam, tenant, audit-log를 downstream으로 사용하고 User BFF는 auth-iam, tenant, wms, audit-log를 downstream으로 사용합니다. domain/platform service는 BFF 또는 worker 내부 호출 경로로 연결됩니다.</td>
                 <td>BFF env values, <code>/ready</code> response JSON, service logs</td>
                 <td><span class="tag done">Implemented</span></td>
@@ -186,6 +186,16 @@
                 <td><code>docker compose -f docker/local/docker-compose.yml config --quiet</code>를 실행하고 gateway depends_on을 확인합니다.</td>
                 <td>admin-bff-service와 user-bff-service가 compose에 정의되어 있고 gateway-service는 두 BFF의 healthy 상태 이후 시작합니다.</td>
                 <td>compose config output, service dependency list</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GWBFF-CONN-007</code></td>
+                <td>local compose BFF host port 미노출</td>
+                <td><code>P0</code></td>
+                <td>Docker compose 설정 파일과 Postman collection을 확인할 수 있습니다.</td>
+                <td><code>docker compose -f docker/local/docker-compose.yml config</code>에서 <code>published: "3003"</code>, <code>published: "3004"</code>가 없는지 확인하고 Postman의 app/admin API URL이 <code>{{gatewayBaseUrl}}</code>를 사용하는지 확인합니다.</td>
+                <td>Admin/User BFF는 host port를 열지 않고 <code>expose: 3000</code>만 사용합니다. 로컬 브라우저와 Postman의 업무 API 요청은 gateway <code>localhost:3000</code>만 통과합니다.</td>
+                <td>compose config grep result, Postman URL grep result, gateway access log</td>
                 <td><span class="tag done">Implemented</span></td>
               </tr>
             </tbody>
@@ -256,9 +266,9 @@
             <tbody>
               <tr>
                 <td><code>TENANT-ADM-001</code></td>
-                <td>tenant 목록 조회</td>
+                <td>고객사 목록 조회</td>
                 <td><code>P0</code></td>
-                <td>관리자 access token과 <code>tenant.tenants.read</code> 성격의 권한이 있습니다.</td>
+                <td>시스템 관리자 access token과 <code>tenant.tenants.read</code> 성격의 권한이 있습니다. 테넌트 관리자 access token은 같은 API에서 <code>403 AUTH_ADMIN_SCOPE_MISMATCH</code>가 기대됩니다.</td>
                 <td><code>GET /api/admin/tenants?page=1&amp;size=20</code>를 호출합니다.</td>
                 <td>목록 envelope가 <code>data.items</code>, <code>page</code>, <code>size</code>, <code>total</code>만 포함하고 seed tenant가 조회됩니다.</td>
                 <td>response JSON, requestId</td>
@@ -333,7 +343,7 @@
                 <td><code>P0</code></td>
                 <td>active tenant와 active user가 있습니다.</td>
                 <td><code>POST /api/auth/login</code>에 email, password, tenantId를 보냅니다.</td>
-                <td>access token과 refresh token이 발급되고 JWT claim은 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</td>
+                <td>access token과 refresh token이 발급되고 JWT claim은 <code>sub</code>, optional <code>tenantId</code>, user type <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다. tenant-scoped 사용자는 <code>tenantId</code>가 필요하고 <code>system_admin</code>은 생략할 수 있습니다.</td>
                 <td>login response, decoded JWT claims, requestId</td>
                 <td><span class="tag done">Implemented</span></td>
               </tr>
@@ -558,9 +568,9 @@
                 <td>WMS 화면 조회 API 조합</td>
                 <td><code>P0</code></td>
                 <td>WMS 로컬 통합 시나리오가 통과해 warehouse, material, inventory 데이터가 생성되어 있고 tenant_admin access token과 tenant_user access token이 있습니다.</td>
-                <td>gateway 경유로 <code>/api/app/wms/warehouses</code>, <code>/materials</code>, <code>/inventory-summary</code>, <code>/dashboard</code>를 호출하고, tenant_user로 <code>/inventory-summary</code> 허용과 <code>/warehouses</code> 차단을 확인합니다.</td>
-                <td>BFF는 WMS 업무 규칙을 직접 계산하지 않고 화면 shape만 조합하며 list envelope, <code>pageTotals</code>, <code>visibleActions</code>, permission guard 규칙을 지킵니다.</td>
-                <td>BFF response, WMS internal response, propagated requestId, <code>pageTotals</code>, <code>visibleActions</code>, tenant_user 403 response</td>
+                <td>gateway 경유로 <code>/api/app/wms/warehouses</code>, <code>/locations</code>, <code>/materials</code>, <code>/inventory-summary</code>, <code>/inventory-snapshots</code>, <code>/outbound-allocations</code>, <code>/outbound-packings</code>, <code>/dashboard</code>를 호출합니다. 스냅샷은 전체 조회 후 현재고 첫 행의 <code>warehouseId</code>, <code>locationId</code>, <code>materialId</code>로 다시 필터 조회하고, tenant_user로 <code>/inventory-summary</code> 허용과 <code>/warehouses</code>/<code>/locations</code>/<code>/outbound-allocations</code>/<code>/outbound-packings</code> 차단을 확인합니다.</td>
+                <td>BFF는 WMS 업무 규칙을 직접 계산하지 않고 화면 shape만 조합하며 list envelope, 창고/로케이션 selector, 현재고/스냅샷 <code>pageTotals</code>, 스냅샷 필터 정합성, 출고 할당/포장 작업 목록, dashboard 작업 큐 요약, <code>visibleActions</code>, permission guard 규칙을 지킵니다.</td>
+                <td>BFF response, WMS internal response, propagated requestId, <code>pageTotals</code>, 스냅샷 필터 response, <code>visibleActions</code>, dashboard <code>operations</code>, 로케이션/할당/포장 목록 response, tenant_user 403 response</td>
                 <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
@@ -1084,11 +1094,11 @@
         <div class="grid two">
           <div class="card">
             <strong>화면 시나리오</strong>
-            <p><code>web-admin</code>과 <code>web-wms</code> 구현 후 같은 scenarioId에 화면 조작 단계와 화면 캡처 evidence를 추가합니다.</p>
+            <p><code>web-admin</code>과 <code>web-wms</code> Desktop 화면 시나리오는 별도 문서로 분리했습니다. <code>web-wms</code>는 로그인, App Shell, dashboard, inventory, snapshot, master data, outbound, negative 화면 evidence를 2026-06-22에 보강했습니다.</p>
           </div>
           <div class="card">
             <strong>User BFF 시나리오</strong>
-            <p><code>USER-BFF-004</code>로 warehouse selector, materials, dashboard, inventory summary 검증을 추가했습니다. 후속으로 화면 캡처 evidence와 warehouse scope별 selector 필터링을 보강합니다.</p>
+            <p><code>USER-BFF-004</code>로 warehouse/location selector, materials, dashboard, inventory summary, inventory snapshot 전체/필터 조회, outbound allocation, outbound packing 검증을 추가했습니다. 화면 evidence는 <code>docs/test-scenarios/web-wms-test-scenarios.html</code>과 <code>docs/test-logs/2026-06-22/web-wms-scenario-verification.html</code>에서 관리합니다.</p>
           </div>
           <div class="card">
             <strong>Lot/Serial과 작업 지시</strong>

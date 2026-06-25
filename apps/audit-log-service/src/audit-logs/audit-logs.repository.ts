@@ -21,7 +21,7 @@ export interface AppendAuditLogData {
 }
 
 export interface AuditLogSearchFilters {
-  tenantId: string;
+  tenantId?: string;
   page: number;
   size: number;
   from?: Date;
@@ -103,7 +103,7 @@ export class AuditLogsRepository {
 
   private toWhere(filters: AuditLogSearchFilters): Prisma.AuditLogWhereInput {
     return {
-      tenantId: filters.tenantId,
+      ...(filters.tenantId ? { tenantId: filters.tenantId } : {}),
       ...(filters.from || filters.to
         ? {
             occurredAt: {

@@ -44,7 +44,7 @@ export class GatewayAuthGuard implements CanActivate {
     const claims = this.jwtVerifier.verify(token);
     req.context.userId = claims.sub;
 
-    if (req.context.tenantId && req.context.tenantId !== claims.tenantId) {
+    if (claims.tenantId && req.context.tenantId && req.context.tenantId !== claims.tenantId) {
       throw new ForbiddenException({
         code: "TENANT_MISMATCH",
         message: "Tenant mismatch",
@@ -54,7 +54,9 @@ export class GatewayAuthGuard implements CanActivate {
       });
     }
 
-    req.context.tenantId = claims.tenantId;
+    if (claims.tenantId) {
+      req.context.tenantId = claims.tenantId;
+    }
     return true;
   }
 

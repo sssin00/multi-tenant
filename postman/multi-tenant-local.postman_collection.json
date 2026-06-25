@@ -47,16 +47,12 @@
               {
                 "key": "X-Request-Id",
                 "value": "postman-gateway-login"
-              },
-              {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
               }
             ],
             "url": "{{gatewayBaseUrl}}/api/auth/login",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -70,14 +66,65 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('login succeeded', function () {",
+                  "pm.test('admin login succeeded without tenant input', function () {",
                   "  pm.response.to.have.status(200);",
                   "  const body = pm.response.json();",
                   "  pm.expect(body.success).to.eql(true);",
                   "  pm.expect(body.data.accessToken).to.be.a('string');",
                   "  pm.expect(body.data.refreshToken).to.be.a('string');",
+                  "  const payload = JSON.parse(Buffer.from(body.data.accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));",
+                  "  pm.expect(payload.tenantId).to.eql(pm.collectionVariables.get('tenantId'));",
+                  "  pm.expect(payload.type).to.eql('general_user');",
                   "  pm.collectionVariables.set('accessToken', body.data.accessToken);",
                   "  pm.collectionVariables.set('refreshToken', body.data.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST gateway auth login system admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-gateway-system-admin-login"
+              }
+            ],
+            "url": "{{gatewayBaseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{systemAdminEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('system admin login succeeded without tenant', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.data.accessToken).to.be.a('string');",
+                  "  const encodedPayload = body.data.accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');",
+                  "  const payload = JSON.parse(atob(encodedPayload.padEnd(Math.ceil(encodedPayload.length / 4) * 4, '=')));",
+                  "  pm.expect(payload.type).to.eql('system_admin');",
+                  "  pm.expect(payload.tenantId).to.eql(undefined);",
+                  "  pm.collectionVariables.set('systemAdminAccessToken', body.data.accessToken);",
+                  "  pm.collectionVariables.set('systemAdminRefreshToken', body.data.refreshToken);",
                   "});"
                 ]
               }
@@ -359,6 +406,178 @@
               }
             }
           ]
+        },
+        {
+          "name": "GET app WMS locations through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-app-wms-locations"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/app/wms/locations?page=1&size=20",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "app",
+                "wms",
+                "locations"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET app WMS inventory snapshots through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-app-wms-inventory-snapshots"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/app/wms/inventory-snapshots?snapshotDate={{snapshotDate}}&page=1&size=20",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "app",
+                "wms",
+                "inventory-snapshots"
+              ],
+              "query": [
+                {
+                  "key": "snapshotDate",
+                  "value": "{{snapshotDate}}"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET app WMS outbound allocations through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-app-wms-outbound-allocations"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/app/wms/outbound-allocations?page=1&size=20",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "app",
+                "wms",
+                "outbound-allocations"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET app WMS outbound packings through gateway",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-app-wms-outbound-packings"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/api/app/wms/outbound-packings?page=1&size=20",
+              "host": [
+                "{{gatewayBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "app",
+                "wms",
+                "outbound-packings"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -383,7 +602,7 @@
                 "value": "{{tenantId}}"
               }
             ],
-            "url": "{{gatewayBaseUrl}}/api/admin/access-control/screen-data"
+            "url": "{{gatewayBaseUrl}}/api/admin/access-control/screen-data?page=1&size=5&keyword=admin&roleCode=tenant_admin"
           },
           "event": [
             {
@@ -404,24 +623,21 @@
           ]
         },
         {
-          "name": "GET admin tenants list",
+          "name": "GET admin customers list",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{systemAdminAccessToken}}"
               },
               {
                 "key": "X-Request-Id",
                 "value": "postman-admin-tenants-list"
-              },
-              {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
               }
             ],
-            "url": "{{gatewayBaseUrl}}/api/admin/tenants?page=1&size=20"
+            "url": "{{gatewayBaseUrl}}/api/admin/tenants?page=1&size=20",
+            "description": "System administrator only. Use {{systemAdminAccessToken}} and do not send X-Tenant-Id."
           },
           "event": [
             {
@@ -451,7 +667,7 @@
           ]
         },
         {
-          "name": "POST admin tenant create",
+          "name": "POST admin customer create",
           "request": {
             "method": "POST",
             "header": [
@@ -461,15 +677,11 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{systemAdminAccessToken}}"
               },
               {
                 "key": "X-Request-Id",
                 "value": "postman-admin-tenant-create"
-              },
-              {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
               },
               {
                 "key": "Idempotency-Key",
@@ -485,7 +697,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "System administrator only. Use {{systemAdminAccessToken}} and do not send X-Tenant-Id."
           },
           "event": [
             {
@@ -520,24 +733,21 @@
           ]
         },
         {
-          "name": "GET admin tenant detail",
+          "name": "GET admin customer detail",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{systemAdminAccessToken}}"
               },
               {
                 "key": "X-Request-Id",
                 "value": "postman-admin-tenant-detail"
-              },
-              {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
               }
             ],
-            "url": "{{gatewayBaseUrl}}/api/admin/tenants/{{tenantId}}"
+            "url": "{{gatewayBaseUrl}}/api/admin/tenants/{{tenantId}}",
+            "description": "System administrator only. Use {{systemAdminAccessToken}} and do not send X-Tenant-Id."
           },
           "event": [
             {
@@ -558,7 +768,7 @@
           ]
         },
         {
-          "name": "PATCH admin tenant update name",
+          "name": "PATCH admin customer update name",
           "request": {
             "method": "PATCH",
             "header": [
@@ -568,15 +778,11 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{systemAdminAccessToken}}"
               },
               {
                 "key": "X-Request-Id",
                 "value": "postman-admin-tenant-update"
-              },
-              {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
               },
               {
                 "key": "Idempotency-Key",
@@ -592,7 +798,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "System administrator only. Use {{systemAdminAccessToken}} and do not send X-Tenant-Id."
           },
           "event": [
             {
@@ -613,7 +820,7 @@
           ]
         },
         {
-          "name": "PATCH admin tenant status active",
+          "name": "PATCH admin customer status active",
           "request": {
             "method": "PATCH",
             "header": [
@@ -623,15 +830,11 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{systemAdminAccessToken}}"
               },
               {
                 "key": "X-Request-Id",
                 "value": "postman-admin-tenant-status"
-              },
-              {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
               },
               {
                 "key": "Idempotency-Key",
@@ -647,7 +850,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "System administrator only. Use {{systemAdminAccessToken}} and do not send X-Tenant-Id."
           },
           "event": [
             {
@@ -668,7 +872,7 @@
           ]
         },
         {
-          "name": "PUT admin tenant modules replace",
+          "name": "PUT admin customer modules replace",
           "request": {
             "method": "PUT",
             "header": [
@@ -678,15 +882,11 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{systemAdminAccessToken}}"
               },
               {
                 "key": "X-Request-Id",
                 "value": "postman-admin-tenant-modules"
-              },
-              {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
               },
               {
                 "key": "Idempotency-Key",
@@ -702,7 +902,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "System administrator only. Use {{systemAdminAccessToken}} and do not send X-Tenant-Id."
           },
           "event": [
             {
@@ -723,24 +924,21 @@
           ]
         },
         {
-          "name": "GET admin tenant domains list",
+          "name": "GET admin customer domains list",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{systemAdminAccessToken}}"
               },
               {
                 "key": "X-Request-Id",
                 "value": "postman-admin-tenant-domains-list"
-              },
-              {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
               }
             ],
-            "url": "{{gatewayBaseUrl}}/api/admin/tenants/{{tenantId}}/domains"
+            "url": "{{gatewayBaseUrl}}/api/admin/tenants/{{tenantId}}/domains",
+            "description": "System administrator only. Use {{systemAdminAccessToken}} and do not send X-Tenant-Id."
           },
           "event": [
             {
@@ -762,7 +960,7 @@
           ]
         },
         {
-          "name": "POST admin tenant domain add",
+          "name": "POST admin customer domain add",
           "request": {
             "method": "POST",
             "header": [
@@ -772,15 +970,11 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{systemAdminAccessToken}}"
               },
               {
                 "key": "X-Request-Id",
                 "value": "postman-admin-tenant-domain-add"
-              },
-              {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
               },
               {
                 "key": "Idempotency-Key",
@@ -796,7 +990,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "System administrator only. Use {{systemAdminAccessToken}} and do not send X-Tenant-Id."
           },
           "event": [
             {
@@ -828,28 +1023,25 @@
           ]
         },
         {
-          "name": "DELETE admin tenant domain disable",
+          "name": "DELETE admin customer domain disable",
           "request": {
             "method": "DELETE",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{systemAdminAccessToken}}"
               },
               {
                 "key": "X-Request-Id",
                 "value": "postman-admin-tenant-domain-delete"
               },
               {
-                "key": "X-Tenant-Id",
-                "value": "{{tenantId}}"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{idempotencyKey}}"
               }
             ],
-            "url": "{{gatewayBaseUrl}}/api/admin/tenants/{{tenantId}}/domains/{{domainId}}"
+            "url": "{{gatewayBaseUrl}}/api/admin/tenants/{{tenantId}}/domains/{{domainId}}",
+            "description": "System administrator only. Use {{systemAdminAccessToken}} and do not send X-Tenant-Id."
           },
           "event": [
             {
@@ -1800,10 +1992,10 @@
       ]
     },
     {
-      "name": "Admin BFF direct",
+      "name": "Admin API via gateway",
       "item": [
         {
-          "name": "GET admin-bff health direct",
+          "name": "GET gateway health for admin route",
           "request": {
             "method": "GET",
             "header": [
@@ -1812,11 +2004,11 @@
                 "value": "postman-admin-bff-health"
               }
             ],
-            "url": "{{adminBffBaseUrl}}/health"
+            "url": "{{gatewayBaseUrl}}/health"
           }
         },
         {
-          "name": "GET admin-bff ready direct",
+          "name": "GET gateway ready for admin route",
           "request": {
             "method": "GET",
             "header": [
@@ -1825,16 +2017,16 @@
                 "value": "postman-admin-bff-ready"
               }
             ],
-            "url": "{{adminBffBaseUrl}}/ready"
+            "url": "{{gatewayBaseUrl}}/ready"
           }
         }
       ]
     },
     {
-      "name": "User BFF direct",
+      "name": "User API via gateway",
       "item": [
         {
-          "name": "GET user bff health",
+          "name": "GET gateway health for app route",
           "request": {
             "method": "GET",
             "header": [
@@ -1843,7 +2035,7 @@
                 "value": "postman-user-bff-health"
               }
             ],
-            "url": "{{userBffBaseUrl}}/health"
+            "url": "{{gatewayBaseUrl}}/health"
           },
           "event": [
             {
@@ -1851,7 +2043,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('user bff health succeeded', function () {",
+                  "pm.test('gateway health succeeded', function () {",
                   "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
                   "  if (pm.response.code !== 204) {",
                   "    const body = pm.response.json();",
@@ -1864,7 +2056,7 @@
           ]
         },
         {
-          "name": "GET user bff ready",
+          "name": "GET gateway ready for app route",
           "request": {
             "method": "GET",
             "header": [
@@ -1873,7 +2065,7 @@
                 "value": "postman-user-bff-ready"
               }
             ],
-            "url": "{{userBffBaseUrl}}/ready"
+            "url": "{{gatewayBaseUrl}}/ready"
           },
           "event": [
             {
@@ -1881,7 +2073,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('user bff ready succeeded', function () {",
+                  "pm.test('gateway ready succeeded', function () {",
                   "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
                   "  if (pm.response.code !== 204) {",
                   "    const body = pm.response.json();",
@@ -1894,7 +2086,7 @@
           ]
         },
         {
-          "name": "GET app me direct",
+          "name": "GET app me via gateway",
           "request": {
             "method": "GET",
             "header": [
@@ -1915,7 +2107,7 @@
                 "value": "{{userId}}"
               }
             ],
-            "url": "{{userBffBaseUrl}}/api/app/me"
+            "url": "{{gatewayBaseUrl}}/api/app/me"
           },
           "event": [
             {
@@ -1923,7 +2115,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('direct app me succeeded', function () {",
+                  "pm.test('gateway app me succeeded', function () {",
                   "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
                   "  if (pm.response.code !== 204) {",
                   "    const body = pm.response.json();",
@@ -1936,7 +2128,7 @@
           ]
         },
         {
-          "name": "GET app navigation direct",
+          "name": "GET app navigation via gateway",
           "request": {
             "method": "GET",
             "header": [
@@ -1957,7 +2149,7 @@
                 "value": "{{userId}}"
               }
             ],
-            "url": "{{userBffBaseUrl}}/api/app/navigation"
+            "url": "{{gatewayBaseUrl}}/api/app/navigation"
           },
           "event": [
             {
@@ -1965,13 +2157,416 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('direct app navigation succeeded', function () {",
+                  "pm.test('gateway app navigation succeeded', function () {",
                   "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
                   "  if (pm.response.code !== 204) {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body.success).to.eql(true);",
                   "  }",
                   "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST app WMS inventory adjustment via gateway",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-user-wms-inventory-adjustment"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-user-wms-inventory-adjustment-idem"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouseId\": \"{{wmsWarehouseId}}\",\n  \"locationId\": \"{{wmsLocationId}}\",\n  \"itemId\": \"{{wmsItemId}}\",\n  \"quantityChange\": \"1\",\n  \"reason\": \"postman_adjustment\",\n  \"referenceNo\": \"POSTMAN-ADJ\"\n}"
+            },
+            "url": "{{gatewayBaseUrl}}/api/app/wms/inventory/adjustments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('POST app WMS inventory adjustment via gateway succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.requestId).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"wmsAdjustmentId\", pm.response.json().data.adjustmentId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST app WMS inbound confirmation via gateway",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-user-wms-inbound-confirmation"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-user-wms-inbound-confirmation-idem"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouseId\": \"{{wmsWarehouseId}}\",\n  \"locationId\": \"{{wmsLocationId}}\",\n  \"itemId\": \"{{wmsItemId}}\",\n  \"quantity\": \"1\",\n  \"referenceNo\": \"POSTMAN-IN\"\n}"
+            },
+            "url": "{{gatewayBaseUrl}}/api/app/wms/inbound/confirmations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('POST app WMS inbound confirmation via gateway succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.requestId).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"wmsReceiptId\", pm.response.json().data.receiptId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST app WMS outbound allocation via gateway",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-user-wms-outbound-allocation"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-user-wms-outbound-allocation-idem"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderNo\": \"POSTMAN-OUT-{{$timestamp}}\",\n  \"warehouseId\": \"{{wmsWarehouseId}}\",\n  \"locationId\": \"{{wmsLocationId}}\",\n  \"itemId\": \"{{wmsItemId}}\",\n  \"quantity\": \"1\"\n}"
+            },
+            "url": "{{gatewayBaseUrl}}/api/app/wms/outbound/allocations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('POST app WMS outbound allocation via gateway succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.requestId).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"wmsAllocationId\", pm.response.json().data.allocationId);",
+                  "pm.collectionVariables.set(\"wmsOutboundOrderId\", pm.response.json().data.outboundOrderId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST app WMS outbound packing via gateway",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-user-wms-outbound-packing"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-user-wms-outbound-packing-idem"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outboundOrderId\": \"{{wmsOutboundOrderId}}\",\n  \"allocationIds\": [\n    \"{{wmsAllocationId}}\"\n  ],\n  \"memo\": \"postman packing\"\n}"
+            },
+            "url": "{{gatewayBaseUrl}}/api/app/wms/outbound/packings"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('POST app WMS outbound packing via gateway succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.requestId).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"wmsPackingId\", pm.response.json().data.packingId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST app WMS outbound package via gateway",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-user-wms-outbound-package"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-user-wms-outbound-package-idem"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packageNo\": \"POSTMAN-PKG-{{$timestamp}}\",\n  \"boxType\": \"BOX-S\",\n  \"items\": [\n    {\n      \"allocationId\": \"{{wmsAllocationId}}\",\n      \"itemId\": \"{{wmsItemId}}\",\n      \"quantity\": \"1\"\n    }\n  ]\n}"
+            },
+            "url": "{{gatewayBaseUrl}}/api/app/wms/outbound/packings/{{wmsPackingId}}/packages"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('POST app WMS outbound package via gateway succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.requestId).to.be.a(\"string\");",
+                  "});",
+                  "pm.collectionVariables.set(\"wmsPackageId\", pm.response.json().data.packageId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST app WMS outbound packing confirm via gateway",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-user-wms-outbound-packing-confirm"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-user-wms-outbound-packing-confirm-idem"
+              }
+            ],
+            "url": "{{gatewayBaseUrl}}/api/app/wms/outbound/packings/{{wmsPackingId}}/confirm"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('POST app WMS outbound packing confirm via gateway succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.requestId).to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST app WMS outbound shipment via gateway",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "postman-user-wms-outbound-shipment"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-user-wms-outbound-shipment-idem"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packingId\": \"{{wmsPackingId}}\",\n  \"carrierCode\": \"LOCAL\",\n  \"trackingNo\": \"POSTMAN-TRK-{{$timestamp}}\"\n}"
+            },
+            "url": "{{gatewayBaseUrl}}/api/app/wms/outbound/shipments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('POST app WMS outbound shipment via gateway succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(true);",
+                  "  pm.expect(body.requestId).to.be.a(\"string\");",
+                  "});",
+                  "const data = pm.response.json().data;",
+                  "if (data.shipmentId) pm.collectionVariables.set(\"wmsShipmentId\", data.shipmentId);"
                 ]
               }
             }
@@ -5896,6 +6491,57 @@
           }
         }
       ]
+    },
+    {
+      "name": "GET WMS outbound allocations",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Tenant-Id",
+            "value": "{{tenantId}}"
+          },
+          {
+            "key": "X-Request-Id",
+            "value": "postman-wms-outbound-allocations"
+          },
+          {
+            "key": "X-Internal-Service",
+            "value": "admin-bff-service"
+          },
+          {
+            "key": "X-Internal-Timestamp",
+            "value": "{{internalTimestamp}}"
+          },
+          {
+            "key": "X-Internal-Signature",
+            "value": "{{internalSignature}}"
+          }
+        ],
+        "url": {
+          "raw": "{{wmsServiceBaseUrl}}/api/internal/wms/outbound/allocations?page=1&size=20",
+          "host": [
+            "{{wmsServiceBaseUrl}}"
+          ],
+          "path": [
+            "api",
+            "internal",
+            "wms",
+            "outbound",
+            "allocations"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "size",
+              "value": "20"
+            }
+          ]
+        }
+      }
     }
   ],
   "variable": [
@@ -5916,7 +6562,7 @@
     },
     {
       "key": "adminBffBaseUrl",
-      "value": "http://localhost:3003",
+      "value": "http://localhost:3000",
       "type": "string"
     },
     {
@@ -5939,12 +6585,27 @@
       "type": "string"
     },
     {
+      "key": "systemAdminEmail",
+      "value": "super@admin.local",
+      "type": "string"
+    },
+    {
       "key": "password",
       "value": "Test1234!",
       "type": "string"
     },
     {
       "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "systemAdminAccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "systemAdminRefreshToken",
       "value": "",
       "type": "string"
     },
@@ -6059,8 +6720,20 @@
     },
     {
       "key": "userBffBaseUrl",
-      "value": "http://localhost:3004",
+      "value": "http://localhost:3000",
       "type": "string"
+    },
+    {
+      "key": "wmsPackingId",
+      "value": ""
+    },
+    {
+      "key": "wmsPackageId",
+      "value": ""
+    },
+    {
+      "key": "wmsShipmentId",
+      "value": ""
     }
   ]
 }

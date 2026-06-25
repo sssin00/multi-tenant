@@ -1,0 +1,663 @@
+.loginPage {
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(21, 88, 102, 0.92), rgba(40, 58, 83, 0.92)),
+    linear-gradient(45deg, #1d6f75, #38465c);
+  display: flex;
+  min-height: 100vh;
+  padding: 48px;
+}
+
+.loginPanel {
+  background: #ffffff;
+  border: 1px solid #d8e1e8;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(19, 32, 45, 0.24);
+  display: grid;
+  gap: 32px;
+  grid-template-columns: 1fr 420px;
+  margin: 0 auto;
+  max-width: 980px;
+  padding: 44px;
+  width: 100%;
+}
+
+.sessionPanel {
+  background: #ffffff;
+  border: 1px solid #d8e1e8;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(19, 32, 45, 0.24);
+  display: grid;
+  gap: 24px;
+  margin: 0 auto;
+  max-width: 560px;
+  padding: 36px;
+  width: 100%;
+}
+
+.sessionPanel button {
+  background: #155e63;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  font-weight: 800;
+  height: 42px;
+  padding: 0 16px;
+  width: fit-content;
+}
+
+.sessionPanel h1,
+.sessionPanel p {
+  margin: 0;
+}
+
+.sessionPanel p:not(.eyebrow) {
+  color: #61727f;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+
+.loginPanel h1,
+.sessionPanel h1,
+.topbar h1,
+.screenHeader h2 {
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.loginPanel h1 {
+  font-size: 42px;
+}
+
+.loginCopy {
+  color: #5c6b77;
+  line-height: 1.7;
+  max-width: 420px;
+}
+
+.loginForm {
+  display: grid;
+  gap: 14px;
+}
+
+.loginForm label,
+.searchBar label {
+  color: #465663;
+  display: grid;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.loginForm input,
+.searchBar input,
+.searchBar select {
+  background: #f8fafc;
+  border: 1px solid #ccd7df;
+  border-radius: 6px;
+  color: #17202a;
+  height: 42px;
+  padding: 0 12px;
+}
+
+.loginForm button,
+.searchBar button {
+  align-items: center;
+  background: #155e63;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  height: 42px;
+  justify-content: center;
+  padding: 0 16px;
+}
+
+.loginForm button:disabled {
+  opacity: 0.7;
+}
+
+.formNotice {
+  color: #9a4d13;
+  font-size: 13px;
+  margin: 0;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 252px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #15242f;
+  color: #e9f1f6;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 24px 18px;
+}
+
+.brandBlock {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-height: 52px;
+}
+
+.brandBlock strong,
+.brandBlock span,
+.tenantBox span,
+.tenantBox strong {
+  display: block;
+}
+
+.brandBlock span,
+.tenantBox span {
+  color: #a9bac7;
+  font-size: 12px;
+}
+
+.brandIcon {
+  align-items: center;
+  background: #1f7a72;
+  border-radius: 8px;
+  display: grid;
+  height: 42px;
+  justify-items: center;
+  width: 42px;
+}
+
+.nav {
+  display: grid;
+  gap: 6px;
+}
+
+.navItem {
+  align-items: center;
+  border-radius: 6px;
+  color: #c8d5df;
+  display: flex;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.navItemActive {
+  background: #f4f8fb;
+  color: #15242f;
+  font-weight: 800;
+}
+
+.tenantBox {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  margin-top: auto;
+  padding: 14px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: 82px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.topbar {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #d7e0e8;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 28px;
+}
+
+.topbar h1 {
+  font-size: 24px;
+}
+
+.eyebrow {
+  color: #1f7a72;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.userBox {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  text-align: right;
+}
+
+.userBox span {
+  color: #61727f;
+  display: block;
+  font-size: 12px;
+}
+
+.iconButton {
+  align-items: center;
+  background: #eef3f6;
+  border: 1px solid #d2dde5;
+  border-radius: 6px;
+  color: #243441;
+  display: grid;
+  height: 38px;
+  justify-items: center;
+  width: 38px;
+}
+
+.content {
+  overflow: auto;
+  padding: 28px;
+}
+
+.screen {
+  display: grid;
+  gap: 18px;
+}
+
+.screenHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.screenHeader h2 {
+  font-size: 28px;
+}
+
+.screenHeader p {
+  color: #61727f;
+  margin: 6px 0 0;
+}
+
+.apiBadge,
+.sampleBadge,
+.statusBadge {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.apiBadge {
+  background: #dff5eb;
+  color: #147044;
+}
+
+.sampleBadge {
+  background: #fff0d5;
+  color: #8a5300;
+}
+
+.metricGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metric,
+.panel {
+  background: #ffffff;
+  border: 1px solid #d9e2e9;
+  border-radius: 8px;
+}
+
+.metric {
+  display: grid;
+  gap: 8px;
+  min-height: 126px;
+  padding: 18px;
+}
+
+.metric span,
+.metric small,
+.compactItem span,
+.progressRow span {
+  color: #61727f;
+}
+
+.metric strong {
+  font-size: 28px;
+}
+
+.twoColumn,
+.threeColumn {
+  display: grid;
+  gap: 16px;
+}
+
+.twoColumn {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.threeColumn {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.panel {
+  min-width: 0;
+  padding: 18px;
+}
+
+.panel header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.panel h3 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.panelHeaderMeta {
+  margin-left: auto;
+}
+
+.progressRows,
+.compactList {
+  display: grid;
+  gap: 10px;
+}
+
+.progressRow,
+.compactItem {
+  align-items: center;
+  background: #f7fafc;
+  border: 1px solid #e1e8ee;
+  border-radius: 6px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 64px;
+  padding: 12px;
+}
+
+.compactItem {
+  align-items: flex-start;
+  display: grid;
+}
+
+.compactItem strong,
+.compactItem span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actionGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.actionOn,
+.actionOff {
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 9px 10px;
+}
+
+.actionOn {
+  background: #e5f6ef;
+  color: #12683f;
+}
+
+.actionOff {
+  background: #eef1f4;
+  color: #6a7782;
+}
+
+.searchBar {
+  align-items: end;
+  background: #ffffff;
+  border: 1px solid #d9e2e9;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px;
+}
+
+.searchBar label {
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.searchBar button {
+  flex: 0 0 auto;
+}
+
+.searchIcon {
+  color: #52626f;
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+
+.secondaryButton {
+  background: #eef3f6 !important;
+  border: 1px solid #d2dde5 !important;
+  color: #243441 !important;
+}
+
+.filterSummary {
+  color: #52626f;
+  font-size: 13px;
+  font-weight: 700;
+  margin: -6px 0 0;
+}
+
+.mutationGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+.mutationPanel {
+  background: #ffffff;
+  border: 1px solid #d9e2e9;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.mutationPanel header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.mutationPanel header h3 {
+  font-size: 16px;
+  margin: 0;
+  min-width: 0;
+}
+
+.mutationPanel header button {
+  margin-left: auto;
+}
+
+.compactFields {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.compactFields label {
+  color: #465663;
+  display: grid;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 6px;
+  min-width: 0;
+}
+
+.compactFields input {
+  background: #f8fafc;
+  border: 1px solid #ccd7df;
+  border-radius: 6px;
+  color: #17202a;
+  height: 38px;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.formActions button,
+.mutationPanel header button {
+  align-items: center;
+  border-radius: 6px;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  height: 38px;
+  justify-content: center;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.formActions button {
+  background: #155e63;
+  border: 0;
+  color: #ffffff;
+}
+
+.formActions button:disabled,
+.mutationPanel header button:disabled {
+  opacity: 0.55;
+}
+
+.actionNotice {
+  background: #e9f7f1;
+  border: 1px solid #bee7d3;
+  border-radius: 8px;
+  color: #12683f;
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0;
+  padding: 12px 14px;
+  overflow-wrap: anywhere;
+}
+
+.tableWrap {
+  background: #ffffff;
+  border: 1px solid #d9e2e9;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tableWrap table {
+  border-collapse: collapse;
+  min-width: 100%;
+}
+
+.tableWrap th,
+.tableWrap td {
+  border-bottom: 1px solid #e6edf2;
+  font-size: 13px;
+  padding: 13px 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tableWrap th {
+  background: #f5f8fa;
+  color: #52626f;
+  font-weight: 900;
+}
+
+.tableWrap tr:last-child td {
+  border-bottom: 0;
+}
+
+.statusBadge {
+  background: #e8f0f5;
+  color: #37505f;
+  width: fit-content;
+}
+
+.permissionBox,
+.stateBox {
+  background: #ffffff;
+  border: 1px solid #d9e2e9;
+  border-radius: 8px;
+}
+
+.permissionBox {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+  padding: 24px;
+}
+
+.permissionBox h2 {
+  margin: 0 0 6px;
+}
+
+.permissionBox p,
+.panelText {
+  color: #61727f;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.stateBox {
+  color: #61727f;
+  padding: 28px;
+}
+
+@media (max-width: 1180px) {
+  .metricGrid,
+  .twoColumn,
+  .threeColumn {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .loginPanel,
+  .metricGrid,
+  .twoColumn,
+  .threeColumn,
+  .compactFields {
+    grid-template-columns: 1fr;
+  }
+
+  .mutationGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topbar {
+    gap: 16px;
+    min-height: 82px;
+  }
+}

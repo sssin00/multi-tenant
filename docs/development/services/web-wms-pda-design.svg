@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960" viewBox="0 0 1280 960" role="img" aria-labelledby="title desc">
+  <title id="title">web-wms PDA 화면 설계</title>
+  <desc id="desc">PDA 작업 대기열, PDA 스캔, PDA 확정 화면의 현장 작업 흐름 설계 이미지</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#15242f" flood-opacity="0.18" />
+    </filter>
+    <style>
+      .bg { fill: #eef2f5; }
+      .phone { fill: #17202a; }
+      .screen { fill: #ffffff; }
+      .panel { fill: #f7fafc; stroke: #d9e2e9; stroke-width: 1; }
+      .brand { fill: #1f7a72; }
+      .text { fill: #17202a; font-family: Inter, Arial, sans-serif; }
+      .white { fill: #ffffff; font-family: Inter, Arial, sans-serif; }
+      .muted { fill: #61727f; }
+      .title { font-size: 34px; font-weight: 700; }
+      .h2 { font-size: 26px; font-weight: 700; }
+      .body { font-size: 18px; }
+      .small { font-size: 15px; }
+      .button { fill: #1f7a72; }
+      .warn { fill: #fff0d5; }
+      .warnText { fill: #8a5300; font-family: Inter, Arial, sans-serif; font-size: 15px; font-weight: 700; }
+      .line { stroke: #aebbc6; stroke-width: 3; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7d8d9a" />
+    </marker>
+  </defs>
+
+  <rect width="1280" height="960" class="bg" />
+  <text x="64" y="74" class="text title">web-wms PDA 화면 설계</text>
+  <text x="64" y="112" class="text body muted">현장 작업자는 큰 터치 target, 스캔 입력, 실패 재시도 메시지를 중심으로 조작합니다.</text>
+
+  <g transform="translate(80 170)" filter="url(#shadow)">
+    <rect width="310" height="670" rx="34" class="phone" />
+    <rect x="18" y="22" width="274" height="626" rx="24" class="screen" />
+    <rect x="18" y="22" width="274" height="86" rx="24" class="brand" />
+    <text x="42" y="72" class="white h2">작업 대기열</text>
+    <text x="42" y="142" class="text small muted">오늘의 출고 작업</text>
+    <rect x="42" y="168" width="226" height="92" rx="10" class="panel" />
+    <text x="60" y="202" class="text body" font-weight="700">SO-20260622-001</text>
+    <text x="60" y="230" class="text small muted">A-01-01 · MAT-1001</text>
+    <rect x="42" y="278" width="226" height="92" rx="10" class="panel" />
+    <text x="60" y="312" class="text body" font-weight="700">SO-20260622-002</text>
+    <text x="60" y="340" class="text small muted">B-02-03 · MAT-1002</text>
+    <rect x="42" y="546" width="226" height="56" rx="10" class="button" />
+    <text x="112" y="582" class="white body" font-weight="700">작업 열기</text>
+  </g>
+
+  <line x1="420" y1="505" x2="500" y2="505" class="line" />
+
+  <g transform="translate(520 170)" filter="url(#shadow)">
+    <rect width="310" height="670" rx="34" class="phone" />
+    <rect x="18" y="22" width="274" height="626" rx="24" class="screen" />
+    <rect x="18" y="22" width="274" height="86" rx="24" class="brand" />
+    <text x="42" y="72" class="white h2">PDA 스캔</text>
+    <text x="42" y="142" class="text small muted">바코드 또는 로케이션 스캔</text>
+    <rect x="42" y="168" width="226" height="190" rx="12" fill="#eef3f6" stroke="#cfd9e1" stroke-width="2" />
+    <text x="86" y="250" class="text h2">SCAN</text>
+    <text x="70" y="286" class="text small muted">카메라/스캐너 입력 영역</text>
+    <rect x="42" y="386" width="226" height="48" rx="8" class="panel" />
+    <text x="58" y="417" class="text body">MAT-1001-LOT-A</text>
+    <rect x="42" y="458" width="226" height="48" rx="8" class="warn" />
+    <text x="58" y="489" class="warnText">네트워크 실패 시 재시도</text>
+    <rect x="42" y="546" width="226" height="56" rx="10" class="button" />
+    <text x="106" y="582" class="white body" font-weight="700">스캔 확인</text>
+  </g>
+
+  <line x1="860" y1="505" x2="940" y2="505" class="line" />
+
+  <g transform="translate(960 170)" filter="url(#shadow)">
+    <rect width="310" height="670" rx="34" class="phone" />
+    <rect x="18" y="22" width="274" height="626" rx="24" class="screen" />
+    <rect x="18" y="22" width="274" height="86" rx="24" class="brand" />
+    <text x="42" y="72" class="white h2">PDA 확정</text>
+    <text x="42" y="142" class="text small muted">수량과 대상 확인</text>
+    <rect x="42" y="168" width="226" height="72" rx="10" class="panel" />
+    <text x="60" y="200" class="text body" font-weight="700">주문 SO-20260622-001</text>
+    <text x="60" y="224" class="text small muted">요청 ID evidence 표시</text>
+    <rect x="42" y="262" width="226" height="56" rx="8" class="panel" />
+    <text x="60" y="298" class="text body">수량 80 EA</text>
+    <rect x="42" y="338" width="226" height="56" rx="8" class="panel" />
+    <text x="60" y="374" class="text body">로케이션 A-01-01</text>
+    <rect x="42" y="546" width="226" height="56" rx="10" class="button" />
+    <text x="118" y="582" class="white body" font-weight="700">확정</text>
+  </g>
+</svg>

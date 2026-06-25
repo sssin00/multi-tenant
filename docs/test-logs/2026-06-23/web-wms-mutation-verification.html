@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>web-wms Mutation 검증 로그</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Verification Log</p>
+        <h1>web-wms Mutation 검증 로그</h1>
+        <p class="lead">2026-06-23 기준 web-wms 재고 조정, 입고 확정, 출고 할당/포장/출하 mutation 구현 후 gateway 경유 로컬 검증 결과입니다.</p>
+      </header>
+
+      <section>
+        <h2>실행 환경</h2>
+        <table>
+          <tbody>
+            <tr><th>runId</th><td><code>web-wms-mut-mqpsvn8i</code></td></tr>
+            <tr><th>일시</th><td>2026-06-23</td></tr>
+            <tr><th>진입점</th><td>gateway <code>http://localhost:3000</code>, web-wms Docker <code>http://localhost:5174</code></td></tr>
+            <tr><th>계정</th><td>seed tenant <code>11111111-1111-4111-8111-111111111111</code>, <code>admin@demo.local</code>. 비밀번호와 token 원문은 기록하지 않습니다.</td></tr>
+            <tr><th>대상 재고</th><td>warehouse <code>5514109c-3844-451d-a556-431921e9c217</code>, location <code>161ab19b-ac57-48fa-b3da-756084951c51</code>, item <code>36c1951a-0645-4568-b881-471172598959</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>정적 검증</h2>
+        <table>
+          <thead>
+            <tr><th>명령</th><th>결과</th><th>비고</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>pnpm --filter user-bff-service typecheck</code></td><td><span class="tag done">통과</span></td><td>BFF mutation proxy와 응답 매핑 타입 확인</td></tr>
+            <tr><td><code>pnpm --filter user-bff-service build</code></td><td><span class="tag done">통과</span></td><td>Nest build 확인</td></tr>
+            <tr><td><code>pnpm --filter web-wms typecheck</code></td><td><span class="tag done">통과</span></td><td>React 화면과 API client 타입 확인</td></tr>
+            <tr><td><code>pnpm --filter web-wms build</code></td><td><span class="tag done">통과</span></td><td>Vite production build 확인</td></tr>
+            <tr><td><code>docker compose -f docker/local/docker-compose.yml up -d --no-deps --build user-bff-service</code></td><td><span class="tag done">통과</span></td><td>BFF 컨테이너 새 코드 반영, health <code>healthy</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>API 시나리오 결과</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenarioId</th><th>요청</th><th>결과</th><th>requestId / evidence</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>WEB-WMS-AUTH-001</code></td><td><code>POST /api/auth/login</code></td><td><span class="tag done">통과</span></td><td>userId <code>22222222-2222-4222-8222-222222222222</code></td></tr>
+              <tr><td><code>WEB-WMS-MUT-001</code></td><td><code>POST /api/app/wms/inventory/adjustments</code></td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-adjust</code>, adjustmentId <code>a894cf09-4f30-4dc7-b8de-3d4005445dac</code></td></tr>
+              <tr><td><code>WEB-WMS-MUT-002</code></td><td><code>POST /api/app/wms/inbound/confirmations</code></td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-inbound</code>, receiptId <code>4f9d3be1-ea54-45b8-9c12-578d6549afe5</code></td></tr>
+              <tr><td><code>WEB-WMS-MUT-003</code></td><td><code>POST /api/app/wms/outbound/allocations</code></td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-alloc-direct</code>, allocationId <code>3cc8a8ef-af6f-43f7-b4d8-28520336c3ad</code></td></tr>
+              <tr><td><code>WEB-WMS-MUT-003</code></td><td><code>POST /api/app/wms/outbound/shipments</code> direct</td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-ship-direct</code>, status <code>shipped</code></td></tr>
+              <tr><td><code>WEB-WMS-MUT-004</code></td><td><code>POST /api/app/wms/outbound/allocations</code> packing 대상</td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-alloc-pack</code>, allocationId <code>b39ae34b-bc72-4132-bd8e-df3c5de169b1</code></td></tr>
+              <tr><td><code>WEB-WMS-MUT-004</code></td><td><code>POST /api/app/wms/outbound/packings</code></td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-packing</code>, packingId <code>c21817b6-8e3e-4007-bdd2-9f2b706b2330</code></td></tr>
+              <tr><td><code>WEB-WMS-MUT-004</code></td><td><code>POST /api/app/wms/outbound/packings/{packingId}/packages</code></td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-package</code>, packageId <code>26b90ea4-0ee5-4e04-9bdb-9f8c6ddd1de7</code></td></tr>
+              <tr><td><code>WEB-WMS-MUT-004</code></td><td><code>POST /api/app/wms/outbound/packings/{packingId}/confirm</code></td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-confirm-pack</code>, status <code>confirmed</code></td></tr>
+              <tr><td><code>WEB-WMS-MUT-004</code></td><td><code>POST /api/app/wms/outbound/shipments</code> packing 기반</td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-ship-pack</code>, shipmentId <code>fee7267a-982f-44aa-87cd-488fb7e87009</code></td></tr>
+              <tr><td><code>WEB-WMS-INV-001</code></td><td><code>GET /api/app/wms/inventory-summary</code> 재조회</td><td><span class="tag done">통과</span></td><td>requestId <code>web-wms-mut-mqpsvn8i-inventory-after</code>, quantity <code>15</code>, availableQuantity <code>13.000</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>확인 사항</h2>
+        <ul>
+          <li>모든 POST mutation은 <code>Idempotency-Key</code>를 포함해 호출했습니다.</li>
+          <li>브라우저 앱과 API client는 gateway <code>/api/app/**</code>만 호출하도록 유지했습니다.</li>
+          <li>출고 할당/포장 응답은 User BFF에서 화면 shape로 매핑되어 web-wms 후속 폼 자동 채움에 사용할 수 있습니다.</li>
+          <li>이번 검증은 API smoke 중심입니다. 화면 시각 검증은 기존 Desktop route 반복 시나리오에 따르며, PDA 화면은 후속 범위입니다.</li>
+        </ul>
+      </section>
+
+      <p class="footer"><a href="../../test-scenarios/web-wms-test-scenarios.html">web-wms 테스트 시나리오로 이동</a> · <a href="../../development/services/web-wms.html">web-wms 개발과정으로 이동</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

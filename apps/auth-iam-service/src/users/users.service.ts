@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException
 } from "@nestjs/common";
 
+import type { Prisma } from "../generated/prisma/client.js";
 import { PrismaService } from "../database/prisma.service.js";
 import { UserStatus, UserType } from "../generated/prisma/enums.js";
 import { OutboxEventService } from "../outbox/outbox-event.service.js";
@@ -26,6 +28,9 @@ export interface ListUsersQuery extends UserCommandContext {
   size?: unknown;
   status?: unknown;
   email?: unknown;
+  keyword?: unknown;
+  tenantFilter?: unknown;
+  roleCode?: unknown;
 }
 
 export interface UserIdCommand extends UserCommandContext {
@@ -42,13 +47,15 @@ export interface UpdateUserStatusCommand extends UserIdCommand {
 
 export interface UserResponse {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   email: string;
   displayName: string;
   userType: UserType;
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
+  roleCodes: string[];
+  lastLoginAt: string | null;
 }
 
 export interface UserListResponse {
@@ -57,6 +64,30 @@ export interface UserListResponse {
   size: number;
   total: number;
 }
+
+interface UserRecordForResponse {
+  id: string;
+  tenantId: string | null;
+  email: string;
+  displayName: string;
+  userType: UserType;
+  status: UserStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  userRoles?: Array<{
+    role: {
+      code: string;
+    };
+  }>;
+  refreshTokens?: Array<{
+    createdAt: Date;
+  }>;
+}
+
+const BOOTSTRAP_SYSTEM_ADMIN_USER_ID =
+  process.env.AUTH_BOOTSTRAP_SYSTEM_ADMIN_USER_ID
+  ?? process.env.LOCAL_SEED_SYSTEM_ADMIN_USER_ID
+  ?? "99999999-9999-4999-8999-999999999999";
 
 @Injectable()
 export class UsersService {
@@ -70,8 +101,13 @@ export class UsersService {
   ) {}
 
   async create(command: CreateUserCommand): Promise<UserResponse> {
-    const tenantId = this.requireTenant(command.tenantId);
     const input = this.validateCreateBody(command.body);
+
+    if (input.userType === UserType.system_admin) {
+      return this.createSystemAdmin(command, input);
+    }
+
+    const tenantId = this.requireTenant(command.tenantId);
     const existing = await this.prismaService.authUser.findUnique({
       where: {
         tenantId_email: {
@@ -125,18 +161,58 @@ export class UsersService {
   }
 
   async list(query: ListUsersQuery): Promise<UserListResponse> {
-    const tenantId = this.requireTenant(query.tenantId);
+    const systemAdmin = await this.findSystemAdmin(query.userId);
+    const tenantId = systemAdmin && !query.tenantId ? this.readOptionalUuid(query.tenantFilter, "tenantFilter") : this.requireTenant(query.tenantId);
     const page = this.readPage(query.page);
     const size = this.readSize(query.size);
-    const where = {
-      tenantId,
-      ...(this.readOptionalStatus(query.status) ? { status: this.readOptionalStatus(query.status) } : {}),
-      ...(this.readOptionalEmail(query.email) ? { email: { contains: this.readOptionalEmail(query.email) } } : {})
+    const status = this.readOptionalStatus(query.status);
+    const email = this.readOptionalEmail(query.email);
+    const keyword = this.readOptionalKeyword(query.keyword);
+    const roleCode = this.readOptionalRoleCode(query.roleCode);
+    const where: Prisma.AuthUserWhereInput = {
+      ...(tenantId ? { tenantId } : {}),
+      ...(status ? { status } : {}),
+      ...(email ? { email: { contains: email } } : {}),
+      ...(keyword ? {
+        OR: [
+          { email: { contains: keyword } },
+          { displayName: { contains: keyword } }
+        ]
+      } : {}),
+      ...(roleCode ? {
+        userRoles: {
+          some: {
+            role: {
+              code: roleCode
+            }
+          }
+        }
+      } : {})
     };
 
     const [items, total] = await Promise.all([
       this.prismaService.authUser.findMany({
         where,
+        include: {
+          userRoles: {
+            select: {
+              role: {
+                select: {
+                  code: true
+                }
+              }
+            }
+          },
+          refreshTokens: {
+            orderBy: {
+              createdAt: "desc"
+            },
+            select: {
+              createdAt: true
+            },
+            take: 1
+          }
+        },
         orderBy: {
           createdAt: "desc"
         },
@@ -174,9 +250,14 @@ export class UsersService {
   }
 
   async update(command: UpdateUserCommand): Promise<UserResponse> {
-    const tenantId = this.requireTenant(command.tenantId);
     const userId = this.requireUuid(command.userIdParam, "userId");
     const input = this.validateUpdateBody(command.body);
+
+    if (!command.tenantId) {
+      return this.updateOwnSystemAdmin(command, userId, input);
+    }
+
+    const tenantId = this.requireTenant(command.tenantId);
     await this.ensureUserExists(tenantId, userId);
 
     if (input.email) {
@@ -224,6 +305,64 @@ export class UsersService {
       });
 
       return updatedUser;
+    });
+    return this.toResponse(user);
+  }
+
+  private async updateOwnSystemAdmin(
+    command: UpdateUserCommand,
+    userId: string,
+    input: { email?: string; displayName?: string }
+  ): Promise<UserResponse> {
+    if (command.userId !== userId) {
+      throw new BadRequestException({
+        code: "TENANT_REQUIRED",
+        message: "Tenant is required",
+        details: {
+          fields: {
+            tenantId: "X-Tenant-Id is required for tenant user updates"
+          }
+        }
+      });
+    }
+
+    if (!await this.findSystemAdmin(userId)) {
+      throw new BadRequestException({
+        code: "TENANT_REQUIRED",
+        message: "Tenant is required",
+        details: {
+          fields: {
+            tenantId: "X-Tenant-Id is required for tenant user updates"
+          }
+        }
+      });
+    }
+
+    if (input.email) {
+      const existing = await this.prismaService.authUser.findFirst({
+        where: {
+          tenantId: null,
+          email: input.email,
+          userType: UserType.system_admin
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (existing && existing.id !== userId) {
+        throw new ConflictException({
+          code: "AUTH_USER_EMAIL_CONFLICT",
+          message: "User email already exists"
+        });
+      }
+    }
+
+    const user = await this.prismaService.authUser.update({
+      where: {
+        id: userId
+      },
+      data: input
     });
     return this.toResponse(user);
   }
@@ -312,6 +451,84 @@ export class UsersService {
     }
   }
 
+  private async findSystemAdmin(userId: string | undefined): Promise<boolean> {
+    if (!userId) {
+      return false;
+    }
+
+    const user = await this.prismaService.authUser.findUnique({
+      where: {
+        id: userId
+      },
+      select: {
+        tenantId: true,
+        userType: true,
+        status: true
+      }
+    });
+
+    return user?.userType === UserType.system_admin && user.tenantId === null && user.status === UserStatus.active;
+  }
+
+  private async createSystemAdmin(
+    command: CreateUserCommand,
+    input: {
+      email: string;
+      displayName: string;
+      password: string;
+      userType: UserType;
+      status: UserStatus;
+    }
+  ): Promise<UserResponse> {
+    if (command.tenantId) {
+      throw this.adminScopeMismatch("System administrators must be created without tenant context");
+    }
+
+    if (!await this.findBootstrapSystemAdmin(command.userId)) {
+      throw this.adminScopeMismatch("Only bootstrap super administrators can create system administrators");
+    }
+
+    const existing = await this.prismaService.authUser.findFirst({
+      where: {
+        tenantId: null,
+        email: input.email,
+        userType: UserType.system_admin
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (existing) {
+      throw new ConflictException({
+        code: "AUTH_USER_EMAIL_CONFLICT",
+        message: "User email already exists"
+      });
+    }
+
+    const passwordHash = await this.passwordHasher.hash(input.password);
+    const user = await this.prismaService.authUser.create({
+      data: {
+        tenantId: null,
+        email: input.email,
+        displayName: input.displayName,
+        passwordHash,
+        userType: UserType.system_admin,
+        status: input.status
+      }
+    });
+
+    return this.toResponse(user);
+  }
+
+  private async findBootstrapSystemAdmin(userId: string | undefined): Promise<boolean> {
+    if (!userId || userId !== BOOTSTRAP_SYSTEM_ADMIN_USER_ID) {
+      return false;
+    }
+
+    return this.findSystemAdmin(userId);
+  }
+
   private validateCreateBody(body: unknown): {
     email: string;
     displayName: string;
@@ -339,10 +556,6 @@ export class UsersService {
       fields.password = "password is required";
     } else if (password.length < 8) {
       fields.password = "password must be at least 8 characters";
-    }
-
-    if (userType !== UserType.general_user) {
-      fields.userType = "tenant-scoped user API only supports general_user";
     }
 
     if (Object.keys(fields).length > 0) {
@@ -426,6 +639,25 @@ export class UsersService {
     return email ? email.toLowerCase() : undefined;
   }
 
+  private readOptionalKeyword(value: unknown): string | undefined {
+    const keyword = this.readString(value).toLowerCase();
+    return keyword || undefined;
+  }
+
+  private readOptionalRoleCode(value: unknown): string | undefined {
+    const roleCode = this.readString(value);
+    return roleCode || undefined;
+  }
+
+  private readOptionalUuid(value: unknown, fieldName: string): string | undefined {
+    const text = this.readString(value);
+    if (!text) {
+      return undefined;
+    }
+
+    return this.requireUuid(text, fieldName);
+  }
+
   private readEmail(value: unknown): string {
     const email = this.readString(value).toLowerCase();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -505,16 +737,7 @@ export class UsersService {
     return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
   }
 
-  private toResponse(user: {
-    id: string;
-    tenantId: string;
-    email: string;
-    displayName: string;
-    userType: UserType;
-    status: UserStatus;
-    createdAt: Date;
-    updatedAt: Date;
-  }): UserResponse {
+  private toResponse(user: UserRecordForResponse): UserResponse {
     return {
       id: user.id,
       tenantId: user.tenantId,
@@ -523,7 +746,9 @@ export class UsersService {
       userType: user.userType,
       status: user.status,
       createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString()
+      updatedAt: user.updatedAt.toISOString(),
+      roleCodes: Array.from(new Set(user.userRoles?.map((userRole) => userRole.role.code) ?? [])).sort(),
+      lastLoginAt: user.refreshTokens?.[0]?.createdAt.toISOString() ?? null
     };
   }
 
@@ -541,6 +766,13 @@ export class UsersService {
     return new NotFoundException({
       code: "AUTH_USER_NOT_FOUND",
       message: "User not found"
+    });
+  }
+
+  private adminScopeMismatch(message: string): ForbiddenException {
+    return new ForbiddenException({
+      code: "AUTH_ADMIN_SCOPE_MISMATCH",
+      message
     });
   }
 }

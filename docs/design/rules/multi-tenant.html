@@ -27,8 +27,8 @@
                   <tr><th>Tenant ID</th><td><code>tenantId</code>는 시스템 내부 불변 식별자이며 UUID로 생성합니다. 회사명, 사업자번호, domain, 사람이 읽는 code를 <code>tenantId</code>로 사용하지 않습니다.</td></tr>
                   <tr><th>Tenant Code</th><td>운영자와 화면에서 읽기 쉬운 식별자는 별도 unique <code>tenant.code</code>로 관리합니다. 형식은 대문자 base 4자리와 sequence 4자리를 붙인 8자리입니다. 예: <code>DEMO0001</code>, <code>ACME0001</code></td></tr>
                   <tr><th>Code 생성</th><td><code>tenant.code</code>는 tenant 생성 시 tenant 정보에서 자동 생성합니다. <code>domain</code>이 있으면 등록 도메인의 이름 label을 우선 사용하고, 없으면 이름을 대문자 ASCII로 정규화합니다. 예: <code>acme.example.com</code>은 <code>EXAM0001</code>, <code>factory.acme.co.kr</code>은 <code>ACME0001</code>. ASCII label이 없고 한글이 있으면 첫 한글 음절을 로마자로 변환해 base로 사용하며, 4자리가 모자라면 hash로 채웁니다. 예: <code>한국공장</code>은 <code>HANF0001</code>. 한글도 없으면 SHA-256 hash의 가운데 4글자를 base로 사용하고, 충돌 시 <code>0002</code>, <code>0003</code>처럼 4자리 sequence를 증가시킵니다.</td></tr>
-                  <tr><th>기준값</th><td>인증된 요청의 기준 테넌트는 JWT의 <code>tenantId</code>입니다.</td></tr>
-                  <tr><th>Header 검증</th><td><code>X-Tenant-Id</code>가 있으면 JWT의 <code>tenantId</code>와 반드시 일치해야 합니다.</td></tr>
+                  <tr><th>기준값</th><td>인증된 tenant-scoped 요청의 기준 테넌트는 JWT의 <code>tenantId</code>입니다. <code>system_admin</code>은 테넌트 관리용 전역 관리자이므로 JWT에 <code>tenantId</code>가 없을 수 있습니다.</td></tr>
+                  <tr><th>Header 검증</th><td>JWT에 <code>tenantId</code>가 있고 <code>X-Tenant-Id</code>도 있으면 반드시 일치해야 합니다. tenant 없는 <code>system_admin</code> 요청은 header가 없으면 전역 관리자 scope로 처리합니다.</td></tr>
                   <tr><th>Mismatch</th><td>JWT와 header의 tenant가 다르면 <code>403 TENANT_MISMATCH</code>로 거부합니다.</td></tr>
                   <tr><th>Tenant 상태</th><td><code>active</code> 상태만 업무 API를 허용합니다. <code>suspended</code>, <code>deleted</code>, <code>provisioning</code>은 거부합니다.</td></tr>
                   <tr><th>Gateway 책임</th><td><code>gateway-service</code>가 tenant context를 확정하고 BFF 서비스로 전파합니다. gateway는 <code>auth-iam-service</code>, <code>admin-bff-service</code>, <code>user-bff-service</code>만 upstream으로 호출합니다.</td></tr>
@@ -38,7 +38,7 @@
                   <tr><th>데이터 접근</th><td>테넌트 소유 데이터 조회와 변경은 반드시 <code>tenantId</code> 기준으로 제한합니다.</td></tr>
                   <tr><th>로그/이벤트/감사</th><td>로그, 도메인 이벤트, 감사 로그에는 <code>tenantId</code>와 <code>requestId</code>를 포함합니다.</td></tr>
                   <tr><th>Redis/S3</th><td>Redis key와 S3 object key에는 tenant 식별자를 포함합니다.</td></tr>
-                  <tr><th>사용자 타입</th><td>사용자는 <code>system_admin</code>과 <code>general_user</code>로 구분합니다. 일반 사용자(<code>general_user</code>)는 반드시 tenant 값을 가지고, tenant-scoped 사용자 API는 일반 사용자만 생성/관리합니다.</td></tr>
+                  <tr><th>사용자 타입</th><td>사용자는 <code>system_admin</code>과 <code>general_user</code>로 구분합니다. web-admin 관리자 로그인은 email/password만 사용하고 서버가 tenant 범위를 판별합니다. 일반 사용자(<code>general_user</code>)는 반드시 tenant 값을 가지고, 일반 사용자 로그인과 tenant-scoped 사용자 API는 tenant context를 요구합니다.</td></tr>
                   <tr><th>관리자 구분</th><td><code>system_admin</code>과 <code>tenant_admin</code>은 서로 다른 관리자 범위로 분리합니다.</td></tr>
                   <tr><th>대리 접속</th><td>테넌트 대리 접속은 별도 승인, 감사 로그, 권한 제한 규칙을 만들기 전까지 제공하지 않습니다.</td></tr>
                   <tr><th>테스트</th><td>tenant 누락, tenant mismatch, 타 테넌트 데이터 접근, 비활성 tenant 접근을 테스트합니다.</td></tr>

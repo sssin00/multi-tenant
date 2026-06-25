@@ -560,8 +560,8 @@
           <li><span class="item-text"><code>audit-log-service</code>는 append-only 저장소, 내부 기록/조회 API, SQS 이벤트 consumer, Admin/User BFF 연동을 1차 구현했습니다.</span></li>
           <li><span class="item-text"><code>outbox-relay-service</code>는 auth-iam, tenant, wms source polling과 mock/EventBridge/SQS publisher, retry/failed 상태 전환을 구현했습니다.</span></li>
           <li><span class="item-text"><code>wms-service</code>는 기준정보, 재고 원장/스냅샷, 재고 조정, 입고 확정, 출고 할당, 포장, 출하 내부 API와 outbox event 저장을 구현했습니다.</span></li>
-          <li><span class="item-text"><code>user-bff-service</code>는 app shell과 navigation 기본 API, tenant/permission guard, audit-log best-effort 기록, gateway <code>/api/app/**</code> route를 구현했습니다.</span></li>
-          <li><span class="item-text">다음 단계는 user-bff-service WMS 화면 조합 API와 web-wms 첫 화면 계약을 만드는 것입니다.</span></li>
+          <li><span class="item-text"><code>user-bff-service</code>는 app shell, navigation, tenant/permission guard, audit-log 기록, WMS 화면 조회 API, gateway <code>/api/app/**</code> route를 구현했습니다.</span></li>
+          <li><span class="item-text"><code>web-admin</code>과 <code>web-wms</code>는 Desktop 1차 화면과 로컬 API/브라우저 시나리오 검증까지 완료했습니다. 다음 단계는 PDA Web, WMS mutation 화면, dev AWS outbox/audit 증적입니다.</span></li>
         </ol>
       </section>
 
@@ -623,7 +623,7 @@
             </tr>
             <tr>
               <th>Tenant 식별</th>
-              <td>현재는 <code>X-Tenant-Id</code> header와 JWT <code>tenantId</code> claim을 사용하고, 이후 subdomain/custom domain을 추가합니다.</td>
+              <td>현재 tenant-scoped 요청은 <code>X-Tenant-Id</code> header와 JWT <code>tenantId</code> claim을 사용하고, tenant 없는 <code>system_admin</code> 요청은 전역 관리자 예외로 처리합니다. 이후 subdomain/custom domain을 추가합니다.</td>
             </tr>
             <tr>
               <th>Request Context</th>

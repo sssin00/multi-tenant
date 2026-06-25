@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2026-06-23 web-admin action 검증</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Verification Log</p>
+        <h1>2026-06-23 web-admin action 검증</h1>
+        <p class="lead">사용자 상태 변경, 사용자 role 해제, 역할 permission 교체 화면/API 연결과 audit evidence를 gateway 경유로 검증한 기록입니다.</p>
+      </header>
+
+      <section>
+        <h2>실행 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>실행일</th><td>2026-06-23</td></tr>
+            <tr><th>환경</th><td>local gateway <code>http://localhost:3000</code>, Admin BFF, Auth/IAM, audit-log-service</td></tr>
+            <tr><th>runId</th><td><code>web-admin-actions-mqprvgxv</code></td></tr>
+            <tr><th>대상</th><td><code>apps/web-admin</code> 사용자/권한 화면, 역할/권한 화면</td></tr>
+            <tr><th>결과</th><td><span class="tag done">PASS</span> 세 변경성 action과 audit evidence가 모두 기대 결과와 일치했습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>구현 범위</h2>
+        <table>
+          <thead>
+            <tr><th>화면</th><th>기능</th><th>API</th><th>처리 기준</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>사용자/권한</td><td>사용자 상태 변경</td><td><code>PATCH /api/admin/users/{userId}/status</code></td><td><code>Idempotency-Key</code>, 성공 후 access-control/dashboard/audit query 갱신</td></tr>
+            <tr><td>사용자/권한</td><td>사용자 role 조회/해제</td><td><code>GET /api/admin/users/{userId}/roles</code>, <code>DELETE /api/admin/user-roles/{userRoleId}</code></td><td>사용자 선택 후 role 목록 조회, 해제 후 role 목록 재조회</td></tr>
+            <tr><td>역할/권한</td><td>역할 permission 전체 교체</td><td><code>PUT /api/admin/roles/{roleId}/permissions</code></td><td>기존 권한을 체크박스로 초기화하고 선택 권한 전체를 <code>permissionCodes</code>로 저장</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>API Evidence</h2>
+        <table>
+          <thead>
+            <tr><th>단계</th><th>requestId</th><th>결과</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>로그인</td><td><code>web-admin-actions-mqprvgxv-01-login</code></td><td>성공, token 원문은 기록하지 않음</td></tr>
+            <tr><td>access-control 조회</td><td><code>web-admin-actions-mqprvgxv-02-access</code></td><td>permission catalog total 34</td></tr>
+            <tr><td>테스트 role 생성</td><td><code>web-admin-actions-mqprvgxv-03-role-create</code></td><td>role <code>645f7e7f-5323-4c6d-ad76-8bf316144598</code></td></tr>
+            <tr><td>role permission 교체</td><td><code>web-admin-actions-mqprvgxv-04-role-permissions</code></td><td><code>audit.logs.read</code>, <code>auth.permissions.create</code> 2개로 교체</td></tr>
+            <tr><td>테스트 사용자 생성</td><td><code>web-admin-actions-mqprvgxv-05-user-create</code></td><td>user <code>2a89af35-3bbb-44b1-9e06-db332a5ba31a</code></td></tr>
+            <tr><td>사용자 role 부여</td><td><code>web-admin-actions-mqprvgxv-06-role-assign</code></td><td>role 부여 후 rolesBeforeRemove 1</td></tr>
+            <tr><td>사용자 상태 변경</td><td><code>web-admin-actions-mqprvgxv-08-user-status</code></td><td>status <code>locked</code></td></tr>
+            <tr><td>사용자 role 해제</td><td><code>web-admin-actions-mqprvgxv-09-role-remove</code></td><td><code>removed=true</code>, rolesAfterRemove 0</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Audit Evidence</h2>
+        <table>
+          <thead>
+            <tr><th>대상 action</th><th>변경 requestId</th><th>audit 조회 결과</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>role permission 교체</td><td><code>web-admin-actions-mqprvgxv-04-role-permissions</code></td><td><code>GET /api/admin/audit-logs?requestId=...</code> total 1</td></tr>
+            <tr><td>사용자 상태 변경</td><td><code>web-admin-actions-mqprvgxv-08-user-status</code></td><td><code>GET /api/admin/audit-logs?requestId=...</code> total 1</td></tr>
+            <tr><td>사용자 role 해제</td><td><code>web-admin-actions-mqprvgxv-09-role-remove</code></td><td><code>GET /api/admin/audit-logs?requestId=...</code> total 1</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>정적 검증</h2>
+        <table>
+          <tbody>
+            <tr><th>web-admin typecheck</th><td><code>pnpm --filter web-admin typecheck</code> 통과</td></tr>
+            <tr><th>admin-bff-service typecheck</th><td><code>pnpm --filter admin-bff-service typecheck</code> 통과</td></tr>
+            <tr><th>web-admin build</th><td><code>pnpm --filter web-admin build</code> 통과</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a> · <a href="../../development/services/web-admin.html">web-admin 개발과정</a> · <a href="../../test-scenarios/web-admin-test-scenarios.html">web-admin 테스트 시나리오</a></p>
+    </main>
+  </body>
+</html>

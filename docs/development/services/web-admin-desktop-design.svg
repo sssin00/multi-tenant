@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">web-admin Desktop 1차 화면 설계</title>
+  <desc id="desc">관리자 콘솔의 한글 메뉴, 화면 구성, 데이터 흐름, 위험 작업 처리 기준을 요약한 화면 설계 이미지</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#18212b" flood-opacity="0.14" />
+    </filter>
+    <style>
+      .bg { fill: #eef1f4; }
+      .panel { fill: #ffffff; stroke: #d9e2e9; stroke-width: 1; }
+      .dark { fill: #17212b; }
+      .brand { fill: #2f6f6b; }
+      .muted { fill: #61727f; }
+      .text { fill: #18212b; font-family: Inter, Arial, sans-serif; }
+      .white { fill: #ffffff; font-family: Inter, Arial, sans-serif; }
+      .small { font-size: 20px; }
+      .body { font-size: 24px; }
+      .label { font-size: 22px; font-weight: 700; }
+      .title { font-size: 38px; font-weight: 700; }
+      .h2 { font-size: 30px; font-weight: 700; }
+      .chip { fill: #e5f6ef; }
+      .chipText { fill: #12683f; font-family: Inter, Arial, sans-serif; font-size: 18px; font-weight: 700; }
+      .warn { fill: #fff0d5; }
+      .warnText { fill: #8a5300; font-family: Inter, Arial, sans-serif; font-size: 18px; font-weight: 700; }
+      .line { stroke: #cfd9e1; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1120" rx="0" class="bg" />
+
+  <text x="64" y="74" class="text title">web-admin Desktop 1차 화면 설계</text>
+  <text x="64" y="114" class="text body muted">관리자 로그인부터 테넌트, 사용자/권한, 감사 로그, 위험 작업까지 한글 메뉴 기준으로 구성합니다.</text>
+
+  <g transform="translate(64 160)" filter="url(#shadow)">
+    <rect width="352" height="874" rx="12" class="dark" />
+    <rect x="28" y="30" width="54" height="54" rx="10" class="brand" />
+    <text x="96" y="55" class="white label">관리자 콘솔</text>
+    <text x="96" y="86" class="white small" opacity="0.68">Smart Factory Admin</text>
+
+    <g transform="translate(28 132)">
+      <rect width="296" height="54" rx="8" fill="#f4f8fb" />
+      <text x="54" y="35" class="text label">관리 대시보드</text>
+      <text x="18" y="35" class="text small">01</text>
+    </g>
+    <g transform="translate(28 198)">
+      <rect width="296" height="54" rx="8" fill="#17212b" />
+      <text x="54" y="35" class="white label">테넌트 관리</text>
+      <text x="18" y="35" class="white small" opacity="0.68">02</text>
+    </g>
+    <g transform="translate(28 264)">
+      <rect width="296" height="54" rx="8" fill="#17212b" />
+      <text x="54" y="35" class="white label">사용자/권한</text>
+      <text x="18" y="35" class="white small" opacity="0.68">03</text>
+    </g>
+    <g transform="translate(28 330)">
+      <rect width="296" height="54" rx="8" fill="#17212b" />
+      <text x="54" y="35" class="white label">역할/권한</text>
+      <text x="18" y="35" class="white small" opacity="0.68">04</text>
+    </g>
+    <g transform="translate(28 396)">
+      <rect width="296" height="54" rx="8" fill="#17212b" />
+      <text x="54" y="35" class="white label">감사 로그</text>
+      <text x="18" y="35" class="white small" opacity="0.68">05</text>
+    </g>
+    <g transform="translate(28 462)">
+      <rect width="296" height="54" rx="8" fill="#17212b" />
+      <text x="54" y="35" class="white label">위험 작업</text>
+      <text x="18" y="35" class="white small" opacity="0.68">06</text>
+    </g>
+
+    <rect x="28" y="760" width="296" height="82" rx="10" fill="#22313d" stroke="#354757" />
+    <text x="48" y="793" class="white small" opacity="0.68">관리 테넌트</text>
+    <text x="48" y="824" class="white label">11111111...1111</text>
+  </g>
+
+  <g transform="translate(456 160)">
+    <rect width="1080" height="98" rx="12" class="panel" />
+    <text x="32" y="40" class="text small" fill="#2f6f6b" font-weight="700">Desktop 1차 범위</text>
+    <text x="32" y="76" class="text h2">관리자 운영 콘솔</text>
+    <text x="858" y="43" class="text label">관리자</text>
+    <text x="798" y="73" class="text small muted">admin@example.com</text>
+  </g>
+
+  <g transform="translate(456 292)">
+    <rect width="250" height="144" rx="10" class="panel" />
+    <text x="22" y="44" class="text label">활성 모듈</text>
+    <text x="22" y="90" class="text h2">3</text>
+    <text x="22" y="122" class="text small muted">auth, tenant, wms</text>
+
+    <rect x="276" width="250" height="144" rx="10" class="panel" />
+    <text x="298" y="44" class="text label">권한 수</text>
+    <text x="298" y="90" class="text h2">6</text>
+    <text x="298" y="122" class="text small muted">permission summary</text>
+
+    <rect x="552" width="250" height="144" rx="10" class="panel" />
+    <text x="574" y="44" class="text label">테넌트 수</text>
+    <text x="574" y="90" class="text h2">3</text>
+    <text x="574" y="122" class="text small muted">관리 대상</text>
+
+    <rect x="828" width="250" height="144" rx="10" class="panel" />
+    <text x="850" y="44" class="text label">감사 로그</text>
+    <text x="850" y="90" class="text h2">3</text>
+    <text x="850" y="122" class="text small muted">최근 evidence</text>
+  </g>
+
+  <g transform="translate(456 474)">
+    <rect width="520" height="232" rx="10" class="panel" />
+    <text x="24" y="42" class="text label">관리자 컨텍스트</text>
+    <line x1="24" y1="64" x2="496" y2="64" class="line" />
+    <text x="24" y="105" class="text small muted">사용자</text>
+    <text x="320" y="105" class="text small" font-weight="700">관리자</text>
+    <text x="24" y="144" class="text small muted">테넌트 상태</text>
+    <text x="320" y="144" class="text small" font-weight="700">활성</text>
+    <text x="24" y="183" class="text small muted">역할</text>
+    <text x="320" y="183" class="text small" font-weight="700">tenant_admin</text>
+
+    <rect x="560" width="520" height="232" rx="10" class="panel" />
+    <text x="584" y="42" class="text label">빠른 현황</text>
+    <rect x="584" y="78" width="120" height="34" rx="17" class="chip" />
+    <text x="606" y="101" class="chipText">사용자 3명</text>
+    <rect x="718" y="78" width="100" height="34" rx="17" class="chip" />
+    <text x="742" y="101" class="chipText">역할 3개</text>
+    <rect x="832" y="78" width="100" height="34" rx="17" class="chip" />
+    <text x="856" y="101" class="chipText">권한 5개</text>
+    <rect x="584" y="132" width="238" height="34" rx="17" class="warn" />
+    <text x="606" y="155" class="warnText">변경 작업은 확인 후 실행</text>
+  </g>
+
+  <g transform="translate(456 748)">
+    <rect width="1080" height="286" rx="10" class="panel" />
+    <text x="24" y="44" class="text label">화면별 주요 설계</text>
+    <line x1="24" y1="68" x2="1056" y2="68" class="line" />
+
+    <g transform="translate(24 96)">
+      <text x="0" y="0" class="text label">테넌트 관리</text>
+      <text x="0" y="34" class="text small muted">코드, 상태, 도메인, 활성 모듈을 표로 비교합니다.</text>
+      <rect x="0" y="58" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="82" class="text small">DEMO0001 · 활성 · wms</text>
+      <rect x="0" y="104" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="128" class="text small">ACME0001 · 준비 중 · auth</text>
+    </g>
+
+    <g transform="translate(380 96)">
+      <text x="0" y="0" class="text label">사용자/권한</text>
+      <text x="0" y="34" class="text small muted">사용자, 역할, 권한 카탈로그를 한 화면에서 봅니다.</text>
+      <rect x="0" y="58" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="82" class="text small">관리자 · tenant_admin</text>
+      <rect x="0" y="104" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="128" class="text small">wms_manager · 2개 권한</text>
+    </g>
+
+    <g transform="translate(736 96)">
+      <text x="0" y="0" class="text label">감사/위험 작업</text>
+      <text x="0" y="34" class="text small muted">requestId evidence와 확인 절차를 우선 표시합니다.</text>
+      <rect x="0" y="58" width="300" height="36" rx="6" fill="#f5f8fa" />
+      <text x="14" y="82" class="text small">tenant.status.updated</text>
+      <rect x="0" y="104" width="300" height="36" rx="6" fill="#fff0d5" />
+      <text x="14" y="128" class="text small">역할 권한 교체 전 확인</text>
+    </g>
+  </g>
+</svg>

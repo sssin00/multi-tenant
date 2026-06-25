@@ -21,12 +21,12 @@
         <h2>현재 상태</h2>
         <table>
           <tbody>
-            <tr><th>기준일</th><td><code>2026-06-21</code></td></tr>
+            <tr><th>기준일</th><td><code>2026-06-23</code></td></tr>
             <tr><th>Gateway 연결</th><td><code>/api/app/**</code>는 gateway-service의 <code>app</code> route group을 통해 <code>USER_BFF_SERVICE_URL</code>로 전달됩니다.</td></tr>
-            <tr><th>구현 완료</th><td><code>GET /health</code>, <code>GET /ready</code>, <code>GET /api/app/me</code>, <code>GET /api/app/navigation</code>, <code>GET /api/app/wms/warehouses</code>, <code>GET /api/app/wms/materials</code>, <code>GET /api/app/wms/inventory-summary</code>, <code>GET /api/app/wms/dashboard</code></td></tr>
+            <tr><th>구현 완료</th><td><code>GET /health</code>, <code>GET /ready</code>, <code>GET /api/app/me</code>, <code>GET /api/app/navigation</code>, WMS 조회 API 8종, WMS mutation API 7종(<code>inventory/adjustments</code>, <code>inbound/confirmations</code>, <code>outbound/allocations</code>, <code>outbound/packings</code>, <code>packages</code>, <code>packing confirm</code>, <code>shipments</code>)</td></tr>
             <tr><th>감사 로그</th><td><code>/api/app/me</code>, <code>/api/app/navigation</code>은 app shell 감사 이벤트를 best-effort 발행합니다. EventBridge bus가 설정된 환경은 EventBridge로 발행하고, 기존 local/호환 환경은 audit-log-service 내부 기록 API를 사용합니다.</td></tr>
-            <tr><th>다음 구현</th><td>WMS mutation 화면 API, 단일 screen-data API 필요 여부, warehouse scope별 selector 필터링은 후속 검토 대상입니다.</td></tr>
-            <tr><th>최근 검증</th><td>2026-06-21 로컬 Docker compose에서 gateway 경유 app shell, WMS 화면 조회 API, app shell 감사 로그 저장, EventBridge routing CDK synth를 33개 전체 시스템 시나리오로 검증했습니다.</td></tr>
+            <tr><th>다음 구현</th><td>단일 screen-data API 필요 여부, warehouse scope별 selector 필터링, PDA Web 응답 shape는 후속 검토 대상입니다.</td></tr>
+            <tr><th>최근 검증</th><td>2026-06-23 로컬 Docker compose에서 gateway 경유 로그인, WMS mutation API 7종, 재조회, <code>user-bff-service</code>/<code>web-wms</code> typecheck/build를 검증했습니다.</td></tr>
             <tr><th>CDK 상태</th><td>로컬 compose, gateway env, AWS CDK ECS/ECR/Cloud Map/security group, gateway task <code>USER_BFF_SERVICE_URL</code>, User BFF task <code>WMS_SERVICE_URL</code>/<code>WMS_INTERNAL_AUTH_SECRET</code> 주입, 수동 배포 workflow가 준비되었습니다.</td></tr>
           </tbody>
         </table>
@@ -38,7 +38,7 @@
           <tbody>
             <tr><th>Public endpoint</th><td><code>GET /health</code>, <code>GET /ready</code>만 public입니다.</td></tr>
             <tr><th>App surface</th><td>외부 사용자 API는 <code>/api/app/**</code>를 사용합니다. gateway-service가 JWT 검증과 tenant mismatch 1차 차단 후 User BFF로 전달합니다.</td></tr>
-            <tr><th>Headers</th><td><code>Authorization</code>, <code>Content-Type</code>, <code>Accept</code>, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>, <code>Idempotency-Key</code></td></tr>
+            <tr><th>Headers</th><td><code>Authorization</code>, <code>Content-Type</code>, <code>Accept</code>, <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>, <code>Idempotency-Key</code>. POST mutation은 중복 실행 방지를 위해 <code>Idempotency-Key</code>가 필수입니다.</td></tr>
             <tr><th>Context propagation</th><td>downstream 호출에는 <code>X-Request-Id</code>, <code>X-Tenant-Id</code>, <code>X-User-Id</code>와 internal auth header를 함께 전파합니다.</td></tr>
             <tr><th>Envelope</th><td>응답은 <code>success</code>, <code>requestId</code>, <code>timestamp</code>, <code>data</code> 또는 <code>error</code> 구조를 사용합니다. <code>meta</code> 필드는 사용하지 않습니다.</td></tr>
             <tr><th>Tenant status guard</th><td>User BFF는 tenant-service의 <code>GET /internal/tenants/{tenantId}/status</code>를 호출해 <code>active</code> tenant만 업무 API를 통과시킵니다.</td></tr>
@@ -82,8 +82,8 @@
               </tr>
               <tr>
                 <td><code>wms-service</code></td>
-                <td><code>GET /api/internal/wms/warehouses</code>, <code>GET /api/internal/wms/items</code>, <code>GET /api/internal/wms/inventory</code></td>
-                <td>WMS 화면 조회 데이터 조합과 dashboard action visibility 계산</td>
+                <td>WMS 조회 API와 mutation API(<code>inventory/adjustments</code>, <code>inbound/confirmations</code>, <code>outbound/**</code>)</td>
+                <td>WMS 화면 조회 데이터 조합, dashboard action visibility 계산, 사용자 화면 mutation proxy</td>
                 <td><span class="tag done">Ready</span></td>
               </tr>
               <tr>
@@ -154,6 +154,13 @@
                 <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
+                <td><code>GET /api/app/wms/locations</code></td>
+                <td>Bearer + <code>wms.warehouses.manage</code></td>
+                <td>창고별 로케이션 selector 데이터를 반환합니다. Query: <code>page</code>, <code>size</code>, <code>warehouseId</code>, <code>code</code>.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
                 <td><code>GET /api/app/wms/inventory-summary</code></td>
                 <td>Bearer + <code>wms.inventory.read</code></td>
                 <td>현재고 목록과 현재 페이지 기준 수량 합계를 반환합니다. Query: <code>page</code>, <code>size</code>, <code>warehouseId</code>, <code>locationId</code>, <code>itemId</code>.</td>
@@ -161,9 +168,79 @@
                 <td><span class="tag done">Implemented</span></td>
               </tr>
               <tr>
+                <td><code>POST /api/app/wms/inventory/adjustments</code></td>
+                <td>Bearer + <code>wms.inventory.adjust</code> + <code>Idempotency-Key</code></td>
+                <td>재고 조정 요청을 WMS 내부 재고 조정 API로 위임합니다. Body: <code>warehouseId</code>, <code>locationId</code>, <code>itemId</code>, <code>quantityChange</code>, <code>reason</code>, optional <code>referenceNo</code>, <code>memo</code>, <code>effectiveDate</code>.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/app/wms/inbound/confirmations</code></td>
+                <td>Bearer + <code>wms.inbound.confirm</code> + <code>Idempotency-Key</code></td>
+                <td>입고 확정 요청을 WMS 내부 입고 확정 API로 위임합니다. Body: <code>warehouseId</code>, <code>locationId</code>, <code>itemId</code>, <code>quantity</code>, optional <code>referenceNo</code>.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /api/app/wms/inventory-snapshots</code></td>
+                <td>Bearer + <code>wms.inventory.read</code></td>
+                <td>일 단위 과거 보유 수량 화면 조회 데이터를 반환합니다. Query: <code>snapshotDate</code>, <code>page</code>, <code>size</code>, <code>warehouseId</code>, <code>locationId</code>, <code>itemId</code>.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /api/app/wms/outbound-allocations</code></td>
+                <td>Bearer + <code>wms.outbound.allocate</code></td>
+                <td>출고 할당 목록 화면 데이터를 반환합니다. Query: <code>page</code>, <code>size</code>, <code>warehouseId</code>, <code>outboundOrderId</code>, <code>status</code>.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/app/wms/outbound/allocations</code></td>
+                <td>Bearer + <code>wms.outbound.allocate</code> + <code>Idempotency-Key</code></td>
+                <td>출고 할당을 생성합니다. 응답은 web-wms 화면에서 바로 사용할 수 있도록 <code>itemId</code>를 <code>materialId</code>로 매핑합니다.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>GET /api/app/wms/outbound-packings</code></td>
+                <td>Bearer + <code>wms.outbound.pack</code></td>
+                <td>포장 작업 목록 화면 데이터를 반환합니다. Query: <code>page</code>, <code>size</code>, <code>warehouseId</code>, <code>outboundOrderId</code>, <code>status</code>.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/app/wms/outbound/packings</code></td>
+                <td>Bearer + <code>wms.outbound.pack</code> + <code>Idempotency-Key</code></td>
+                <td>할당 ID 목록으로 포장 작업을 생성합니다. 응답은 화면 목록 shape로 매핑합니다.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/app/wms/outbound/packings/{packingId}/packages</code></td>
+                <td>Bearer + <code>wms.outbound.pack</code> + <code>Idempotency-Key</code></td>
+                <td>포장에 패키지와 패키지 품목을 등록합니다. Body: <code>packageNo</code>, optional <code>boxType</code>, <code>items[]</code>.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/app/wms/outbound/packings/{packingId}/confirm</code></td>
+                <td>Bearer + <code>wms.outbound.pack</code> + <code>Idempotency-Key</code></td>
+                <td>포장 작업을 확정합니다. 응답은 화면 목록 shape로 매핑합니다.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
+                <td><code>POST /api/app/wms/outbound/shipments</code></td>
+                <td>Bearer + <code>wms.outbound.ship</code> + <code>Idempotency-Key</code></td>
+                <td><code>allocationId</code> 직접 출하 또는 <code>packingId</code> 포장 기반 출하를 처리합니다.</td>
+                <td>wms-service</td>
+                <td><span class="tag done">Implemented</span></td>
+              </tr>
+              <tr>
                 <td><code>GET /api/app/wms/dashboard</code></td>
                 <td>Bearer + <code>wms.inventory.read</code></td>
-                <td>첫 화면용 재고 balance 수, 샘플링된 페이지 합계, 현재 사용자의 WMS action visibility를 반환합니다.</td>
+                <td>첫 화면용 재고 balance 수, 작업 큐 요약, 샘플링된 페이지 합계, 현재 사용자의 WMS action visibility를 반환합니다.</td>
                 <td>wms-service, auth-iam-service</td>
                 <td><span class="tag done">Implemented</span></td>
               </tr>
@@ -250,6 +327,29 @@
     "total": 1
   }
 }</code></pre>
+        <h3 class="card-subheading"><code>GET /api/app/wms/locations?page=1&amp;size=20&amp;warehouseId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa</code></h3>
+        <pre><code>{
+  "success": true,
+  "requestId": "request-id",
+  "timestamp": "2026-06-22T00:00:00.000Z",
+  "data": {
+    "items": [
+      {
+        "locationId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        "warehouseId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "code": "A-01",
+        "name": "A구역 01",
+        "type": "storage",
+        "status": "active",
+        "createdAt": "2026-06-22T00:00:00.000Z",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    ],
+    "page": 1,
+    "size": 20,
+    "total": 1
+  }
+}</code></pre>
         <h3 class="card-subheading"><code>GET /api/app/wms/inventory-summary?page=1&amp;size=20</code></h3>
         <pre><code>{
   "success": true,
@@ -281,6 +381,98 @@
   }
 }</code></pre>
         <p><code>pageTotals</code>는 응답에 포함된 현재 페이지의 합계입니다. 전체 조건 합계가 필요하면 WMS aggregate endpoint를 별도 설계합니다.</p>
+        <h3 class="card-subheading"><code>GET /api/app/wms/inventory-snapshots?snapshotDate=2026-06-22&amp;page=1&amp;size=20</code></h3>
+        <pre><code>{
+  "success": true,
+  "requestId": "request-id",
+  "timestamp": "2026-06-22T00:00:00.000Z",
+  "data": {
+    "pageTotals": {
+      "quantity": "100.000",
+      "allocatedQuantity": "0.000",
+      "availableQuantity": "100.000"
+    },
+    "snapshots": {
+      "items": [
+        {
+          "snapshotId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+          "snapshotDate": "2026-06-22",
+          "snapshotAt": "2026-06-22T14:59:59.999Z",
+          "warehouseId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "locationId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          "materialId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "quantity": "100.000",
+          "allocatedQuantity": "0.000",
+          "availableQuantity": "100.000",
+          "sourceLedgerId": "ffffffff-ffff-4fff-8fff-ffffffffffff",
+          "runId": "99999999-9999-4999-8999-999999999999",
+          "previousSnapshotId": null,
+          "generatedAt": "2026-06-22T00:00:00.000Z"
+        }
+      ],
+      "page": 1,
+      "size": 20,
+      "total": 1
+    }
+  }
+}</code></pre>
+        <h3 class="card-subheading"><code>GET /api/app/wms/outbound-allocations?page=1&amp;size=20</code></h3>
+        <pre><code>{
+  "success": true,
+  "requestId": "request-id",
+  "timestamp": "2026-06-22T00:00:00.000Z",
+  "data": {
+    "items": [
+      {
+        "allocationId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "outboundOrderId": "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+        "orderNo": "OUT-20260622-001",
+        "warehouseId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "locationId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        "materialId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        "quantity": "5.000",
+        "status": "allocated",
+        "allocatedBy": "22222222-2222-4222-8222-222222222222",
+        "allocatedAt": "2026-06-22T00:00:00.000Z",
+        "shippedBy": null,
+        "shippedAt": null
+      }
+    ],
+    "page": 1,
+    "size": 20,
+    "total": 1
+  }
+}</code></pre>
+        <h3 class="card-subheading"><code>GET /api/app/wms/outbound-packings?page=1&amp;size=20</code></h3>
+        <pre><code>{
+  "success": true,
+  "requestId": "request-id",
+  "timestamp": "2026-06-22T00:00:00.000Z",
+  "data": {
+    "items": [
+      {
+        "packingId": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        "outboundOrderId": "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+        "orderNo": "OUT-20260622-001",
+        "warehouseId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "status": "confirmed",
+        "allocationIds": ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
+        "packageIds": ["dddddddd-dddd-4ddd-8ddd-dddddddddddd"],
+        "packageCount": 1,
+        "memo": "front packing list sample",
+        "packedBy": "22222222-2222-4222-8222-222222222222",
+        "confirmedBy": "22222222-2222-4222-8222-222222222222",
+        "confirmedAt": "2026-06-22T00:00:00.000Z",
+        "shippedAt": null,
+        "createdAt": "2026-06-22T00:00:00.000Z",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    ],
+    "page": 1,
+    "size": 20,
+    "total": 1
+  }
+}</code></pre>
         <h3 class="card-subheading"><code>GET /api/app/wms/dashboard</code></h3>
         <pre><code>{
   "success": true,
@@ -296,6 +488,18 @@
         "availableQuantity": "80.000"
       }
     },
+    "operations": {
+      "outboundAllocations": {
+        "canView": true,
+        "total": 3,
+        "sampledCount": 3
+      },
+      "outboundPackings": {
+        "canView": true,
+        "total": 1,
+        "sampledCount": 1
+      }
+    },
     "visibleActions": {
       "inventory": true,
       "warehouses": true,
@@ -306,6 +510,35 @@
     }
   }
 }</code></pre>
+      </section>
+
+      <section>
+        <h2>WMS Mutation API 예시</h2>
+        <p>모든 mutation은 gateway <code>/api/app/**</code> 경유로 호출하며 <code>Authorization</code>, <code>X-Tenant-Id</code>, <code>X-Request-Id</code>, <code>Idempotency-Key</code>를 포함합니다.</p>
+        <h3 class="card-subheading"><code>POST /api/app/wms/inventory/adjustments</code></h3>
+        <pre><code>{
+  "warehouseId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "locationId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "itemId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "quantityChange": "1",
+  "reason": "cycle_count",
+  "referenceNo": "ADJ-20260623"
+}</code></pre>
+        <h3 class="card-subheading"><code>POST /api/app/wms/inbound/confirmations</code></h3>
+        <pre><code>{
+  "warehouseId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "locationId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "itemId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "quantity": "1",
+  "referenceNo": "IN-20260623"
+}</code></pre>
+        <h3 class="card-subheading"><code>POST /api/app/wms/outbound/shipments</code></h3>
+        <pre><code>{
+  "allocationId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "carrierCode": "LOCAL",
+  "trackingNo": "TRK-20260623"
+}</code></pre>
+        <p>포장 기반 출하는 <code>allocationId</code> 대신 <code>packingId</code>를 전송합니다. 출고 할당/포장 생성/포장 확정 응답은 web-wms 화면 목록 shape와 맞도록 BFF에서 <code>materialId</code>, <code>packageCount</code>, <code>allocationIds</code> 등을 매핑합니다.</p>
       </section>
 
       <p class="footer"><a href="../index.html">API 문서 허브로 돌아가기</a></p>

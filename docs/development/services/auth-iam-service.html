@@ -85,6 +85,7 @@
               <p><label><input type="checkbox" checked disabled /> refresh token rotation과 revoke 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> tenant-scoped user CRUD와 사용자 상태 관리</label></p>
               <p><label><input type="checkbox" checked disabled /> 사용자 타입 system_admin/general_user 분리와 general_user tenant 필수 적용</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant 없는 system_admin 로그인과 전체 permission summary/check 허용</label></p>
               <p><label><input type="checkbox" checked disabled /> role, permission, user-role assignment와 permission summary/check API 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> system_admin, tenant_admin, tenant_user 범위 분리</label></p>
               <p><label><input type="checkbox" checked disabled /> permission/user 변경 audit 대상 outbox event 저장</label></p>
@@ -243,7 +244,7 @@
               <div class="compact-grid">
                 <div class="card"><strong>Login</strong><p><code>POST /api/auth/login</code>은 tenant context, email, password를 검증하고 active 사용자에게만 token을 발급합니다.</p></div>
                 <div class="card"><strong>Password</strong><p>password hash는 <code>scrypt</code>와 사용자별 random salt를 사용합니다. 저장 형식은 <code>scrypt$salt$key</code>이며 비교는 timing-safe 방식으로 처리합니다.</p></div>
-                <div class="card"><strong>JWT</strong><p>access token은 기본 30분이며 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</p></div>
+                <div class="card"><strong>JWT</strong><p>access token은 기본 30분이며 <code>sub</code>, optional <code>tenantId</code>, user type <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다. <code>system_admin</code> token은 <code>tenantId</code> claim을 생략할 수 있습니다.</p></div>
                 <div class="card"><strong>Refresh</strong><p><code>POST /api/auth/token/refresh</code>는 기존 refresh token을 폐기하고 새 access/refresh token을 발급합니다. 재사용된 token은 <code>401 AUTH_INVALID_TOKEN</code>으로 실패합니다.</p></div>
                 <div class="card"><strong>Revoke</strong><p><code>POST /api/auth/logout</code>은 refresh token 단건 폐기 또는 gateway가 전달한 사용자 context 기반 전체 token 폐기를 지원합니다.</p></div>
                 <div class="card"><strong>Me</strong><p><code>GET /api/auth/me</code>는 gateway가 전달한 <code>X-Tenant-Id</code>, <code>X-User-Id</code> 기준으로 현재 사용자, role, permission 요약을 반환합니다.</p></div>
@@ -272,7 +273,7 @@
             <div class="detail-body">
               <div class="compact-grid">
                 <div class="card"><strong>Create</strong><p><code>POST /api/auth/users</code>는 <code>X-Tenant-Id</code> 기준으로 <code>general_user</code>만 생성합니다. email은 같은 tenant 안에서만 unique이며 password는 hash만 저장합니다.</p></div>
-                <div class="card"><strong>User Type</strong><p>사용자는 <code>system_admin</code>과 <code>general_user</code>로 구분합니다. 일반 사용자는 tenant 값이 필수이고, <code>system_admin</code>은 별도 시스템 관리/bootstrap 경로에서만 다룹니다.</p></div>
+                <div class="card"><strong>User Type</strong><p>사용자는 <code>system_admin</code>과 <code>general_user</code>로 구분합니다. web-admin 관리자 로그인은 서버가 관리자 권한과 tenant 범위를 판별하고, 일반 사용자 로그인은 tenant context를 함께 받습니다.</p></div>
                 <div class="card"><strong>Read</strong><p><code>GET /api/auth/users</code>와 <code>GET /api/auth/users/{userId}</code>는 항상 <code>tenantId</code> 조건을 포함합니다. cross-tenant 조회는 <code>404 AUTH_USER_NOT_FOUND</code>로 실패합니다.</p></div>
                 <div class="card"><strong>Update</strong><p><code>PATCH /api/auth/users/{userId}</code>는 email과 displayName 변경을 지원합니다. email 중복은 tenant 안에서 <code>409 AUTH_USER_EMAIL_CONFLICT</code>로 차단합니다.</p></div>
                 <div class="card"><strong>Status</strong><p><code>PATCH /api/auth/users/{userId}/status</code>는 <code>active</code>, <code>inactive</code>, <code>locked</code>를 지원하며 active가 아닌 상태로 바뀌면 refresh token을 revoke합니다.</p></div>
@@ -643,6 +644,18 @@
         <h2>개발 기록</h2>
 
         <article>
+          <h3>2026-06-23 tenantless system_admin 로그인과 전역 권한 적용</h3>
+          <ul>
+            <li><code>AuthUser.tenantId</code>와 <code>RefreshToken.tenantId</code>를 nullable로 바꿔 <code>system_admin</code> 계정이 tenant 없이 존재할 수 있게 했습니다.</li>
+            <li><code>POST /api/auth/login</code>은 관리자 콘솔 로그인에서 tenant 값을 받지 않습니다. 서버는 email/password로 <code>system_admin</code> 또는 관리자 권한을 가진 tenant 계정을 판별하고, tenant 관리자는 JWT에 resolved <code>tenantId</code>를 포함하며 <code>system_admin</code>은 <code>tenantId</code> claim을 생략합니다.</li>
+            <li><code>GET /api/auth/me</code>, permission summary/check는 tenant 없는 <code>system_admin</code>에게 synthetic role <code>system_admin</code>과 전체 permission catalog를 반환하고 모든 permission check를 허용합니다.</li>
+            <li>동일 email/password에 여러 관리자 후보가 있으면 <code>409 AUTH_LOGIN_AMBIGUOUS</code>로 실패합니다. 일반 사용자 로그인과 tenant-scoped 사용자 생성/수정/상태/role mutation은 기존처럼 tenant context를 요구합니다.</li>
+            <li>검증 evidence: <code>requestId=verify-admin-tenantless-login</code>, <code>verify-admin-tenantless-me</code>에서 테넌트 관리자 email/password 로그인과 resolved tenantId JWT를 확인했습니다. <code>verify-super-admin-login-v3</code>, <code>verify-super-admin-me-v3</code>에서 슈퍼 관리자 tenantless JWT와 전체 권한 응답을 확인했고, <code>verify-general-tenant-scoped-login</code>으로 기존 tenant 포함 로그인도 회귀 검증했습니다.</li>
+            <li>상세 현황과 evidence는 <a href="../../test-logs/2026-06-23/admin-login-scope-verification.html"><code>docs/test-logs/2026-06-23/admin-login-scope-verification.html</code></a>에 기록했습니다.</li>
+          </ul>
+        </article>
+
+        <article>
           <h3>2026-06-09 Auth/IAM 작업 계획 문서화</h3>
           <ul>
             <li>gateway-service 개발 문서 구조에 맞춰 Auth/IAM 개발 문서를 재구성했습니다.</li>
@@ -711,7 +724,7 @@
             <li><code>PasswordHasher</code>를 추가해 <code>scrypt</code>, random salt, timing-safe 비교 방식으로 password hash를 처리합니다.</li>
             <li><code>POST /api/auth/login</code>을 구현했고 body/header tenant mismatch는 <code>403 TENANT_MISMATCH</code>로 차단합니다.</li>
             <li>성공 응답은 표준 envelope에 <code>accessToken</code>, <code>expiresIn</code>, <code>refreshToken</code>, <code>refreshExpiresIn</code>, <code>tokenType</code>을 담아 <code>200</code>으로 반환합니다.</li>
-            <li>access token은 <code>HS256</code> 또는 <code>RS256</code> 설정을 지원하며 JWT payload에는 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</li>
+            <li>access token은 <code>HS256</code> 또는 <code>RS256</code> 설정을 지원하며 JWT payload에는 <code>sub</code>, optional <code>tenantId</code>, user type <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</li>
             <li>refresh token은 opaque token으로 반환하고 DB에는 SHA-256 hash만 저장합니다. rotation과 revoke API는 별도 단계에서 이어서 구현했습니다.</li>
             <li><code>pnpm --filter auth-iam-service typecheck</code>와 <code>pnpm --filter auth-iam-service build</code>가 통과했습니다.</li>
             <li>로컬 DB/Redis 연결 상태에서 로그인 성공, JWT claim 확인, refresh token hash 저장, 잘못된 password의 <code>401 AUTH_INVALID_CREDENTIALS</code> 응답을 확인했습니다.</li>
@@ -882,7 +895,7 @@
         <article>
           <h3>2026-06-11 로컬 API 테스트 Seed 추가</h3>
           <ul>
-            <li><code>apps/auth-iam-service/prisma/seed.ts</code>를 추가해 로그인 가능한 <code>admin@demo.local</code> 사용자, <code>tenant_admin</code> role, auth/tenant/wms permission catalog와 role mapping을 생성합니다.</li>
+            <li><code>apps/auth-iam-service/prisma/seed.ts</code>를 추가해 로그인 가능한 <code>admin@demo.local</code> 사용자, <code>tenant_admin</code> role, auth/tenant/wms permission catalog와 role mapping을 생성합니다. 현재 seed는 tenant 없는 슈퍼 관리자 <code>super@admin.local</code> / <code>Test1234!</code>도 함께 생성합니다.</li>
             <li>Auth/IAM 기준 데이터는 고정 user/role id와 camelCase permission code를 유지해야 하므로 현재는 DB seed로 유지합니다. Auth/IAM API는 permission code를 소문자로 정규화하므로 이 항목은 API seed 대상에서 제외했습니다.</li>
             <li><code>pnpm --filter auth-iam-service prisma:seed</code>와 루트 <code>pnpm seed:local</code>로 재실행할 수 있습니다.</li>
             <li><code>pnpm db:reset:local</code>은 auth_iam DB를 초기화한 뒤 schema push와 seed를 다시 실행하므로 Postman 직접 호출 전 기준 데이터를 재생성할 때 사용합니다.</li>

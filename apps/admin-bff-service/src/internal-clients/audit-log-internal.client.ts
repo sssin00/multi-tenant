@@ -37,6 +37,29 @@ export interface AuditLogListItem {
   createdAt?: string;
 }
 
+export interface AuditLogRecordCommand {
+  eventId: string;
+  eventType: string;
+  schemaVersion: number;
+  tenantId: string;
+  requestId: string;
+  occurredAt: string;
+  source: "admin-bff-service";
+  aggregateType: string;
+  aggregateId: string;
+  actor: {
+    type: "user" | "service" | "system";
+    userId?: string;
+    serviceId?: string;
+  };
+  data?: Record<string, unknown>;
+}
+
+export interface AuditLogRecordResponse {
+  auditId: string;
+  recorded: true;
+}
+
 interface ApiEnvelope<T> {
   success?: boolean;
   requestId?: string;
@@ -66,6 +89,18 @@ export class AuditLogInternalClient {
       method: "GET",
       path: this.withQuery("/api/internal/audit/logs", query),
       ...context
+    });
+  }
+
+  async recordAuditLog(
+    context: Required<AuditLogClientContext>,
+    body: AuditLogRecordCommand
+  ): Promise<AuditLogRecordResponse> {
+    return this.request<AuditLogRecordResponse>({
+      method: "POST",
+      path: "/api/internal/audit/logs",
+      ...context,
+      body
     });
   }
 

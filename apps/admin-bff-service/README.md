@@ -10,7 +10,7 @@ API 상세 계약은 `docs/apis/admin-bff-service/index.html`에 정리합니다
 pnpm --filter admin-bff-service dev
 ```
 
-기본 포트는 `ADMIN_BFF_PORT`로 설정하며, 기본값은 `3000`입니다. gateway-service와 함께 로컬에서 실행할 때는 포트 충돌을 피하기 위해 `ADMIN_BFF_PORT=3003`처럼 별도 포트를 사용합니다.
+기본 포트는 `ADMIN_BFF_PORT`로 설정하며, 기본값은 `3000`입니다. Docker compose 로컬 실행에서는 host port를 열지 않고 compose 내부 네트워크에만 노출합니다. 로컬 브라우저와 Postman 요청은 항상 gateway 경유 `http://localhost:3000/api/admin/**`를 사용합니다.
 
 ## 검증
 
@@ -22,8 +22,8 @@ pnpm --filter admin-bff-service build
 Health check:
 
 ```bash
-curl http://localhost:3003/health
-curl http://localhost:3003/ready
+docker compose -f docker/local/docker-compose.yml exec admin-bff-service wget -qO- http://127.0.0.1:3000/health
+docker compose -f docker/local/docker-compose.yml exec admin-bff-service wget -qO- http://127.0.0.1:3000/ready
 ```
 
 `/ready`는 config, downstream URL, internal auth secret, CORS/security 기준을 확인합니다. Admin BFF는 직접 DB에 접근하지 않으므로 readiness에 DB check를 넣지 않습니다.
@@ -31,10 +31,10 @@ curl http://localhost:3003/ready
 ## Environment
 
 ```bash
-ADMIN_BFF_PORT=3003
+ADMIN_BFF_PORT=3000
 APP_ENV=local
-AUTH_IAM_SERVICE_URL=http://localhost:3001
-TENANT_SERVICE_URL=http://localhost:3002
+AUTH_IAM_SERVICE_URL=http://auth-iam-service:3000/api/auth
+TENANT_SERVICE_URL=http://tenant-service:3000
 ADMIN_BFF_INTERNAL_AUTH_ENABLED=true
 AUTH_INTERNAL_AUTH_SECRET=replace-with-local-internal-secret-32chars
 TENANT_INTERNAL_AUTH_SECRET=replace-with-local-internal-secret-32chars

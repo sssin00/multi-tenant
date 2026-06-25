@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2026-06-23 web/API 정합성 검증</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Verification Log</p>
+        <h1>2026-06-23 web/API 정합성 검증</h1>
+        <p class="lead">web-admin과 web-wms 화면 기능이 gateway 경유 BFF API 계약과 맞는지 확인하고, 발견된 web-admin 검색 query gap을 수정한 기록입니다.</p>
+      </header>
+
+      <section>
+        <h2>실행 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>실행일</th><td>2026-06-23</td></tr>
+            <tr><th>환경</th><td>local gateway <code>http://localhost:3000</code>, Admin BFF, User BFF, Auth/IAM, tenant-service, audit-log-service, WMS service</td></tr>
+            <tr><th>runId</th><td><code>web-api-align-mqprbszp</code></td></tr>
+            <tr><th>범위</th><td>web-admin 로그인/App Shell/dashboard/tenant/access-control/audit/mutation API, web-wms dashboard/inventory/snapshot/master/outbound 조회 API</td></tr>
+            <tr><th>결과</th><td><span class="tag done">PASS</span> API 계약 불일치 1건을 수정했고, 수정 후 typecheck/build와 gateway API 검증이 통과했습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>수정한 Gap</h2>
+        <table>
+          <thead>
+            <tr><th>영역</th><th>확인 내용</th><th>조치</th><th>상태</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>web-admin 검색 UI</td>
+              <td>테넌트, 사용자/권한, 감사 로그 검색 입력이 화면에만 있고 API query로 전달되지 않았습니다.</td>
+              <td><code>apps/web-admin/src/api-client.ts</code>에 list query builder를 추가하고, <code>apps/web-admin/src/app.tsx</code> 검색 폼을 제어 컴포넌트로 바꿔 API query와 React Query key에 연결했습니다.</td>
+              <td><span class="tag done">Fixed</span></td>
+            </tr>
+            <tr>
+              <td>web-admin 조회 fallback</td>
+              <td>API validation/envelope 오류까지 샘플 fallback에 숨을 수 있었습니다.</td>
+              <td><code>ApiError</code>는 다시 throw하고, 네트워크 연결 실패 같은 로컬 화면 확인용 오류만 fallback 대상으로 남겼습니다.</td>
+              <td><span class="tag done">Fixed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>web-admin Evidence</h2>
+        <table>
+          <thead>
+            <tr><th>기능</th><th>API</th><th>requestId</th><th>결과</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>로그인</td><td><code>POST /api/auth/login</code></td><td><code>web-api-align-mqprbszp-01-login</code></td><td><code>200</code>, access token 만료 <code>1800</code>초</td></tr>
+            <tr><td>App Shell</td><td><code>GET /api/admin/me</code></td><td><code>web-api-align-mqprbszp-02-admin-me</code></td><td>navigation 6개, permissions 30개</td></tr>
+            <tr><td>대시보드</td><td><code>GET /api/admin/dashboard</code></td><td><code>web-api-align-mqprbszp-03-admin-dashboard</code></td><td>tenants 7, users 15, audit 271</td></tr>
+            <tr><td>테넌트 목록</td><td><code>GET /api/admin/tenants</code></td><td><code>web-api-align-mqprbszp-04-admin-tenants</code></td><td>total 7, count 7</td></tr>
+            <tr><td>테넌트 필터</td><td><code>GET /api/admin/tenants?status=...&amp;code=...&amp;domain=...</code></td><td><code>web-api-align-mqprbszp-05-admin-tenants-filter</code></td><td>total 1, count 1</td></tr>
+            <tr><td>사용자/권한</td><td><code>GET /api/admin/access-control/screen-data</code></td><td><code>web-api-align-mqprbszp-06-admin-access</code></td><td>users 15, roles 5, permissions 34</td></tr>
+            <tr><td>사용자/권한 필터</td><td><code>GET /api/admin/access-control/screen-data?userStatus=...&amp;email=...&amp;roleCode=...</code></td><td><code>web-api-align-mqprbszp-07-admin-access-filter</code></td><td>users 1, roles 1, permissions 34</td></tr>
+            <tr><td>감사 로그</td><td><code>GET /api/admin/audit-logs</code></td><td><code>web-api-align-mqprbszp-08-admin-audit</code></td><td>total 271, count 20</td></tr>
+            <tr><td>감사 로그 필터</td><td><code>GET /api/admin/audit-logs?action=...&amp;resourceType=...&amp;requestId=...</code></td><td><code>web-api-align-mqprbszp-09-admin-audit-filter</code></td><td>total 1, count 1</td></tr>
+            <tr><td>테넌트 생성</td><td><code>POST /api/admin/tenants</code></td><td><code>web-api-align-mqprbszp-10-admin-tenant-create</code></td><td>tenant <code>e99a79b1-8b8e-4b52-9241-70f9c5f8f909</code>, status <code>provisioning</code></td></tr>
+            <tr><td>모듈/상태/도메인</td><td><code>PUT/PATCH/POST/DELETE /api/admin/tenants/**</code></td><td><code>web-api-align-mqprbszp-11</code>~<code>14</code></td><td>module <code>auth</code>, <code>tenant</code>, <code>wms</code>, status <code>active</code>, domain disabled</td></tr>
+            <tr><td>사용자 생성/역할 부여</td><td><code>POST /api/admin/users</code>, <code>POST /api/admin/users/{userId}/roles</code></td><td><code>web-api-align-mqprbszp-15</code>~<code>16</code></td><td>user <code>fa1e878d-e4e4-4408-a5f5-68c1c7e70b55</code>, role assigned</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>web-wms Evidence</h2>
+        <table>
+          <thead>
+            <tr><th>기능</th><th>API</th><th>requestId</th><th>결과</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>대시보드</td><td><code>GET /api/app/wms/dashboard</code></td><td><code>web-api-align-mqprbszp-17-wms-dashboard</code></td><td>balances 3, allocations 9, packings 6</td></tr>
+            <tr><td>현재고 전체/필터</td><td><code>GET /api/app/wms/inventory-summary</code></td><td><code>web-api-align-mqprbszp-18</code>~<code>19</code></td><td>전체 total 3, 필터 total 1</td></tr>
+            <tr><td>스냅샷 전체/필터</td><td><code>GET /api/app/wms/inventory-snapshots</code></td><td><code>web-api-align-mqprbszp-20</code>~<code>21</code></td><td>전체 total 3, 필터 total 1</td></tr>
+            <tr><td>기준정보 전체</td><td><code>GET /api/app/wms/warehouses</code>, <code>/locations</code>, <code>/materials</code></td><td><code>web-api-align-mqprbszp-22</code>~<code>24</code></td><td>각 total 3</td></tr>
+            <tr><td>기준정보 필터</td><td><code>GET /warehouses?code=...</code>, <code>/locations?warehouseId=...&amp;code=...</code>, <code>/materials?sku=...</code></td><td><code>web-api-align-mqprbszp-25</code>~<code>27</code></td><td>각 total 1</td></tr>
+            <tr><td>출고 할당</td><td><code>GET /api/app/wms/outbound-allocations</code></td><td><code>web-api-align-mqprbszp-28</code>~<code>29</code></td><td>전체 total 9, status 필터 total 1</td></tr>
+            <tr><td>출고 포장</td><td><code>GET /api/app/wms/outbound-packings</code></td><td><code>web-api-align-mqprbszp-30</code>~<code>31</code></td><td>전체 total 6, status 필터 total 1</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>정적 검증</h2>
+        <table>
+          <tbody>
+            <tr><th>web-admin typecheck</th><td><code>pnpm --filter web-admin typecheck</code> 통과</td></tr>
+            <tr><th>web-admin build</th><td><code>pnpm --filter web-admin build</code> 통과</td></tr>
+            <tr><th>web-wms typecheck</th><td><code>pnpm --filter web-wms typecheck</code> 통과</td></tr>
+            <tr><th>web-wms build</th><td><code>pnpm --filter web-wms build</code> 통과</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>남은 작업</h2>
+        <table>
+          <tbody>
+            <tr><th>web-admin</th><td>사용자 상태 변경, role 해제, 역할 permission 교체 action은 후속 구현 범위입니다.</td></tr>
+            <tr><th>web-wms</th><td>PDA Web과 WMS mutation 화면은 후속 구현 범위입니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a> · <a href="../../development/services/web-admin.html">web-admin 개발과정</a> · <a href="../../development/services/web-wms.html">web-wms 개발과정</a></p>
+    </main>
+  </body>
+</html>

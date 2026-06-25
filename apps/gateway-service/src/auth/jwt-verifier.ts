@@ -6,7 +6,7 @@ import { getAppConfig } from "../config/app.config.js";
 
 export interface GatewayJwtClaims {
   sub: string;
-  tenantId: string;
+  tenantId?: string;
   type?: string;
   exp?: number;
   iat?: number;
@@ -27,10 +27,17 @@ export class JwtVerifier {
     const { header, payload } = this.decode(token);
     this.verifySignature(token, header);
 
-    if (!payload.sub || !payload.tenantId) {
+    if (!payload.sub || !payload.type) {
       throw new UnauthorizedException({
         code: "AUTH_INVALID_TOKEN",
-        message: "JWT must include sub and tenantId"
+        message: "JWT must include sub and type"
+      });
+    }
+
+    if (payload.type !== "system_admin" && !payload.tenantId) {
+      throw new UnauthorizedException({
+        code: "AUTH_INVALID_TOKEN",
+        message: "JWT must include tenantId for tenant-scoped users"
       });
     }
 

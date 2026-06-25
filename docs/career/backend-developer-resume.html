@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>백엔드 개발자 이력서</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #f4f7f9;
+        color: #17212b;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+        line-height: 1.65;
+      }
+      main { width: min(960px, calc(100% - 40px)); margin: 0 auto; padding: 38px 0 60px; }
+      header, section {
+        margin-top: 18px;
+        padding: 26px;
+        border: 1px solid #d8e2e8;
+        border-radius: 8px;
+        background: #fff;
+      }
+      header { margin-top: 0; }
+      h1, h2, h3 { margin: 0; line-height: 1.25; letter-spacing: 0; }
+      h1 { font-size: 42px; }
+      h2 { color: #0a4d53; font-size: 22px; }
+      h3 { color: #17212b; font-size: 19px; }
+      p { margin: 0; color: #5d6976; line-height: 1.75; }
+      ul { margin: 10px 0 0; padding-left: 20px; color: #5d6976; }
+      li + li { margin-top: 6px; }
+      table {
+        width: 100%;
+        margin-top: 14px;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+        border: 1px solid #d8e2e8;
+        border-radius: 8px;
+      }
+      th, td {
+        padding: 13px 15px;
+        border-bottom: 1px solid #d8e2e8;
+        text-align: left;
+        vertical-align: top;
+      }
+      tr:last-child th, tr:last-child td { border-bottom: 0; }
+      th { width: 150px; background: #edf4f7; color: #0a4d53; }
+      .top { display: grid; grid-template-columns: 1fr 280px; gap: 24px; align-items: start; }
+      .eyebrow { margin-bottom: 8px; color: #0f6b73; font-size: 13px; font-weight: 800; text-transform: uppercase; }
+      .role { margin-top: 8px; color: #0a4d53; font-size: 20px; font-weight: 800; }
+      .summary { margin-top: 18px; color: #17212b; font-size: 17px; line-height: 1.8; }
+      .contact, .card, .project {
+        border: 1px solid #d8e2e8;
+        border-radius: 8px;
+        background: #fbfcfd;
+      }
+      .contact { padding: 16px; }
+      .contact p { color: #17212b; line-height: 1.55; }
+      .contact p + p { margin-top: 10px; }
+      .section-head {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: start;
+        margin-bottom: 16px;
+      }
+      .section-head p { margin-top: 6px; }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #edf4f7;
+        color: #0f6b73;
+        font-size: 13px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+      .card { padding: 16px; }
+      .card strong { display: block; margin-bottom: 6px; color: #0a4d53; font-size: 16px; }
+      .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #edf4f7;
+        color: #0a4d53;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .project { padding: 18px; }
+      .project-head { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: start; }
+      .period { color: #5d6976; font-weight: 800; white-space: nowrap; }
+      .sub { margin-top: 4px; color: #0a4d53; font-weight: 800; }
+      .note {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid #0f6b73;
+        background: #edf4f7;
+        color: #17212b;
+      }
+      .footer { margin-top: 20px; color: #5d6976; font-size: 13px; text-align: center; }
+      @media print {
+        body { background: #fff; }
+        main { width: 100%; padding: 0; }
+        header, section { break-inside: avoid; }
+      }
+      @media (max-width: 860px) {
+        .top, .section-head, .grid, .project-head { grid-template-columns: 1fr; }
+        .period { white-space: normal; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="top">
+          <div>
+            <p class="eyebrow">Backend Developer Resume</p>
+            <h1>DongSeok Shin</h1>
+            <p class="role">Backend / Platform Engineer</p>
+            <p class="summary">
+              NestJS와 AWS ECS Fargate 기반으로 멀티테넌트 스마트 팩토리 플랫폼을 설계하고 구현했습니다.
+              WMS를 첫 도메인으로 두고 Gateway, BFF, Auth/IAM, Tenant, WMS, Audit Log, Outbox Relay, CDK 인프라까지
+              백엔드 중심의 서비스 경계, 인증/인가, tenant 격리, 이벤트/감사 추적 구조를 구축했습니다.
+            </p>
+            <div class="pill-row">
+              <span class="pill">NestJS</span>
+              <span class="pill">TypeScript</span>
+              <span class="pill">Prisma</span>
+              <span class="pill">PostgreSQL</span>
+              <span class="pill">Redis</span>
+              <span class="pill">AWS ECS Fargate</span>
+              <span class="pill">AWS CDK</span>
+              <span class="pill">SQS / DLQ</span>
+              <span class="pill">Outbox Pattern</span>
+            </div>
+          </div>
+          <div class="contact">
+            <p><strong>Email</strong><br />입력 필요</p>
+            <p><strong>Phone</strong><br />입력 필요</p>
+            <p><strong>GitHub</strong><br />github.com/sssin00/multi-tenant</p>
+            <p><strong>Portfolio</strong><br />backend-developer-portfolio.html</p>
+          </div>
+        </div>
+      </header>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>핵심 역량</h2>
+            <p>백엔드 개발자로서 바로 보여줄 수 있는 강점입니다.</p>
+          </div>
+          <span class="tag">SKILLS</span>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <strong>MSA 백엔드 설계</strong>
+            <p>Gateway, BFF, Domain Service, Event/Audit 계층으로 책임을 분리하고 서비스 간 직접 소스 의존을 제한했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>멀티테넌트 SaaS</strong>
+            <p>JWT tenantId, X-Tenant-Id 정합성, tenant status check, tenant-scoped data access, system_admin/general_user 분리를 설계했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>이벤트 기반 추적성</strong>
+            <p>Outbox pattern, SQS/DLQ, audit-log-service를 활용해 WMS 업무 변경과 감사 기록을 추적 가능하게 구성했습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>기술 스택</h2>
+            <p>백엔드 개발과 운영 관점에서 사용한 기술입니다.</p>
+          </div>
+          <span class="tag">STACK</span>
+        </div>
+        <table>
+          <tbody>
+            <tr>
+              <th>Backend</th>
+              <td>TypeScript, Node.js, NestJS, REST API, Guards, Interceptors, DTO, Config module</td>
+            </tr>
+            <tr>
+              <th>Data</th>
+              <td>PostgreSQL, Prisma, Redis, tenant-scoped query, transaction 기반 outbox 저장</td>
+            </tr>
+            <tr>
+              <th>Cloud</th>
+              <td>AWS ECS Fargate, ECR, ALB, VPC, Cloud Map, CloudWatch, SQS, DLQ, AWS CDK TypeScript</td>
+            </tr>
+            <tr>
+              <th>Tooling</th>
+              <td>pnpm workspace, Turborepo, Docker Compose, GitHub Actions, Postman collection, HTML docs</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>프로젝트 경험</h2>
+            <p>문서, 코드, Git 이력을 기준으로 정리한 백엔드 프로젝트 경험입니다.</p>
+          </div>
+          <span class="tag">PROJECT</span>
+        </div>
+        <div class="project">
+          <div class="project-head">
+            <div>
+              <h3>Multi-Tenant Smart Factory Platform</h3>
+              <p class="sub">Backend / Platform Developer · 개인 프로젝트</p>
+            </div>
+            <span class="period">2026.06 - 진행 중</span>
+          </div>
+          <ul>
+            <li>AWS ECS Fargate 기반 멀티테넌트 스마트 팩토리 플랫폼을 WMS first 전략으로 설계하고 구현했습니다.</li>
+            <li>gateway-service를 외부 API 단일 진입점으로 두고, Admin/User BFF가 화면 조합과 tenant readiness 확인을 담당하도록 아키텍처를 분리했습니다.</li>
+            <li>auth-iam-service에서 JWT access token, opaque refresh token rotation, RBAC, permission summary/check API, system_admin tenantless login을 구현했습니다.</li>
+            <li>tenant-service에서 tenant/module/domain/status/readiness API를 구현하고, business API가 tenant 상태를 기준으로 동작하도록 연계했습니다.</li>
+            <li>wms-service에서 창고/로케이션/품목, 재고 원장/잔고, 재고 조정, 일 단위 스냅샷, 입고 확정, 출고 할당/포장/출하 API를 구현했습니다.</li>
+            <li>outbox-relay-service와 audit-log-service를 통해 업무 이벤트 발행, SQS/DLQ 기반 전달, append-only 감사 로그 저장 구조를 구성했습니다.</li>
+            <li>CDK TypeScript로 ECR, ECS service/task, ALB route, Cloud Map, Redis, SQS/DLQ, CloudWatch log group, Security Group을 관리하도록 구성했습니다.</li>
+          </ul>
+          <p class="note">현재 저장소 기준 CDK backend service 8개, 서비스별 API 문서 12개, 시나리오 기반 검증 로그 32개를 유지하고 있습니다.</p>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>주요 성과 문장</h2>
+            <p>지원서 bullet로 바로 사용할 수 있는 문장입니다.</p>
+          </div>
+          <span class="tag">IMPACT</span>
+        </div>
+        <ul>
+          <li>멀티테넌트 WMS 플랫폼의 백엔드 아키텍처를 Gateway/BFF/Domain/Event 계층으로 설계하고 NestJS 기반 8개 backend service로 구현했습니다.</li>
+          <li>JWT claim 최소화, RBAC source of truth 분리, tenant mismatch 차단, tenant status check를 통해 인증/인가와 tenant 격리 기준을 수립했습니다.</li>
+          <li>WMS 재고/입고/출고 업무 API와 outbox/audit pipeline을 연계해 업무 상태 변경의 추적성과 재처리 가능성을 확보했습니다.</li>
+          <li>AWS CDK로 ECS Fargate 기반 배포 구조를 코드화하고, 로컬 Docker와 시나리오 기반 검증 로그로 개발/검증 흐름을 문서화했습니다.</li>
+        </ul>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>제출 전 수정</h2>
+            <p>지원 회사에 제출하기 전에 직접 확정할 항목입니다.</p>
+          </div>
+          <span class="tag">TODO</span>
+        </div>
+        <ul>
+          <li>이메일, 전화번호, 블로그/LinkedIn 주소를 입력합니다.</li>
+          <li>지원 회사에 맞춰 Backend, Platform, AWS, MSA 중 강조할 키워드를 상단 요약에 배치합니다.</li>
+          <li>운영 트래픽, 비용, 응답 시간, 장애 대응 등 실제 운영 수치가 생기면 성과 문장에 추가합니다.</li>
+        </ul>
+      </section>
+
+      <p class="footer">작성일: 2026-06-24 · 단일 이력서 HTML · 외부 링크/외부 CSS 없음 · docs/index.html 미연결</p>
+    </main>
+  </body>
+</html>

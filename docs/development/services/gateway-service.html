@@ -29,7 +29,7 @@
           <tbody>
             <tr><th>요청 진입</th><td>외부 HTTP 요청의 첫 진입점으로 <code>X-Request-Id</code>를 보장하고, 표준 응답 header와 access log 기준을 적용합니다.</td></tr>
             <tr><th>인증 전처리</th><td>public route를 제외한 요청의 JWT 서명, 만료, issuer, audience를 검증하고 user/tenant context를 추출합니다.</td></tr>
-            <tr><th>Tenant 보호</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code> mismatch를 차단하고 downstream으로 tenant context를 전파합니다.</td></tr>
+            <tr><th>Tenant 보호</th><td>JWT <code>tenantId</code>가 있는 요청은 <code>X-Tenant-Id</code> mismatch를 차단하고 downstream으로 tenant context를 전파합니다. tenant 없는 JWT는 <code>system_admin</code>에만 허용합니다.</td></tr>
             <tr><th>라우팅</th><td><code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code> surface를 각 BFF 또는 Auth/IAM upstream으로 전달합니다.</td></tr>
             <tr><th>공통 정책</th><td>rate limit, CORS, security header, upstream timeout, retry, 표준 error envelope를 gateway 레벨에서 통일합니다.</td></tr>
             <tr><th>제외 범위</th><td>도메인 업무 판단, 화면 데이터 조합, DB 접근, tenant 상태 상세 검증은 gateway 기능이 아닙니다.</td></tr>
@@ -70,8 +70,8 @@
               <p><label><input type="checkbox" checked disabled /> 요청 완료 JSON access log</label></p>
               <p><label><input type="checkbox" checked disabled /> public/private route 구분 기본 구조</label></p>
               <p><label><input type="checkbox" checked disabled /> Bearer token 기반 auth guard 기본 구조</label></p>
-              <p><label><input type="checkbox" checked disabled /> JWT payload의 <code>sub</code>, <code>tenantId</code> 추출</label></p>
-              <p><label><input type="checkbox" checked disabled /> JWT <code>tenantId</code>와 header tenant mismatch 차단</label></p>
+              <p><label><input type="checkbox" checked disabled /> JWT payload의 <code>sub</code>, <code>type</code>, optional <code>tenantId</code> 추출</label></p>
+              <p><label><input type="checkbox" checked disabled /> JWT <code>tenantId</code>가 있는 요청의 header tenant mismatch 차단</label></p>
               <p><label><input type="checkbox" checked disabled /> <code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code> proxy route map</label></p>
               <p><label><input type="checkbox" checked disabled /> upstream으로 <code>x-request-id</code>, <code>x-tenant-id</code>, <code>x-user-id</code> 전파</label></p>
               <p><label><input type="checkbox" checked disabled /> Proxy request body 전달 처리</label></p>
@@ -144,7 +144,7 @@
             <div class="detail-body">
               <div class="compact-grid">
                 <div class="card"><strong>JWT</strong><p>Bearer token을 검증하고 <code>HS256</code>, <code>RS256</code>, 만료, <code>iss</code>, <code>aud</code>를 확인합니다.</p></div>
-                <div class="card"><strong>Tenant</strong><p>JWT <code>tenantId</code>와 header tenant가 다르면 <code>403 TENANT_MISMATCH</code>로 차단합니다.</p></div>
+                <div class="card"><strong>Tenant</strong><p>JWT <code>tenantId</code>가 있고 header tenant가 다르면 <code>403 TENANT_MISMATCH</code>로 차단합니다. tenant 없는 JWT는 <code>system_admin</code>에만 허용합니다.</p></div>
               </div>
               <div class="doc-chip-list">
                 <div class="doc-chip-label">관련 코드</div>
@@ -265,7 +265,7 @@
               <td><code>GWS-TENANT-001</code></td>
               <td>JWT tenant와 header tenant mismatch를 차단한다</td>
               <td><code>P0</code></td>
-              <td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 응답한다.</td>
+              <td>JWT <code>tenantId</code>가 있고 <code>X-Tenant-Id</code>와 다르면 <code>403 TENANT_MISMATCH</code>로 응답한다. tenant 없는 JWT는 <code>system_admin</code>만 허용한다.</td>
               <td>response JSON, access log의 <code>tenantId</code>, <code>requestId</code></td>
             </tr>
             <tr>
@@ -324,7 +324,7 @@
         <h3>상세 실행 기준</h3>
         <table>
           <tbody>
-            <tr><th>preconditions</th><td>로컬 또는 dev 환경에서 gateway-service, Redis, Auth/IAM, Admin BFF 또는 upstream mock service를 준비합니다. JWT는 <code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</td></tr>
+            <tr><th>preconditions</th><td>로컬 또는 dev 환경에서 gateway-service, Redis, Auth/IAM, Admin BFF 또는 upstream mock service를 준비합니다. JWT는 <code>sub</code>, optional <code>tenantId</code>, user type <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code>만 포함합니다.</td></tr>
             <tr><th>steps</th><td>시나리오별 API 요청을 실행하고, response status/body/header, gateway JSON log, Redis key, upstream mock 수신 값을 확인합니다.</td></tr>
             <tr><th>expectedResult</th><td>API envelope, error code, tenant 차단, JWT 차단, upstream 전달, rate limit, CORS/security header가 위 표의 기대 결과와 일치해야 합니다.</td></tr>
             <tr><th>evidence</th><td>각 시나리오 결과에는 <code>requestId</code>, response JSON, 필요한 header, mock 수신 payload, Redis key, 관련 log line을 남깁니다.</td></tr>
@@ -404,6 +404,16 @@
         <h2>개발 기록</h2>
 
         <article>
+          <h3>2026-06-23 tenantless system_admin JWT 허용</h3>
+          <ul>
+            <li>JWT verifier가 <code>sub</code>와 <code>type</code>을 필수로 검증하고, <code>type !== system_admin</code>인 token에만 <code>tenantId</code>를 필수로 요구하도록 변경했습니다.</li>
+            <li>JWT <code>tenantId</code>가 있는 요청은 기존처럼 <code>X-Tenant-Id</code> mismatch를 <code>403 TENANT_MISMATCH</code>로 차단합니다.</li>
+            <li>tenant 없는 <code>system_admin</code> 요청은 upstream에 <code>X-User-Id</code>와 <code>X-Request-Id</code>를 전파하고, tenant header가 없으면 <code>X-Tenant-Id</code>를 전파하지 않습니다.</li>
+            <li>검증 evidence: <code>requestId=verify-super-admin-login-v3</code>, <code>verify-super-admin-me-v3</code>가 gateway 경유로 <code>200</code> 성공했고, tenant 없는 JWT는 upstream에 <code>X-Tenant-Id</code> 없이 전달됩니다. tenant 관리자 <code>verify-admin-tenantless-login</code>은 resolved tenantId JWT로 성공했습니다.</li>
+          </ul>
+        </article>
+
+        <article>
           <h3>2026-06-01 NestJS 기본 구성</h3>
           <ul>
             <li><code>apps/gateway-service</code>를 NestJS + TypeScript 실행 앱으로 구성했습니다.</li>
@@ -436,10 +446,10 @@
           <ul>
             <li>요청별 <code>requestId</code>, <code>tenantId</code>, <code>userId</code>를 담는 request context를 추가했습니다.</li>
             <li><code>X-Request-Id</code>가 없으면 gateway-service가 UUID를 생성하고 응답 header와 upstream 요청에 전파합니다.</li>
-            <li><code>X-Tenant-Id</code>는 request context에 먼저 담고, 인증 후 JWT <code>tenantId</code>와 불일치하면 <code>403 TENANT_MISMATCH</code>로 차단합니다.</li>
+            <li><code>X-Tenant-Id</code>는 request context에 먼저 담고, 인증 후 JWT <code>tenantId</code>가 있고 불일치하면 <code>403 TENANT_MISMATCH</code>로 차단합니다. JWT <code>tenantId</code>가 없으면 <code>system_admin</code> token만 허용합니다.</li>
             <li>요청 완료 시 JSON access log를 남기며 <code>method</code>, <code>path</code>, <code>statusCode</code>, <code>durationMs</code>, <code>requestId</code>, <code>tenantId</code>, <code>userId</code>를 포함합니다.</li>
             <li><code>/health</code>, <code>/ready</code>는 public route로 유지하고, <code>/api/**</code>는 기본 private route로 처리합니다.</li>
-            <li>JWT verifier는 local-dev 기본 구조로 시작하며 <code>sub</code>, <code>tenantId</code>, <code>exp</code>를 확인합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</li>
+            <li>JWT verifier는 local-dev 기본 구조로 시작하며 <code>sub</code>, <code>type</code>, optional <code>tenantId</code>, <code>exp</code>를 확인합니다. <code>roles</code>, <code>permissions</code>는 JWT에서 사용하지 않습니다.</li>
             <li>초기 proxy routing 뼈대에는 <code>/api/auth/**</code>, <code>/api/admin/**</code>, <code>/api/app/**</code>를 포함했습니다. <code>/api/app/**</code>는 2026-06-12에 일시 제거했다가 2026-06-18 user-bff 기본 구조 구현 후 다시 활성화했습니다.</li>
             <li>Proxy route API 문서는 <a href="../../apis/gateway-service/proxy-routes.html"><code>docs/apis/gateway-service/proxy-routes.html</code></a>에 기록합니다.</li>
           </ul>
@@ -447,7 +457,7 @@
             <tbody>
               <tr><th>GWS-CTX-001</th><td><code>GET /health</code> 호출 시 <code>X-Request-Id</code>가 응답 header로 전파되고 access log에 남는다.</td></tr>
               <tr><th>GWS-AUTH-001</th><td><code>/api/admin/**</code> 호출 시 bearer token이 없으면 <code>401 UNAUTHORIZED</code>로 차단된다.</td></tr>
-              <tr><th>GWS-TENANT-001</th><td>JWT <code>tenantId</code>와 <code>X-Tenant-Id</code>가 다르면 <code>403 TENANT_MISMATCH</code>로 차단된다.</td></tr>
+              <tr><th>GWS-TENANT-001</th><td>JWT <code>tenantId</code>가 있고 <code>X-Tenant-Id</code>와 다르면 <code>403 TENANT_MISMATCH</code>로 차단된다.</td></tr>
               <tr><th>GWS-PROXY-001</th><td>JWT와 tenant header가 일치하면 request context header를 upstream으로 전파하는 proxy 흐름까지 진입한다.</td></tr>
             </tbody>
           </table>
@@ -470,7 +480,7 @@
             <li><code>HS256</code>은 <code>JWT_SECRET</code>으로 HMAC 서명을 검증합니다.</li>
             <li><code>RS256</code>은 <code>JWT_PUBLIC_KEY</code>로 RSA SHA-256 서명을 검증할 수 있게 구성했습니다.</li>
             <li>서명이 맞지 않거나 허용되지 않은 algorithm이면 <code>401 AUTH_INVALID_TOKEN</code>으로 차단합니다.</li>
-            <li>서명 검증 후에도 JWT payload에서 request context에 반영하는 값은 <code>sub</code>, <code>tenantId</code>만 유지합니다.</li>
+            <li>서명 검증 후에도 JWT payload에서 request context에 반영하는 값은 <code>sub</code>, <code>type</code>, optional <code>tenantId</code>만 유지합니다.</li>
           </ul>
         </article>
         <article>
@@ -550,6 +560,13 @@
           </ul>
         </article>
         <article>
+          <h3>2026-06-22 web-admin 로컬 CORS origin 추가</h3>
+          <ul>
+            <li><code>web-admin</code> 개발 서버 기본 포트 <code>5174</code>를 gateway local CORS 허용 origin에 추가했습니다.</li>
+            <li><code>GATEWAY_CORS_ALLOWED_ORIGINS</code> 로컬 값과 코드 기본값에 <code>http://localhost:5174</code>, <code>http://127.0.0.1:5174</code>를 포함해 브라우저 로그인 preflight가 통과하도록 했습니다.</li>
+          </ul>
+        </article>
+        <article>
           <h3>2026-06-09 Security Headers와 CORS 운영 기준</h3>
           <ul>
             <li>gateway-service 모든 응답에 공통 보안 header를 추가했습니다.</li>
@@ -622,7 +639,7 @@
         <article>
           <h3>2026-06-12 구현 서비스 연동 기준 정리</h3>
           <ul>
-            <li>gateway-service는 현재 구현된 <code>auth-iam-service</code>, <code>admin-bff-service</code>만 upstream으로 연결합니다.</li>
+            <li>2026-06-12 당시 gateway-service는 구현된 <code>auth-iam-service</code>, <code>admin-bff-service</code>만 upstream으로 연결했습니다. 이후 <code>user-bff-service</code> 기본 구조 구현 후 <code>/api/app/**</code> route를 다시 활성화했습니다.</li>
             <li><code>/api/auth/**</code>는 <code>AUTH_IAM_SERVICE_URL</code>로 전달하고, 로그인과 토큰 갱신은 public 예외로 처리합니다.</li>
             <li><code>/api/admin/**</code>는 <code>ADMIN_BFF_SERVICE_URL</code>로 전달하며, admin-bff가 auth-iam 권한 확인과 tenant-service 내부 조회를 수행합니다.</li>
             <li>tenant 관리 API는 gateway가 tenant-service로 직접 proxy하지 않고 <code>/api/admin/tenants/**</code> → admin-bff-service → tenant-service 내부 API 경로를 사용합니다.</li>

@@ -32,7 +32,7 @@
         <table>
           <tbody>
             <tr><th>감사 기록 저장</th><td>권한 변경, tenant 설정 변경, 사용자 변경, 재고 조정 등 중요한 업무 행위를 append-only audit record로 저장합니다.</td></tr>
-            <tr><th>감사 기록 조회</th><td>Admin BFF가 tenant, 기간, actor, action, resource, result, requestId 조건으로 조회할 수 있는 내부 API를 제공합니다.</td></tr>
+            <tr><th>감사 기록 조회</th><td>Admin BFF가 tenant, 기간, actor, action, resource, result, requestId 조건으로 조회할 수 있는 내부 API를 제공합니다. tenant 없는 <code>system_admin</code> 요청은 전체 감사 로그 조회를 위해 tenant 필터를 생략할 수 있습니다.</td></tr>
             <tr><th>Evidence 연결</th><td>requestId, actor, resource, result, details를 통해 시스템 로그와 업무 행위를 추적할 수 있게 합니다.</td></tr>
             <tr><th>보존/마스킹</th><td>감사 로그 보존 정책과 민감정보 저장 금지, 필요한 식별자의 마스킹 기준을 적용합니다.</td></tr>
             <tr><th>내부 호출 보호</th><td>저장/조회 API는 internal auth를 요구하고 gateway에서 직접 노출하지 않습니다.</td></tr>
@@ -60,8 +60,8 @@
           <div class="card"><strong>Service Shell</strong><p>NestJS 앱 기본 구조, health/readiness, config, request context, access log, exception filter를 구성합니다.</p></div>
           <div class="card"><strong>Audit Store</strong><p>PostgreSQL + Prisma 기반 <code>audit_logs</code> 저장소를 만들고 append-only 원칙을 적용합니다.</p></div>
           <div class="card"><strong>Audit Event Consumer</strong><p>업무 행위 완료 이벤트를 소비해 append-only 감사 record를 저장합니다.</p></div>
-          <div class="card"><strong>GET /api/internal/audit/logs</strong><p>Admin BFF가 tenant 범위의 감사 로그를 조건별로 조회하는 API입니다.</p></div>
-          <div class="card"><strong>POST /api/internal/audit/logs</strong><p>User BFF app shell 감사 이벤트를 internal-api fallback으로 저장하는 내부 API입니다.</p></div>
+          <div class="card"><strong>GET /api/internal/audit/logs</strong><p>Admin BFF가 tenant 범위 또는 슈퍼 관리자 전체 범위의 감사 로그를 조건별로 조회하는 API입니다.</p></div>
+          <div class="card"><strong>POST /api/internal/audit/logs</strong><p>User BFF app shell과 Admin BFF 관리자 변경성 action 감사 이벤트를 internal-api fallback으로 저장하는 내부 API입니다.</p></div>
           <div class="card"><strong>Admin BFF 연동</strong><p><code>GET /api/admin/audit-logs</code>를 실제 audit-log-service 조회 API로 연결합니다.</p></div>
           <div class="card"><strong>Security</strong><p>password, token, secret, Authorization, SQL, stack trace, 민감 개인정보 원문 저장을 금지합니다.</p></div>
         </div>
@@ -136,6 +136,7 @@
               <p><label><input type="checkbox" checked disabled /> 사용자 생성/수정/상태 변경 audit 저장 시나리오 확인</label></p>
               <p><label><input type="checkbox" checked disabled /> role/permission 변경 audit 저장 시나리오 확인</label></p>
               <p><label><input type="checkbox" checked disabled /> <code>admin-bff-service</code>의 <code>GET /api/admin/audit-logs</code> 조회 연동 확인</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>admin-bff-service</code>의 관리자 변경성 action 내부 POST 기록 허용</label></p>
               <p><label><input type="checkbox" checked disabled /> Admin BFF permission <code>audit.logs.read</code> 검증 유지</label></p>
               <p><label><input type="checkbox" checked disabled /> Docker env, local compose, deploy compose 기본 연결</label></p>
               <p><label><input type="checkbox" checked disabled /> <code>apps/audit-log-service/Dockerfile</code> 추가 및 image build 확인</label></p>
@@ -190,7 +191,7 @@
             </thead>
             <tbody>
               <tr><td>Audit 저장 이벤트</td><td>auth-iam-service, tenant-service, wms-service outbox events</td><td><code>eventId</code>, <code>eventType</code>, <code>schemaVersion</code>, <code>tenantId</code>, <code>requestId</code>, <code>occurredAt</code>, <code>source</code>, <code>aggregateType</code>, <code>aggregateId</code>, <code>actor</code></td><td><code>eventType</code>을 <code>action</code>으로, aggregate를 <code>resource</code>로 저장합니다.</td><td>같은 <code>eventId</code>가 재전달되어도 중복 row가 생성되지 않습니다.</td></tr>
-              <tr><td><code>GET /api/internal/audit/logs</code></td><td>admin-bff-service</td><td>internal auth, tenantId context, page/size</td><td><code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code></td><td>tenant 범위와 기간 조건으로 page 조회가 됩니다.</td></tr>
+              <tr><td><code>GET /api/internal/audit/logs</code></td><td>admin-bff-service</td><td>internal auth, optional tenantId context, page/size</td><td><code>data.items</code>, <code>data.page</code>, <code>data.size</code>, <code>data.total</code></td><td>tenant 범위와 기간 조건으로 page 조회가 됩니다. tenant 없는 system_admin 요청은 전체 scope로 조회합니다.</td></tr>
             </tbody>
           </table>
         </div>
@@ -280,6 +281,23 @@
 
       <section>
         <h2>개발 기록</h2>
+        <article>
+          <h3>2026-06-23 system_admin 전체 감사 로그 조회 지원</h3>
+          <ul>
+            <li><code>GET /api/internal/audit/logs</code>의 조회 필터에서 <code>tenantId</code>를 optional로 변경했습니다. 저장 경로와 이벤트 소비 경로의 <code>tenantId</code> 필수 규칙은 유지합니다.</li>
+            <li>Admin BFF가 tenant 없는 <code>system_admin</code> 권한 확인 후 대시보드와 감사 로그 화면에서 전체 감사 로그를 조회할 수 있습니다.</li>
+            <li>검증 evidence: <code>requestId=verify-super-dashboard-2</code> 기준 admin dashboard가 <code>auditTotal=293</code>을 포함해 <code>200</code>으로 성공했습니다.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3>2026-06-22 Admin BFF audit 기록 허용</h3>
+          <ul>
+            <li><code>POST /api/internal/audit/logs</code>의 internal caller 허용 목록에 <code>admin-bff-service</code>를 추가했습니다.</li>
+            <li>Admin BFF가 tenant/user/role 변경성 action 성공 후 같은 <code>requestId</code>로 <code>admin.*</code> audit row를 저장할 수 있게 했습니다.</li>
+            <li><code>pnpm --filter audit-log-service typecheck</code>가 통과했고, 로컬 compose 재기동 후 <code>web-admin-audit-fix-mqorf18i</code> run에서 변경성 requestId 8개 모두 audit 조회 <code>total=1</code>을 확인했습니다.</li>
+          </ul>
+        </article>
         <article>
           <h3>2026-06-19 User BFF App Audit EventBridge 전환 반영</h3>
           <ul>

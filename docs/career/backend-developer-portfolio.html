@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>백엔드 개발 포트폴리오</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #f4f7f9;
+        color: #17212b;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+        line-height: 1.65;
+      }
+      main { width: min(1080px, calc(100% - 40px)); margin: 0 auto; padding: 40px 0 64px; }
+      header, section {
+        margin-top: 18px;
+        padding: 28px;
+        border: 1px solid #d8e2e8;
+        border-radius: 8px;
+        background: #fff;
+      }
+      header { margin-top: 0; }
+      h1, h2, h3 { margin: 0; line-height: 1.25; letter-spacing: 0; }
+      h1 { font-size: 42px; }
+      h2 { color: #0a4d53; font-size: 24px; }
+      h3 { color: #17212b; font-size: 19px; }
+      p { margin: 0; color: #5d6976; line-height: 1.75; }
+      ul { margin: 10px 0 0; padding-left: 20px; color: #5d6976; }
+      li + li { margin-top: 6px; }
+      table {
+        width: 100%;
+        margin-top: 16px;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+        border: 1px solid #d8e2e8;
+        border-radius: 8px;
+      }
+      th, td {
+        padding: 13px 15px;
+        border-bottom: 1px solid #d8e2e8;
+        text-align: left;
+        vertical-align: top;
+      }
+      tr:last-child th, tr:last-child td { border-bottom: 0; }
+      th { width: 190px; background: #edf4f7; color: #0a4d53; }
+      .eyebrow { margin-bottom: 8px; color: #0f6b73; font-size: 13px; font-weight: 800; text-transform: uppercase; }
+      .lead { margin-top: 16px; color: #17212b; font-size: 18px; line-height: 1.8; }
+      .section-head {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: start;
+        margin-bottom: 18px;
+      }
+      .section-head p { margin-top: 6px; }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #edf4f7;
+        color: #0f6b73;
+        font-size: 13px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .tag.done { background: #ecfdf5; color: #23785b; }
+      .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+      .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card, .metric, .flow-step, .timeline-item {
+        border: 1px solid #d8e2e8;
+        border-radius: 8px;
+        background: #fbfcfd;
+      }
+      .card { padding: 16px; }
+      .card strong, .flow-step strong {
+        display: block;
+        margin-bottom: 6px;
+        color: #0a4d53;
+        font-size: 16px;
+      }
+      .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+      .metric { min-height: 112px; padding: 18px; }
+      .metric strong { display: block; color: #0a4d53; font-size: 28px; line-height: 1.1; }
+      .metric span { display: block; margin-top: 8px; color: #5d6976; }
+      .flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+      .flow-step { min-height: 128px; padding: 14px; }
+      .timeline { display: grid; gap: 14px; }
+      .timeline-item { display: grid; grid-template-columns: 150px 1fr; gap: 18px; padding: 18px; }
+      .timeline-date { color: #0a4d53; font-weight: 800; }
+      .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #edf4f7;
+        color: #0a4d53;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .note {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-left: 4px solid #0f6b73;
+        background: #edf4f7;
+        color: #17212b;
+      }
+      .footer { margin-top: 22px; color: #5d6976; font-size: 13px; text-align: center; }
+      @media print {
+        body { background: #fff; }
+        main { width: 100%; padding: 0; }
+        header, section { break-inside: avoid; }
+      }
+      @media (max-width: 900px) {
+        .section-head, .grid, .grid.two, .metric-grid, .flow, .timeline-item { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Backend Developer Portfolio</p>
+        <h1>멀티테넌트 스마트 팩토리 백엔드 개발</h1>
+        <p class="lead">
+          WMS를 첫 도메인으로 선택하고, 이후 MES/QMS/FMS/EMS로 확장할 수 있도록 만든
+          AWS ECS Fargate 기반 MSA 프로젝트입니다. 핵심 목표는 멀티테넌트 격리, BFF/Gateway 경계,
+          WMS 업무 흐름, Outbox/Audit 추적성, CDK 기반 배포 가능성을 초기부터 함께 갖추는 것이었습니다.
+        </p>
+        <div class="pill-row">
+          <span class="pill">NestJS</span>
+          <span class="pill">TypeScript</span>
+          <span class="pill">Prisma</span>
+          <span class="pill">PostgreSQL</span>
+          <span class="pill">Redis</span>
+          <span class="pill">AWS ECS Fargate</span>
+          <span class="pill">AWS CDK</span>
+          <span class="pill">SQS / DLQ</span>
+          <span class="pill">Outbox Pattern</span>
+          <span class="pill">MSA</span>
+        </div>
+      </header>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>프로젝트 스냅샷</h2>
+            <p>문서와 코드 기준으로 확인되는 백엔드 구현 범위입니다.</p>
+          </div>
+          <span class="tag done">SNAPSHOT</span>
+        </div>
+        <div class="metric-grid">
+          <div class="metric">
+            <strong>8</strong>
+            <span>CDK 배포 정의에 포함된 backend service</span>
+          </div>
+          <div class="metric">
+            <strong>12</strong>
+            <span>서비스별 API HTML 문서</span>
+          </div>
+          <div class="metric">
+            <strong>32</strong>
+            <span>시나리오 기반 검증 로그</span>
+          </div>
+          <div class="metric">
+            <strong>2026.06</strong>
+            <span>프로젝트 시작 및 백엔드 기반 구축</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>백엔드 아키텍처 흐름</h2>
+            <p>외부 업무 API는 gateway-service 하나로 들어오고, 화면 조합은 BFF, 업무 규칙은 domain service가 담당합니다.</p>
+          </div>
+          <span class="tag">ARCHITECTURE</span>
+        </div>
+        <div class="flow">
+          <div class="flow-step">
+            <strong>Client</strong>
+            <p>관리자/WMS 화면은 gateway API만 호출합니다.</p>
+          </div>
+          <div class="flow-step">
+            <strong>Gateway</strong>
+            <p>JWT 검증, tenant context, rate limit, route proxy를 처리합니다.</p>
+          </div>
+          <div class="flow-step">
+            <strong>BFF</strong>
+            <p>admin/user API 조합, tenant readiness, 권한 summary 조회를 담당합니다.</p>
+          </div>
+          <div class="flow-step">
+            <strong>Domain Services</strong>
+            <p>auth, tenant, wms, audit가 각자 소유한 business rule을 처리합니다.</p>
+          </div>
+          <div class="flow-step">
+            <strong>Outbox/Audit</strong>
+            <p>업무 이벤트와 감사 로그를 비동기적으로 전달하고 저장합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>아키텍처 설계서</h2>
+            <p>초기 스마트 팩토리 구성도를 MSA와 AWS ECS 운영 구조에 맞게 재설계한 백엔드 설계 요약입니다.</p>
+          </div>
+          <span class="tag">BLUEPRINT</span>
+        </div>
+        <div class="grid two">
+          <div class="card">
+            <strong>외부 진입점</strong>
+            <p>외부 업무 API는 gateway-service를 단일 진입점으로 사용합니다. 인증, requestId, tenant context, rate limit, route proxy를 gateway에서 처리해 외부 노출 면을 줄였습니다.</p>
+          </div>
+          <div class="card">
+            <strong>화면 조합 계층</strong>
+            <p>Admin/User BFF는 화면에 필요한 여러 내부 API를 조합합니다. tenant status check, permission summary, 화면별 응답 변환은 BFF 계층의 책임입니다.</p>
+          </div>
+          <div class="card">
+            <strong>도메인 서비스 계층</strong>
+            <p>auth-iam, tenant, wms, audit-log는 각자 소유한 업무 규칙과 데이터 접근을 담당합니다. gateway는 domain service를 직접 호출하지 않도록 설계했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>데이터와 테넌트 격리</strong>
+            <p>초기 전략은 shared DB + tenantId입니다. 모든 tenant-scoped 요청, 데이터 접근, 로그, 이벤트에는 tenantId와 requestId가 포함됩니다.</p>
+          </div>
+          <div class="card">
+            <strong>이벤트와 감사 추적</strong>
+            <p>업무 상태 변경과 outbox event 저장을 같은 transaction에 묶고, outbox-relay-service가 SQS/EventBridge/mock publisher로 발행합니다.</p>
+          </div>
+          <div class="card">
+            <strong>AWS 실행 환경</strong>
+            <p>서비스는 ECS Fargate task로 실행하고, CDK로 ECR, ALB, VPC, Cloud Map, Redis, SQS/DLQ, CloudWatch, Security Group을 관리합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>서비스별 백엔드 구현</h2>
+            <p>각 서비스가 담당하는 백엔드 기능과 설명 포인트입니다.</p>
+          </div>
+          <span class="tag">SERVICES</span>
+        </div>
+        <table>
+          <tbody>
+            <tr>
+              <th>gateway-service</th>
+              <td>외부 업무 API 단일 진입점입니다. JWT 서명/만료 검증, tenant mismatch 차단, requestId/tenantId propagation, rate limit, auth/admin/app route proxy를 담당합니다.</td>
+            </tr>
+            <tr>
+              <th>auth-iam-service</th>
+              <td>로그인, refresh token rotation, 사용자/role/permission 관리, permission summary/check API, system_admin tenantless login, tenant 관리자 scope 판별을 담당합니다.</td>
+            </tr>
+            <tr>
+              <th>tenant-service</th>
+              <td>tenant, module, domain, status/readiness를 관리합니다. BFF가 tenant 상태를 확인할 수 있도록 내부 API를 제공합니다.</td>
+            </tr>
+            <tr>
+              <th>admin-bff-service</th>
+              <td>관리자 화면용 tenant/user/rbac/audit API를 조합합니다. Gateway 뒤에서 내부 서비스 호출을 중재하고 audit best-effort 기록을 수행합니다.</td>
+            </tr>
+            <tr>
+              <th>user-bff-service</th>
+              <td>사용자 app shell/navigation과 WMS 화면 조회 API를 조합합니다. WMS domain API를 화면에 맞게 재구성하는 역할입니다.</td>
+            </tr>
+            <tr>
+              <th>wms-service</th>
+              <td>WMS business rule의 소유 서비스입니다. 창고/로케이션/품목, 재고, 스냅샷, 입고, 출고, 포장, 출하 API와 outbox/audit 이벤트 생성을 담당합니다.</td>
+            </tr>
+            <tr>
+              <th>outbox-relay-service</th>
+              <td>각 source DB의 outbox_events를 polling하고 EventBridge/SQS/mock publisher로 발행합니다. retry, failed 상태, audit queue 전달을 처리합니다.</td>
+            </tr>
+            <tr>
+              <th>audit-log-service</th>
+              <td>SQS audit event를 소비하고 append-only 감사 로그로 저장합니다. 관리자 조회 API를 통해 tenant/user/resource/action 기준 검색을 제공합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>기술 선택 이유</h2>
+            <p>멀티테넌트 MSA와 AWS 배포 가능성을 기준으로 선택한 기술입니다.</p>
+          </div>
+          <span class="tag">WHY STACK</span>
+        </div>
+        <table>
+          <tbody>
+            <tr>
+              <th>NestJS</th>
+              <td>module, controller, service, guard, interceptor 구조가 명확해 MSA 서비스별 책임을 나누기 쉽고, 인증/인가/검증/예외 처리 같은 공통 관심사를 일관되게 적용하기 좋습니다.</td>
+            </tr>
+            <tr>
+              <th>TypeScript</th>
+              <td>서비스 간 API DTO, config, event payload, error envelope를 타입으로 관리해 변경 영향을 빨리 발견할 수 있습니다.</td>
+            </tr>
+            <tr>
+              <th>Prisma</th>
+              <td>초기 개발 단계에서 schema와 query를 빠르게 반복하기 좋고, tenantId 조건 누락 같은 데이터 접근 규칙을 repository/service 계층에서 명확히 드러낼 수 있습니다.</td>
+            </tr>
+            <tr>
+              <th>PostgreSQL</th>
+              <td>WMS의 재고 원장, 입출고 상태, 감사 로그처럼 정합성이 중요한 업무 데이터를 다루기 적합합니다.</td>
+            </tr>
+            <tr>
+              <th>Outbox Pattern</th>
+              <td>도메인 DB 변경과 이벤트 저장을 같은 transaction에 묶어 이벤트 유실 가능성을 낮춥니다.</td>
+            </tr>
+            <tr>
+              <th>SQS / DLQ</th>
+              <td>감사 로그와 이벤트 소비를 비동기로 처리하고, 실패 메시지를 DLQ로 분리해 운영자가 재처리할 수 있게 만듭니다.</td>
+            </tr>
+            <tr>
+              <th>ECS Fargate</th>
+              <td>컨테이너 기반 MSA를 운영하면서 EC2 관리 부담을 줄이고, 서비스별 task와 desired count를 독립적으로 조정할 수 있습니다.</td>
+            </tr>
+            <tr>
+              <th>AWS CDK</th>
+              <td>애플리케이션과 같은 TypeScript로 인프라를 코드화해 서비스 추가 시 ECR/ECS/ALB/SQS/CloudWatch 구성을 반복 가능한 패턴으로 관리할 수 있습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>테스트 기준</h2>
+            <p>1차 단계에서는 자동 E2E보다 시나리오 기반 AI 검증과 evidence 기록을 우선했습니다.</p>
+          </div>
+          <span class="tag done">TEST CRITERIA</span>
+        </div>
+        <div class="grid two">
+          <div class="card">
+            <strong>API 계약</strong>
+            <p>모든 응답은 success, requestId, timestamp, data/error envelope를 따라야 하며, list 응답은 items, page, size, total만 사용합니다.</p>
+          </div>
+          <div class="card">
+            <strong>멀티테넌트 격리</strong>
+            <p>missing tenant, tenant mismatch, inactive tenant, cross-tenant access, tenantId propagation 실패를 검증 대상으로 둡니다.</p>
+          </div>
+          <div class="card">
+            <strong>인증/인가</strong>
+            <p>login/refresh 예외를 제외한 business API는 인증을 요구하고, 권한 확인은 auth-iam-service의 permission check 기준을 따릅니다.</p>
+          </div>
+          <div class="card">
+            <strong>WMS 업무 정합성</strong>
+            <p>재고 조정, 입고 확정, 출고 할당, 포장, 출하에서 재고 부족, 중복 처리, 상태 전이, idempotency 위험을 확인합니다.</p>
+          </div>
+          <div class="card">
+            <strong>Outbox/Audit</strong>
+            <p>업무 변경 후 outbox row 생성, relay publish, retry/failure 상태, audit-log 저장, requestId/tenantId 보존을 evidence로 확인합니다.</p>
+          </div>
+          <div class="card">
+            <strong>성능 기준</strong>
+            <p>p95/p99 latency, error rate, outbox/audit delay, resource usage, data consistency를 확인 대상으로 둡니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>개발 타임라인</h2>
+            <p>Git 이력 기준의 큰 진행 흐름입니다.</p>
+          </div>
+          <span class="tag">GIT</span>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-date">2026-06-01</div>
+            <div>
+              <h3>Monorepo 초기화</h3>
+              <p>pnpm workspace 기반으로 apps, packages, infra/cdk, tools 구조를 잡았습니다.</p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">2026-06-08</div>
+            <div>
+              <h3>Auth/IAM 기반 구현</h3>
+              <p>auth-iam-service와 gateway 배포 workflow 기반을 준비했습니다.</p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">2026-06-10</div>
+            <div>
+              <h3>Tenant 서비스와 Gateway 연계</h3>
+              <p>tenant-service, gateway integration, 멀티테넌트 규칙을 구현했습니다.</p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">2026-06-17</div>
+            <div>
+              <h3>Outbox와 Audit 파이프라인</h3>
+              <p>outbox relay와 audit event pipeline을 추가했습니다.</p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">2026-06-22</div>
+            <div>
+              <h3>WMS 서비스 구현</h3>
+              <p>WMS service와 frontend API support를 추가하고 시스템 시나리오 검증을 진행했습니다.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="footer">작성일: 2026-06-24 · 단일 포트폴리오 HTML · 외부 링크/외부 CSS 없음 · docs/index.html 미연결</p>
+    </main>
+  </body>
+</html>

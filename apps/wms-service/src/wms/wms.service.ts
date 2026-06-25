@@ -713,6 +713,57 @@ export class WmsService {
     return this.toOutboundAllocationResponse(allocation);
   }
 
+  async listOutboundAllocations(
+    context: CommandContext,
+    query: Record<string, unknown>
+  ): Promise<PageResponse<OutboundAllocationResponse>> {
+    const warehouseId = readOptionalUuid(query.warehouseId, "warehouseId");
+    const outboundOrderId = readOptionalUuid(query.outboundOrderId, "outboundOrderId");
+    const statusText = readOptionalString(query.status);
+    let status: OutboundAllocationStatus | undefined;
+    if (statusText) {
+      if (!this.isOutboundAllocationStatus(statusText)) {
+        throw validationFailed({
+          status: "status must be one of allocated, shipped, cancelled"
+        });
+      }
+      status = statusText;
+    }
+
+    const tenantId = await this.authorize(context, "wms.outbound.allocate", warehouseId);
+    const page = readPage(query.page);
+    const size = readSize(query.size);
+    const where = {
+      tenantId,
+      ...(warehouseId ? { warehouseId } : {}),
+      ...(outboundOrderId ? { outboundOrderId } : {}),
+      ...(status ? { status } : {})
+    };
+    const [items, total] = await Promise.all([
+      this.prismaService.outboundAllocation.findMany({
+        where,
+        include: {
+          outboundOrder: true
+        },
+        orderBy: {
+          allocatedAt: "desc"
+        },
+        skip: (page - 1) * size,
+        take: size
+      }),
+      this.prismaService.outboundAllocation.count({
+        where
+      })
+    ]);
+
+    return {
+      items: items.map((allocation) => this.toOutboundAllocationResponse(allocation)),
+      page,
+      size,
+      total
+    };
+  }
+
   async listOutboundPackings(context: CommandContext, query: Record<string, unknown>): Promise<PageResponse<OutboundPackingResponse>> {
     const warehouseId = readOptionalUuid(query.warehouseId, "warehouseId");
     const outboundOrderId = readOptionalUuid(query.outboundOrderId, "outboundOrderId");
@@ -1635,6 +1686,10 @@ export class WmsService {
 
   private isOutboundPackingStatus(value: string): value is OutboundPackingStatus {
     return Object.values(OutboundPackingStatus).includes(value as OutboundPackingStatus);
+  }
+
+  private isOutboundAllocationStatus(value: string): value is OutboundAllocationStatus {
+    return Object.values(OutboundAllocationStatus).includes(value as OutboundAllocationStatus);
   }
 
   private isInventorySnapshotRunMode(value: string): value is InventorySnapshotRunMode {

@@ -26,6 +26,7 @@
                   <tr><th>AI 역할</th><td>AI는 시나리오의 사전 조건, 실행 단계, 기대 결과를 읽고 실제 화면/API/로그/데이터를 확인합니다.</td></tr>
                   <tr><th>자동화 범위</th><td>1차에서는 Playwright 같은 E2E 테스트 코드를 작성하지 않습니다. 필요해질 때 별도 결정합니다.</td></tr>
                   <tr><th>필수 검증</th><td>멀티테넌트 격리, API 응답 포맷, 에러 코드, WMS 핵심 업무 흐름, outbox 저장, 감사 로그 저장을 검증합니다.</td></tr>
+                  <tr><th>성능 기준</th><td>성능 테스트는 <a href="../../test-scenarios/performance-test-criteria.html">성능 테스트 기준</a>의 p95/p99, 오류율, outbox/audit 지연, 자원 사용률, 정합성 조건을 함께 만족해야 통과입니다.</td></tr>
                   <tr><th>기록</th><td>테스트 결과는 시나리오별로 성공/실패, 발견 이슈, 재현 단계, 수정 여부를 남깁니다.</td></tr>
                 </tbody>
               </table>
@@ -97,13 +98,26 @@
             </section>
 
       <section>
+              <h2>성능 테스트 기준</h2>
+              <table>
+                <tbody>
+                  <tr><th>판정 기준</th><td>평균 응답 시간이 아니라 <code>p95</code>, <code>p99</code>, 오류율, 5xx, timeout, outbox/audit 지연, 정합성 오류 여부로 판단합니다.</td></tr>
+                  <tr><th>1차 기준</th><td>Local Docker는 조회 API p95 <code>700ms</code>, BFF 조합 조회 p95 <code>900ms</code>, WMS mutation p95 <code>1200ms</code>를 시작 기준으로 삼습니다.</td></tr>
+                  <tr><th>dev AWS 기준</th><td>단순 조회 p95 <code>500ms</code>, BFF 조합 조회 p95 <code>800ms</code>, 스냅샷 조회와 WMS mutation p95 <code>1000ms</code>, 5xx <code>0건</code>을 목표로 합니다.</td></tr>
+                  <tr><th>정합성 우선</th><td>재고, 스냅샷, outbox, audit, tenant 격리에 오류가 있으면 latency 기준을 만족해도 실패입니다.</td></tr>
+                  <tr><th>상세 문서</th><td><a href="../../test-scenarios/performance-test-criteria.html"><code>docs/test-scenarios/performance-test-criteria.html</code></a></td></tr>
+                </tbody>
+              </table>
+            </section>
+
+      <section>
               <h2>현재 로컬 검증 기준</h2>
               <table>
                 <tbody>
-                  <tr><th>기준일</th><td><code>2026-06-19</code></td></tr>
-                  <tr><th>전체 시스템</th><td><code>pnpm test:system:local</code>은 gateway, Admin BFF, User BFF app shell/WMS 화면 조회 API, Auth/IAM, Tenant, WMS, outbox/audit, User BFF app audit EventBridge routing CDK synth를 포함해 33개 시나리오를 검증합니다.</td></tr>
+                  <tr><th>기준일</th><td><code>2026-06-22</code></td></tr>
+                  <tr><th>전체 시스템</th><td><code>pnpm test:system:local</code>은 gateway, Admin BFF, User BFF app shell/WMS 화면 조회 API, Auth/IAM, Tenant, WMS, outbox/audit, User BFF app audit EventBridge routing CDK synth를 포함해 33개 시나리오를 검증합니다. User BFF WMS 화면 검증에는 창고/로케이션 selector, 현재고, 일 단위 스냅샷 전체/필터 조회, 출고 할당, 포장 목록 조회, dashboard 작업 큐 요약이 포함됩니다.</td></tr>
                   <tr><th>WMS 하위 흐름</th><td><code>pnpm test:wms:local</code>은 현재고 list envelope, 입고, 출고 할당, 포장, 출하, 일 단위 스냅샷, empty filter 회귀를 포함해 22개 하위 시나리오를 검증합니다.</td></tr>
-                  <tr><th>최신 로그</th><td><a href="../../test-logs/2026-06-21/frontend-wms-api-verification.html"><code>docs/test-logs/2026-06-21/frontend-wms-api-verification.html</code></a></td></tr>
+                  <tr><th>최신 로그</th><td><a href="../../test-logs/2026-06-22/final-system-scenario-verification.html"><code>docs/test-logs/2026-06-22/final-system-scenario-verification.html</code></a></td></tr>
                 </tbody>
               </table>
             </section>

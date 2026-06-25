@@ -37,7 +37,10 @@ export class AdminAccessControlScreenController {
       page: query.page,
       size: query.size,
       status: query.userStatus ?? query.status,
-      email: query.email
+      email: query.email,
+      keyword: query.keyword,
+      tenantFilter: query.tenantFilter ?? query.tenantId,
+      roleCode: query.roleCode
     });
   }
 

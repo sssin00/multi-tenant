@@ -34,7 +34,7 @@ pnpm --filter user-bff-service start
 
 ## Local
 
-Docker compose에서는 `http://localhost:3004`로 노출됩니다. gateway 경유 요청은 `http://localhost:3000/api/app/**`를 사용합니다.
+Docker compose에서는 host port를 열지 않고 compose 내부 네트워크에만 노출합니다. 로컬 브라우저와 Postman 요청은 항상 gateway 경유 `http://localhost:3000/api/app/**`를 사용합니다.
 
 필수 downstream 환경 변수는 `AUTH_IAM_SERVICE_URL`, `TENANT_SERVICE_URL`, `WMS_SERVICE_URL`입니다. 내부 인증이 켜져 있으면 `AUTH_INTERNAL_AUTH_SECRET`, `TENANT_INTERNAL_AUTH_SECRET`, `WMS_INTERNAL_AUTH_SECRET`도 필요합니다.
 

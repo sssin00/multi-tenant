@@ -21,11 +21,11 @@
         <h2>기준</h2>
         <table>
           <tbody>
-            <tr><th>기준일</th><td><code>2026-06-21</code></td></tr>
+            <tr><th>기준일</th><td><code>2026-06-22</code></td></tr>
             <tr><th>사용자 타입</th><td>코드상 사용자 타입은 <code>system_admin</code>과 <code>general_user</code>입니다.</td></tr>
             <tr><th>Tenant 역할</th><td><code>general_user</code>에게 tenant role을 부여해 <code>tenant_admin</code>, <code>tenant_user</code>, WMS 담당자 역할을 구성합니다.</td></tr>
             <tr><th>중요 경계</th><td><code>system_admin</code>은 tenant-scoped 사용자 API로 생성하거나 tenant role에 섞지 않습니다. 현재 구현은 이 분리를 검증하고, 전용 system admin bootstrap/API는 후속 범위입니다.</td></tr>
-            <tr><th>검증 증거</th><td><a href="../test-logs/2026-06-21/frontend-wms-api-verification.html"><code>frontend-wms-api-verification.html</code></a>에서 33개 시나리오 통과를 확인했습니다.</td></tr>
+            <tr><th>검증 증거</th><td><a href="../test-logs/2026-06-22/final-system-scenario-verification.html"><code>final-system-scenario-verification.html</code></a>에서 33개 전체 시스템 시나리오 통과를 확인했습니다. WMS 하위 22개 시나리오와 Outbox/SQS 독립 검증도 함께 재실행했습니다.</td></tr>
           </tbody>
         </table>
       </section>
@@ -59,7 +59,7 @@
                 <td><code>tenant_user</code></td>
                 <td><code>general_user</code> + 업무 role</td>
                 <td>WMS app shell, navigation, WMS 조회/작업 API를 부여받은 권한 범위 안에서 사용합니다.</td>
-                <td>User BFF app shell/navigation과 WMS 화면 조회 API가 구현되어 있습니다. 재고 조회 화면은 <code>wms.inventory.read</code>, 창고/자재 관리 화면은 관리 권한에 따라 노출됩니다.</td>
+                <td>User BFF app shell/navigation과 WMS 화면 조회 API가 구현되어 있습니다. 재고/스냅샷 조회 화면은 <code>wms.inventory.read</code>, 창고/로케이션/자재/출고/포장 화면은 관리 권한에 따라 노출됩니다.</td>
               </tr>
               <tr>
                 <td>WMS 담당자</td>
@@ -181,8 +181,8 @@
                 <td>WMS 화면 데이터 조합</td>
                 <td>대상 아님</td>
                 <td>권한 정책과 메뉴 노출 기준 관리</td>
-                <td>web-wms가 User BFF를 통해 사용 예정</td>
-                <td><span class="tag todo">Planned</span></td>
+                <td>User BFF의 dashboard, warehouse/location selector, materials, inventory summary, inventory snapshot, outbound allocation, outbound packing API를 사용 예정</td>
+                <td><span class="tag done">Implemented via User BFF</span></td>
               </tr>
             </tbody>
           </table>

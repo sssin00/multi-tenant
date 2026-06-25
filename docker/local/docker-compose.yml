@@ -237,8 +237,8 @@ services:
     container_name: multi-tenant-admin-bff-service
     env_file:
       - ../env/admin-bff-service/.env.local
-    ports:
-      - "3003:3000"
+    expose:
+      - "3000"
     depends_on:
       auth-iam-service:
         condition: service_healthy
@@ -265,8 +265,8 @@ services:
     container_name: multi-tenant-user-bff-service
     env_file:
       - ../env/user-bff-service/.env.local
-    ports:
-      - "3004:3000"
+    expose:
+      - "3000"
     depends_on:
       auth-iam-service:
         condition: service_healthy
@@ -314,6 +314,46 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  web-admin:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.web
+      args:
+        APP_NAME: web-admin
+        VITE_API_BASE_URL: http://localhost:3000
+    container_name: multi-tenant-web-admin
+    ports:
+      - "5173:80"
+    depends_on:
+      gateway-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  web-wms:
+    build:
+      context: ../..
+      dockerfile: docker/services/Dockerfile.web
+      args:
+        APP_NAME: web-wms
+        VITE_API_BASE_URL: http://localhost:3000
+    container_name: multi-tenant-web-wms
+    ports:
+      - "5174:80"
+    depends_on:
+      gateway-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   postgres:
     image: postgres:16-alpine

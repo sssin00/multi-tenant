@@ -132,7 +132,7 @@
             <span>대분류: 아키텍처 현황 / 설계 / API 문서 / 개발과정 / 테스트 시나리오</span>
           </div>
           <div class="metric">
-            <strong>6</strong>
+            <strong>7</strong>
             <span>날짜별 아키텍처 상황 문서</span>
           </div>
           <div class="metric">
@@ -144,20 +144,20 @@
             <span>API 문서 허브와 서비스별 endpoint 문서</span>
           </div>
           <div class="metric">
-            <strong>11</strong>
-            <span>서비스별 개발과정과 사용자 기능 영역 문서</span>
+            <strong>13</strong>
+            <span>서비스별 개발과정, 사용자 기능 영역, 후속 작업 문서</span>
           </div>
           <div class="metric">
-            <strong>1</strong>
-            <span>전체 시스템 테스트 시나리오 문서</span>
+            <strong>4</strong>
+            <span>전체 시스템, web-admin, web-wms, 성능 테스트 시나리오 문서</span>
           </div>
           <div class="metric">
             <strong>8</strong>
             <span>CDK 배포 정의에 포함된 backend service</span>
           </div>
           <div class="metric">
-            <strong>2</strong>
-            <span>착수 전 또는 선행 계약 대기 서비스/앱</span>
+            <strong>32</strong>
+            <span>날짜별 로컬/통합/화면/API 검증 로그 문서</span>
           </div>
         </div>
       </section>
@@ -218,12 +218,19 @@
           <span class="tag">ARCHITECTURE STATUS</span>
         </div>
         <div class="doc-grid">
+          <a class="doc-card" href="./infra/2026-06-22/index.html">
+            <div>
+              <h2>2026-06-22</h2>
+              <p>로컬에서도 gateway-service를 단일 업무 API 진입점으로 강제하고, Admin/User BFF host port 미노출, web-admin/web-wms Docker 실행, CDK gateway-only 검증 결과와 운영 기준 아키텍처를 기록합니다.</p>
+            </div>
+            <span class="tag done">LATEST</span>
+          </a>
           <a class="doc-card" href="./infra/2026-06-19/index.html">
             <div>
               <h2>2026-06-19</h2>
               <p>user-bff-service와 wms-service가 CDK/ECS/ECR/Cloud Map/security group, service-specific workflow에 포함된 8서비스 배포 기준을 기록합니다.</p>
             </div>
-            <span class="tag done">LATEST</span>
+            <span class="tag done">SNAPSHOT</span>
           </a>
           <a class="doc-card" href="./infra/2026-06-18/index.html">
             <div>
@@ -292,6 +299,13 @@
               <p>현행 CDK 8개 backend service와 BFF 경유, WMS outbox/audit 흐름, CDK 밖 후속 리소스를 draw.io로 표현합니다.</p>
             </div>
             <span class="tag todo">DRAWIO</span>
+          </a>
+          <a class="doc-card" href="./infra/2026-06-22/index.html#production-architecture">
+            <div>
+              <h2>운영 기준 아키텍처</h2>
+              <p>DNS, ALB, gateway, BFF, domain service, data/event/ops plane을 운영 목표 기준으로 분리해 표현합니다.</p>
+            </div>
+            <span class="tag done">SVG</span>
           </a>
           <a class="doc-card" href="./design/msa-wms-roadmap.html">
             <div>
@@ -448,7 +462,7 @@
               <span class="tag done">1차 구현</span>
             </div>
             <p>로그인, JWT, 사용자, 역할, 권한, tenant scope</p>
-            <p class="progress-note">Login/refresh/logout, user/role/permission, userType 분리, permission summary/check, audit/outbox, seed 데이터가 구현되었습니다.</p>
+            <p class="progress-note">Login/refresh/logout, 관리자 콘솔 email/password 로그인 scope 판별, tenantless system_admin, tenant 관리자 resolved tenantId JWT, user/role/permission, permission summary/check, audit/outbox, seed 데이터가 구현되었습니다.</p>
           </a>
           <a class="service-card" href="./development/services/wms-service.html">
             <div class="card-head">
@@ -477,18 +491,18 @@
           <a class="service-card" href="./development/services/web-wms.html">
             <div class="card-head">
               <h3>web-wms</h3>
-              <span class="tag todo">착수 전</span>
+              <span class="tag done">Desktop 1차</span>
             </div>
-            <p>WMS 사용자와 현장 작업자용 React + Vite 앱</p>
-            <p class="progress-note">User BFF의 /api/app/wms/dashboard, warehouses, materials, inventory-summary 계약을 기준으로 화면 구현을 시작합니다.</p>
+            <p>WMS 운영자 Desktop용 React + Vite 앱</p>
+            <p class="progress-note">로그인, App Shell, dashboard, inventory, snapshot, master data, outbound, 권한 제한 화면을 User BFF 실 API와 연결했습니다. 재고/입고/출고 mutation 패널과 자동 Idempotency-Key, 성공 후 재조회까지 gateway 경유로 검증했고, PDA 화면은 후속입니다.</p>
           </a>
           <a class="service-card" href="./development/services/web-admin.html">
             <div class="card-head">
               <h3>web-admin</h3>
-              <span class="tag todo">착수 전</span>
+              <span class="tag done">Desktop 1차</span>
             </div>
             <p>운영자와 관리자를 위한 React + Vite 앱</p>
-            <p class="progress-note">Admin BFF tenant/user/role/permission API를 기준으로 첫 운영 화면을 연결합니다.</p>
+            <p class="progress-note">관리자 로그인 tenant ID 입력 제거, 서버 측 scope 판별, App Shell, dashboard, tenant 관리, 사용자 추가/상태 변경/role 부여/role 해제, 역할 permission 교체, audit 화면과 변경성 action audit evidence를 검증했습니다.</p>
           </a>
           <a class="service-card" href="./development/future-tasks.html">
             <div class="card-head">
@@ -517,6 +531,27 @@
             </div>
             <span class="tag done">NEW</span>
           </a>
+          <a class="doc-card" href="./test-scenarios/web-admin-test-scenarios.html">
+            <div>
+              <h2>web-admin 테스트 시나리오</h2>
+              <p>관리자 로그인, 세션 초기화, 대시보드, 고객사 관리, 사용자 추가, 감사 로그, 오류 처리를 화면/API evidence 기준으로 정리합니다.</p>
+            </div>
+            <span class="tag done">NEW</span>
+          </a>
+          <a class="doc-card" href="./test-scenarios/web-wms-test-scenarios.html">
+            <div>
+              <h2>web-wms 테스트 시나리오</h2>
+              <p>사용자용 WMS 로그인, 세션 초기화, 대시보드, 재고/스냅샷 필터, 기준정보 코드/SKU 필터, 출고 상태 필터, 재고/입고/출고 mutation, 감사 로그, 오류 처리를 화면/API evidence 기준으로 정리합니다.</p>
+            </div>
+            <span class="tag done">NEW</span>
+          </a>
+          <a class="doc-card" href="./test-scenarios/performance-test-criteria.html">
+            <div>
+              <h2>성능 테스트 기준</h2>
+              <p>로컬, dev AWS, 운영 전 목표별 p95/p99, 오류율, outbox/audit 지연, 데이터 규모, 부하 프로파일, 정합성 합격 기준을 정리합니다.</p>
+            </div>
+            <span class="tag done">NEW</span>
+          </a>
           <a class="doc-card" href="./design/rules/testing.html">
             <div>
               <h2>테스트 시나리오 규칙</h2>
@@ -536,12 +571,61 @@
           <span class="tag">TEST LOGS</span>
         </div>
         <div class="doc-grid">
-          <a class="doc-card" href="./test-logs/2026-06-21/frontend-wms-api-verification.html">
+          <a class="doc-card" href="./test-logs/2026-06-23/admin-login-scope-verification.html">
             <div>
-              <h2>2026-06-21 프론트 WMS API 검증</h2>
-              <p>전체 시스템 33개, WMS 하위 22개 시나리오를 통과하고 User BFF WMS 화면 조회 API와 EventBridge routing CDK 검증까지 확인했습니다.</p>
+              <h2>2026-06-23 관리자 로그인 범위 검증</h2>
+              <p>web-admin 관리자 로그인 tenant ID 입력 제거, 서버 측 관리자 scope 판별, 슈퍼 관리자 tenantless JWT와 테넌트 관리자 resolved tenantId JWT를 검증했습니다.</p>
             </div>
             <span class="tag done">LATEST</span>
+          </a>
+          <a class="doc-card" href="./test-logs/2026-06-23/web-admin-action-verification.html">
+            <div>
+              <h2>2026-06-23 web-admin action 검증</h2>
+              <p>사용자 상태 변경, 사용자 role 해제, 역할 permission 교체 화면/API 연결과 audit evidence를 gateway 경유로 검증했습니다.</p>
+            </div>
+            <span class="tag done">LATEST</span>
+          </a>
+          <a class="doc-card" href="./test-logs/2026-06-23/web-wms-mutation-verification.html">
+            <div>
+              <h2>2026-06-23 web-wms mutation 검증</h2>
+              <p>재고 조정, 입고 확정, 출고 할당, 직접 출하, 포장 생성, 패키지 등록, 포장 확정, 포장 기반 출하를 gateway 경유로 검증했습니다.</p>
+            </div>
+            <span class="tag done">LATEST</span>
+          </a>
+          <a class="doc-card" href="./test-logs/2026-06-23/web-api-alignment-verification.html">
+            <div>
+              <h2>2026-06-23 web/API 정합성 검증</h2>
+              <p>web-admin과 web-wms 화면 기능을 gateway 경유 API 계약과 대조하고, web-admin 검색 조건 query gap 수정과 양쪽 프론트 typecheck/build 결과를 기록했습니다.</p>
+            </div>
+            <span class="tag done">PASS</span>
+          </a>
+          <a class="doc-card" href="./test-logs/2026-06-22/final-system-scenario-verification.html">
+            <div>
+              <h2>2026-06-22 최종 전체 시스템 검증</h2>
+              <p>WMS 하위 22개, Outbox/SQS 독립 검증, 전체 시스템 33개 시나리오를 재실행해 User BFF WMS 화면 API와 스냅샷 필터 조회까지 확인했습니다.</p>
+            </div>
+            <span class="tag done">PASS</span>
+          </a>
+          <a class="doc-card" href="./test-logs/2026-06-22/web-admin-scenario-verification.html">
+            <div>
+              <h2>2026-06-22 web-admin 검증</h2>
+              <p>web-admin 로그인, App Shell, dashboard, tenant 관리, 사용자 추가/role 부여, audit 목록, negative 시나리오와 화면 상태를 검증했습니다.</p>
+            </div>
+            <span class="tag done">PASS</span>
+          </a>
+          <a class="doc-card" href="./test-logs/2026-06-22/web-wms-scenario-verification.html">
+            <div>
+              <h2>2026-06-22 web-wms 검증</h2>
+              <p>web-wms 로그인, App Shell, dashboard, inventory, snapshot, master data, outbound, app audit, negative 시나리오와 조회 필터 API 계약을 검증했습니다.</p>
+            </div>
+            <span class="tag done">PASS</span>
+          </a>
+          <a class="doc-card" href="./test-logs/2026-06-22/local-gateway-only-web-docker-verification.html">
+            <div>
+              <h2>2026-06-22 로컬 Gateway 단일 진입점 검증</h2>
+              <p>Admin/User BFF host port 미노출, web-admin/web-wms Docker 이미지 빌드, nginx smoke, CDK gateway-only 구조를 확인했습니다.</p>
+            </div>
+            <span class="tag done">PASS</span>
           </a>
           <a class="doc-card" href="./test-logs/2026-06-19/wms-local-regression-verification.html">
             <div>
@@ -605,7 +689,7 @@
         </div>
       </section>
 
-      <p class="footer">작성일: 2026-06-01 · 현행화: 2026-06-21 · 문서 기준: 아키텍처 현황 / 설계 / API 문서 / 개발과정 / 테스트 시나리오</p>
+      <p class="footer">작성일: 2026-06-01 · 현행화: 2026-06-25 · 문서 기준: 아키텍처 현황 / 설계 / API 문서 / 개발과정 / 테스트 시나리오</p>
     </main>
   </body>
 </html>

@@ -6,8 +6,8 @@ import { getAppConfig } from "../config/app.config.js";
 
 export interface AccessTokenClaims {
   sub: string;
-  tenantId: string;
-  type: "access";
+  tenantId?: string;
+  type: "system_admin" | "general_user";
   iat: number;
   exp: number;
   iss?: string;
@@ -18,13 +18,17 @@ export interface AccessTokenClaims {
 export class JwtSigner {
   private readonly config = getAppConfig();
 
-  signAccessToken(userId: string, tenantId: string): { accessToken: string; expiresIn: number } {
+  signAccessToken(
+    userId: string,
+    tenantId: string | null,
+    userType: "system_admin" | "general_user"
+  ): { accessToken: string; expiresIn: number } {
     const issuedAt = Math.floor(Date.now() / 1000);
     const expiresIn = this.config.auth.accessTokenTtlSeconds;
     const claims: AccessTokenClaims = {
       sub: userId,
-      tenantId,
-      type: "access",
+      ...(tenantId ? { tenantId } : {}),
+      type: userType,
       iat: issuedAt,
       exp: issuedAt + expiresIn,
       iss: this.config.jwt.issuer,

@@ -26,7 +26,8 @@
                   <tr><th>Refresh Token</th><td>opaque token을 사용하고 저장소에 보관합니다. 기본 만료 시간은 14일을 권장합니다.</td></tr>
                   <tr><th>Refresh Rotation</th><td>refresh token 사용 시 새 token을 발급하고 이전 token은 폐기합니다.</td></tr>
                   <tr><th>User Type</th><td>사용자는 <code>system_admin</code>과 <code>general_user</code>로 구분합니다. <code>general_user</code>는 반드시 tenant 값을 가지며, tenant-scoped 사용자 API는 <code>general_user</code>만 생성하고 관리합니다.</td></tr>
-                  <tr><th>System Admin</th><td><code>system_admin</code> 계정은 별도 시스템 관리 또는 bootstrap 경로에서만 다루며 tenant-scoped 사용자 API와 섞지 않습니다.</td></tr>
+                  <tr><th>Admin Login</th><td>web-admin 관리자 로그인은 email/password만 사용합니다. 서버는 <code>system_admin</code> 또는 관리자 권한을 가진 tenant 계정을 판별하고, tenant 관리자는 JWT에 resolved <code>tenantId</code>를 포함하며 <code>system_admin</code>은 <code>tenantId</code> claim을 생략합니다.</td></tr>
+                  <tr><th>General Login</th><td>일반 사용자 로그인은 기존처럼 tenant context를 함께 받아야 합니다. tenant-scoped 사용자 API는 <code>general_user</code>만 생성하고 관리합니다.</td></tr>
                   <tr><th>권한 모델</th><td>초기에는 RBAC를 사용합니다. 사용자 → 역할 → 권한 구조를 따릅니다.</td></tr>
                   <tr><th>Role/Permission Source</th><td>역할과 권한의 source of truth는 <code>auth-iam-service</code>입니다.</td></tr>
                 </tbody>
@@ -39,7 +40,7 @@
               <pre><code>{
   "sub": "user_001",
   "tenantId": "tenant_001",
-  "type": "access",
+  "type": "general_user",
   "iat": 1717220000,
   "exp": 1717221800,
   "iss": "auth-iam-service",
@@ -48,7 +49,7 @@
               <div class="grid two">
                 <div class="card">
                   <strong>JWT에 넣는 것</strong>
-                  <p><code>sub</code>, <code>tenantId</code>, <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code></p>
+                  <p><code>sub</code>, optional <code>tenantId</code>, user type <code>type</code>, <code>iat</code>, <code>exp</code>, <code>iss</code>, <code>aud</code></p>
                 </div>
                 <div class="card">
                   <strong>JWT에 넣지 않는 것</strong>
@@ -65,7 +66,7 @@
               </p>
               <table>
                 <tbody>
-                  <tr><th>Gateway</th><td>JWT 서명/만료 검증, <code>sub</code>, <code>tenantId</code> 추출, tenant mismatch 기본 차단</td></tr>
+                  <tr><th>Gateway</th><td>JWT 서명/만료 검증, <code>sub</code>, optional <code>tenantId</code>, <code>type</code> 추출, tenant mismatch 기본 차단. <code>system_admin</code>이 아닌 token은 <code>tenantId</code>가 필요합니다.</td></tr>
                   <tr><th>BFF</th><td>화면 구성에 필요한 role/permission summary를 조회하고 메뉴/버튼 표시 여부를 구성</td></tr>
                   <tr><th>Domain Service</th><td>실제 업무 수행 전 필요한 permission과 scope를 검증</td></tr>
                   <tr><th>Cache</th><td>성능이 필요해지면 Redis에 role/permission cache를 두고, 역할 또는 권한 변경 시 무효화</td></tr>

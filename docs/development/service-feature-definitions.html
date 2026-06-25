@@ -211,7 +211,7 @@
           <tr><th>사용자/RBAC 관리</th><td>tenant 일반 사용자 CRUD, 사용자 상태 변경, role 목록/생성/수정, role permission 교체, user-role 부여/해제를 auth-iam-service로 위임합니다.</td></tr>
           <tr><th>화면 조합</th><td><code>GET /api/admin/access-control/screen-data</code>에서 사용자, role, permission 목록을 조합해 access-control 화면 초기 데이터를 제공합니다.</td></tr>
           <tr><th>Audit 조회</th><td><code>GET /api/admin/audit-logs</code>에서 audit-log-service 조회 API를 호출해 관리자 evidence 조회 화면을 지원합니다.</td></tr>
-          <tr><th>후속 범위</th><td><code>GET /api/admin/me</code>, audit-log-service 장애 처리 UX 정책, 운영 위험 작업 확인 흐름</td></tr>
+          <tr><th>후속 범위</th><td>audit-log-service 장애 처리 UX 정책, 사용자 상태 변경/role 해제 같은 P1 action, 운영 위험 작업 확인 흐름 고도화</td></tr>
         </table>
         <h3 class="detail-heading">상세 기능</h3>
         <p class="detail-note">Admin BFF는 관리자 화면의 업무 흐름을 API 단위로 안정화하고, 실제 데이터 변경은 tenant-service와 auth-iam-service 같은 owning service로 위임합니다.</p>
@@ -242,15 +242,15 @@
             <h2>user-bff-service</h2>
             <p>일반 사용자 앱의 BFF입니다. 사용자 app shell, navigation, WMS 화면 데이터를 조합하고 tenant/module/permission 기준으로 화면 노출을 제어합니다.</p>
           </div>
-          <span class="tag done">App shell 구현</span>
+          <span class="tag done">WMS 화면 API</span>
         </div>
         <table class="feature-table">
           <tr><th>주요 호출자</th><td>web-wms, gateway-service</td></tr>
           <tr><th>핵심 책임</th><td>tenant active 확인, module 사용 가능 여부 확인, permission summary 조회, app shell 데이터 조합, user-facing API envelope 제공</td></tr>
-          <tr><th>구현 기능</th><td><code>GET /api/app/me</code>, <code>GET /api/app/navigation</code>, app context loaded/navigation loaded audit best-effort 기록</td></tr>
-          <tr><th>WMS 화면 계획</th><td>창고 목록, 자재 목록, 재고 요약, WMS dashboard, 향후 입고/출고/포장 작업 화면 데이터를 wms-service 내부 API에서 조합합니다.</td></tr>
+          <tr><th>구현 기능</th><td><code>GET /api/app/me</code>, <code>GET /api/app/navigation</code>, app context loaded/navigation loaded audit 기록, <code>/api/app/wms/**</code> dashboard/selector/current inventory/snapshot/outbound 화면 조회 API</td></tr>
+          <tr><th>WMS 화면 계획</th><td>창고, 로케이션, 자재, 재고 요약, 일 단위 스냅샷, WMS dashboard, 출고 할당, 포장 작업 조회 화면 데이터를 wms-service 내부 API에서 조합합니다. PDA와 mutation 화면은 후속입니다.</td></tr>
           <tr><th>감사 정책</th><td>app shell 진입과 navigation 조회는 user-bff-service가 EventBridge 또는 audit-log-service 내부 POST fallback으로 best-effort 기록합니다. 실패해도 원 업무 응답은 차단하지 않습니다.</td></tr>
-          <tr><th>후속 범위</th><td>WMS 화면별 screen-data API 구현, 화면 권한별 navigation 세분화, web-wms 첫 화면 연결</td></tr>
+          <tr><th>후속 범위</th><td>screen-data 단일 초기화 API 필요성 판단, warehouse scope별 selector 필터링, PDA Web 응답 shape, WMS mutation 화면 확장</td></tr>
         </table>
         <h3 class="detail-heading">상세 기능</h3>
         <p class="detail-note">User BFF는 현장 사용자가 보는 화면 데이터를 한 번에 읽기 좋게 조합하고, 메뉴/버튼 노출에 필요한 permission summary를 함께 제공합니다.</p>
@@ -261,9 +261,9 @@
             <tr><td>Navigation 조회</td><td>사용자가 사이드바나 상단 메뉴를 로드합니다.</td><td>tenant module과 permission summary를 기준으로 표시 가능한 메뉴를 계산합니다.</td><td><code>GET /api/app/navigation</code> 응답으로 메뉴 tree와 사용할 수 없는 항목의 제외 결과를 반환합니다.</td></tr>
             <tr><td>Tenant readiness guard</td><td>사용자가 업무 API를 호출합니다.</td><td>tenant-service status API로 active tenant인지 확인합니다.</td><td>inactive/suspended tenant는 <code>TENANT_NOT_READY</code>로 차단합니다.</td></tr>
             <tr><td>Module guard</td><td>사용자가 WMS 화면 또는 API에 접근합니다.</td><td>tenant-service modules API로 <code>wms</code> module이 enabled인지 확인합니다.</td><td>module이 꺼진 tenant는 WMS 화면 데이터를 반환하지 않습니다.</td></tr>
-            <tr><td>WMS 창고 화면 데이터</td><td>사용자가 창고/로케이션 기준정보 화면을 엽니다.</td><td>wms-service 창고/로케이션 API를 호출해 필터와 paging을 화면 모델로 변환합니다.</td><td>후속 구현 대상이며 <code>wms.warehouses.manage</code>, <code>wms.locations.manage</code> 또는 읽기 권한 분리가 필요합니다.</td></tr>
-            <tr><td>WMS 재고 화면 데이터</td><td>사용자가 재고 검색 조건을 입력하거나 요약을 조회합니다.</td><td>wms-service inventory/snapshot API를 호출해 현재고, 가용 수량, 과거 스냅샷을 조합합니다.</td><td>후속 구현 대상이며 <code>wms.inventory.read</code> 권한이 필요합니다.</td></tr>
-            <tr><td>WMS 작업 화면 데이터</td><td>사용자가 입고, 출고, 포장 작업 화면을 엽니다.</td><td>WMS 업무 API 결과를 사용자 화면용 상태명, 액션 가능 여부, 권한 플래그로 변환합니다.</td><td>후속 구현 대상이며 작업별 권한이 없는 사용자는 액션 버튼을 노출하지 않습니다.</td></tr>
+            <tr><td>WMS 기준정보 화면 데이터</td><td>사용자가 창고/로케이션/자재 기준정보 화면을 엽니다.</td><td>wms-service 창고/로케이션/자재 API를 호출해 paging 목록을 화면 모델로 변환합니다.</td><td>구현 완료. 현재 관리 권한 기반으로 조회하며 읽기 전용 권한 분리는 후속 결정입니다.</td></tr>
+            <tr><td>WMS 재고 화면 데이터</td><td>사용자가 재고 검색 조건을 입력하거나 요약을 조회합니다.</td><td>wms-service inventory/snapshot API를 호출해 현재고, 가용 수량, 과거 스냅샷을 조합합니다.</td><td>구현 완료. <code>wms.inventory.read</code> 권한을 기준으로 검증합니다.</td></tr>
+            <tr><td>WMS 작업 화면 데이터</td><td>사용자가 출고 할당과 포장 작업 화면을 엽니다.</td><td>WMS 업무 API 결과를 사용자 화면용 상태명, 액션 가능 여부, 권한 플래그로 변환합니다.</td><td>조회 화면은 구현 완료. 입고/재고 조정/출하 확정 같은 mutation 화면은 후속입니다.</td></tr>
             <tr><td>App audit 기록</td><td>사용자가 app context 또는 navigation을 조회합니다.</td><td>EventBridge 또는 internal-api fallback으로 <code>userBff.appContext.loaded</code>, <code>userBff.navigation.loaded</code> 기록을 시도합니다.</td><td>감사 기록 실패는 warning log로 남기고 원 응답은 성공 처리합니다.</td></tr>
           </table>
         </div>
@@ -295,7 +295,7 @@
         <div class="wide-table">
           <table class="detail-feature-table">
             <tr><th>기능</th><th>입력/행위</th><th>시스템 처리</th><th>결과/이벤트</th></tr>
-            <tr><td>로그인</td><td>사용자가 email/password를 제출합니다.</td><td>사용자 상태, password hash, tenantId, userType을 확인하고 access token과 refresh token을 발급합니다.</td><td>성공 시 JWT와 refresh token을 반환하고, 실패 시 <code>AUTH_INVALID_CREDENTIALS</code> 또는 계정 상태 오류를 반환합니다.</td></tr>
+            <tr><td>로그인</td><td>관리자 콘솔은 email/password만 제출하고, 일반 사용자 로그인은 tenant context를 함께 제출합니다.</td><td>사용자 상태, password hash, userType, 관리자 권한, tenant 범위를 확인하고 access token과 refresh token을 발급합니다.</td><td>성공 시 JWT와 refresh token을 반환하고, 실패 시 <code>AUTH_INVALID_CREDENTIALS</code>, <code>AUTH_LOGIN_AMBIGUOUS</code> 또는 계정 상태 오류를 반환합니다.</td></tr>
             <tr><td>Token refresh</td><td>클라이언트가 refresh token으로 새 access token을 요청합니다.</td><td>서버 저장 refresh token을 조회하고 만료/폐기 여부를 확인한 뒤 refresh token rotation을 수행합니다.</td><td>새 access token과 새 refresh token을 반환하고 이전 refresh token은 폐기합니다.</td></tr>
             <tr><td>Logout</td><td>사용자가 로그아웃합니다.</td><td>전달된 refresh token 또는 사용자 세션을 폐기합니다.</td><td>이후 같은 refresh token 재사용은 실패합니다.</td></tr>
             <tr><td>내 정보 조회</td><td>gateway가 검증한 사용자 context로 <code>GET /api/auth/me</code>를 호출합니다.</td><td>사용자 기본 정보와 tenant/userType/status를 조회합니다.</td><td>BFF app/admin shell에서 사용할 사용자 정보를 반환합니다.</td></tr>
@@ -487,7 +487,7 @@
             <h2>web-admin</h2>
             <p>운영자와 관리자를 위한 React + Vite 웹 앱입니다. Admin BFF API를 사용해 tenant와 접근제어 운영 화면을 제공합니다.</p>
           </div>
-          <span class="tag todo">착수 전</span>
+          <span class="tag done">Desktop 1차</span>
         </div>
         <table class="feature-table">
           <tr><th>주요 사용자</th><td>system_admin, tenant_admin, 운영 담당자</td></tr>
@@ -496,7 +496,7 @@
           <tr><th>사용자/RBAC 화면</th><td>사용자 목록/상세/생성/상태 변경, role 관리, permission catalog, role permission 교체, user-role 부여/해제 화면을 제공합니다.</td></tr>
           <tr><th>Audit 화면</th><td>action, actor, 기간, resource, requestId 기준 검색과 evidence 상세 확인 화면을 제공합니다.</td></tr>
           <tr><th>UX 기준</th><td>위험 작업은 실행 전 확인을 받고, 완료 후 requestId와 변경 결과를 확인할 수 있어야 합니다.</td></tr>
-          <tr><th>후속 범위</th><td>로그인 이후 admin shell, tenant 관리 화면, access-control 화면, audit-log 화면 순서로 구현합니다.</td></tr>
+          <tr><th>후속 범위</th><td>사용자 상태 변경, role 해제, 역할 permission 교체, 감사 상세 evidence, 위험 작업 확인 UX를 고도화합니다.</td></tr>
         </table>
         <h3 class="detail-heading">상세 기능</h3>
         <p class="detail-note">web-admin은 운영자가 시스템 설정과 접근제어를 반복적으로 처리하는 업무 도구입니다. 화면은 dense하고 비교/검색/확인이 쉬운 구조를 우선합니다.</p>
@@ -526,17 +526,17 @@
             <h2>web-wms</h2>
             <p>WMS 사용자와 현장 작업자를 위한 React + Vite 웹 앱입니다. User BFF의 app shell과 WMS screen-data API를 기준으로 화면을 구성합니다.</p>
           </div>
-          <span class="tag todo">착수 전</span>
+          <span class="tag done">Desktop 1차</span>
         </div>
         <table class="feature-table">
           <tr><th>주요 사용자</th><td>창고 관리자, 재고 담당자, 입고 담당자, 출고/포장 담당자, 현장 작업자</td></tr>
           <tr><th>연결 서비스</th><td>gateway-service를 통해 user-bff-service의 <code>/api/app/**</code> API를 호출합니다.</td></tr>
           <tr><th>App shell</th><td>로그인 후 사용자, tenant, module, permission summary, navigation을 표시합니다.</td></tr>
-          <tr><th>WMS Dashboard</th><td>창고 현황, 재고 요약, 입고/출고 작업 상태, 예외 작업 알림을 보여줍니다.</td></tr>
+          <tr><th>WMS Dashboard</th><td>재고 요약, 출고 할당/포장 작업 상태, 사용 가능 action을 보여줍니다.</td></tr>
           <tr><th>기준정보 화면</th><td>창고, 로케이션, 품목 조회와 필터링을 제공합니다.</td></tr>
-          <tr><th>재고 화면</th><td>현재고 검색, 가용 수량, 재고 조정 요청, 과거 스냅샷 조회를 제공합니다.</td></tr>
-          <tr><th>입출고/포장 화면</th><td>입고 확정, 출고 할당, 포장 작업, 패키지 등록, 포장 확정, 출하 완료 흐름을 화면화합니다.</td></tr>
-          <tr><th>후속 범위</th><td>User BFF WMS screen-data API 확정 후 dashboard, inventory, 기준정보, 작업 화면 순서로 구현합니다.</td></tr>
+          <tr><th>재고 화면</th><td>현재고 검색, 가용 수량, 과거 스냅샷 조회를 제공합니다.</td></tr>
+          <tr><th>출고/포장 조회 화면</th><td>출고 할당과 포장 작업 상태를 조회 중심으로 화면화합니다.</td></tr>
+          <tr><th>후속 범위</th><td>PDA Web, 재고 조정, 입고 확정, 포장 확정, 출하 완료 같은 mutation 화면과 작업 지시 UX를 구현합니다.</td></tr>
         </table>
         <h3 class="detail-heading">상세 기능</h3>
         <p class="detail-note">web-wms는 현장 업무 속도를 우선하는 화면입니다. 재고와 작업 상태를 빠르게 스캔하고, 실수하기 쉬운 수량/상태 변경은 명확한 확인과 evidence를 남겨야 합니다.</p>
@@ -544,15 +544,15 @@
           <table class="detail-feature-table">
             <tr><th>화면/기능</th><th>사용자 행위</th><th>표시/처리 내용</th><th>완료 기준</th></tr>
             <tr><td>앱 진입</td><td>사용자가 로그인 후 WMS 앱에 접근합니다.</td><td>app context와 navigation을 불러와 tenant, 사용자, module, 권한별 메뉴를 표시합니다.</td><td>WMS module이 비활성 tenant이면 업무 메뉴를 노출하지 않습니다.</td></tr>
-            <tr><td>WMS dashboard</td><td>사용자가 오늘의 창고 운영 상태를 확인합니다.</td><td>현재고 요약, 입고 확정 대기, 출고 할당/포장/출하 상태, 예외 작업을 카드나 표로 보여줍니다.</td><td>각 요약에서 상세 목록으로 이동할 수 있습니다.</td></tr>
+            <tr><td>WMS dashboard</td><td>사용자가 오늘의 창고 운영 상태를 확인합니다.</td><td>현재고 요약, 출고 할당/포장 상태, 사용 가능 작업을 카드나 표로 보여줍니다.</td><td>Desktop 1차 구현과 API 검증을 완료했습니다.</td></tr>
             <tr><td>창고/로케이션 조회</td><td>사용자가 창고나 로케이션 기준으로 재고를 필터링합니다.</td><td>창고, 로케이션 type, 사용 가능 상태, 품목 수량 연결 정보를 표시합니다.</td><td>선택한 창고/로케이션 조건이 재고/입출고 화면으로 이어집니다.</td></tr>
             <tr><td>품목 조회</td><td>사용자가 SKU나 품명으로 자재를 검색합니다.</td><td>SKU, 품명, 단위, 상태, 재고 존재 여부를 목록으로 보여줍니다.</td><td>선택한 품목으로 현재고와 스냅샷 조회에 진입할 수 있습니다.</td></tr>
-            <tr><td>현재고 조회</td><td>사용자가 품목/창고/로케이션 조건으로 재고를 조회합니다.</td><td>quantity, allocatedQuantity, availableQuantity를 함께 보여주고 부족/음수 불가 상태를 구분합니다.</td><td>재고 조정 권한이 있는 사용자에게만 조정 액션을 표시합니다.</td></tr>
-            <tr><td>재고 조정</td><td>사용자가 실사 수량 차이를 입력하고 조정 사유를 선택합니다.</td><td>수량 증감, reason, referenceNo를 받아 WMS 조정 API를 호출합니다.</td><td>완료 후 변경 전/후 수량과 requestId, outbox/audit 추적 정보를 확인합니다.</td></tr>
-            <tr><td>과거 스냅샷 조회</td><td>사용자가 특정 날짜의 보유 자재 수량을 조회합니다.</td><td>snapshotDate와 필터를 User BFF/WMS snapshot API로 전달하고 과거 수량을 표시합니다.</td><td>현재고와 스냅샷 수량이 구분되어 표시됩니다.</td></tr>
+            <tr><td>현재고 조회</td><td>사용자가 품목/창고/로케이션 조건으로 재고를 조회합니다.</td><td>quantity, allocatedQuantity, availableQuantity를 함께 보여주고 부족/음수 불가 상태를 구분합니다.</td><td>Desktop 1차 구현과 API 검증을 완료했습니다. 재고 조정 action은 후속입니다.</td></tr>
+            <tr><td>재고 조정</td><td>사용자가 실사 수량 차이를 입력하고 조정 사유를 선택합니다.</td><td>수량 증감, reason, referenceNo를 받아 WMS 조정 API를 호출합니다.</td><td>후속 mutation 화면에서 변경 전/후 수량과 requestId, outbox/audit 추적 정보를 확인합니다.</td></tr>
+            <tr><td>과거 스냅샷 조회</td><td>사용자가 특정 날짜의 보유 자재 수량을 조회합니다.</td><td>snapshotDate와 필터를 User BFF/WMS snapshot API로 전달하고 과거 수량을 표시합니다.</td><td>현재고와 스냅샷 수량이 구분되어 표시되며 Desktop 1차 검증을 완료했습니다.</td></tr>
             <tr><td>입고 확정</td><td>입고 담당자가 도착 수량을 확인하고 확정합니다.</td><td>품목, 창고, 로케이션, 수량, referenceNo를 입력받아 WMS 입고 확정 API를 호출합니다.</td><td>확정 후 현재고 증가와 requestId를 표시합니다.</td></tr>
-            <tr><td>출고 할당</td><td>출고 담당자가 주문 수량을 할당합니다.</td><td>availableQuantity를 화면에서 먼저 보여주고 부족 가능성을 안내한 뒤 WMS 할당 API를 호출합니다.</td><td>부족 시 <code>WMS_INSUFFICIENT_STOCK</code> 메시지와 현재 가용 수량을 표시합니다.</td></tr>
-            <tr><td>포장 작업</td><td>포장 담당자가 allocation을 선택해 packing을 만들고 패키지를 등록합니다.</td><td>포장 대상 수량, 등록된 박스, 품목별 포장 수량, 미포장 잔량을 계속 계산합니다.</td><td>합계 불일치 시 포장 확정을 막고 어떤 품목이 부족/초과인지 표시합니다.</td></tr>
+            <tr><td>출고 할당</td><td>출고 담당자가 주문 수량을 조회하거나 후속으로 할당합니다.</td><td>Desktop 1차는 할당 목록과 상태를 조회하고, 후속 mutation 화면에서 availableQuantity 확인 후 WMS 할당 API를 호출합니다.</td><td>조회는 검증 완료. 부족 시 <code>WMS_INSUFFICIENT_STOCK</code> 표시 흐름은 후속 mutation 화면에서 검증합니다.</td></tr>
+            <tr><td>포장 작업</td><td>포장 담당자가 packing 상태를 조회하거나 후속으로 패키지를 등록합니다.</td><td>Desktop 1차는 포장 작업 목록과 상태를 조회하고, 후속 mutation 화면에서 포장 대상 수량과 박스 정보를 입력받습니다.</td><td>조회는 검증 완료. 합계 불일치 차단은 후속 mutation 화면에서 검증합니다.</td></tr>
             <tr><td>출하 완료</td><td>담당자가 allocation 또는 packing 기준으로 출하를 확정합니다.</td><td>출하 전 상태와 수량을 확인시키고 WMS shipment API를 호출합니다.</td><td>완료 후 현재고/할당 수량 차감 결과와 requestId를 표시합니다.</td></tr>
             <tr><td>권한별 액션 제어</td><td>사용자마다 가능한 업무 액션이 다릅니다.</td><td>permission summary를 기준으로 조정, 입고 확정, 출고 할당, 포장, 출하 버튼 노출을 제어합니다.</td><td>권한이 없는 사용자는 화면에서 실행 버튼을 볼 수 없고, 서버에서도 다시 차단됩니다.</td></tr>
           </table>

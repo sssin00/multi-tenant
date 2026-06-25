@@ -39,7 +39,7 @@ curl -X POST http://localhost:3001/api/auth/login \
   -d '{"email":"worker@example.com","password":"user-password"}'
 ```
 
-로그인 성공 응답은 `accessToken`, `expiresIn`, `refreshToken`, `refreshExpiresIn`, `tokenType`을 포함합니다. Access token JWT에는 `sub`, `tenantId`, `type`, `iat`, `exp`, `iss`, `aud`만 포함하고, refresh token은 DB에 hash로만 저장합니다.
+로그인 성공 응답은 `accessToken`, `expiresIn`, `refreshToken`, `refreshExpiresIn`, `tokenType`을 포함합니다. Access token JWT에는 `sub`, optional `tenantId`, user type `type`, `iat`, `exp`, `iss`, `aud`만 포함하고, refresh token은 DB에 hash로만 저장합니다. web-admin 관리자 로그인은 email/password만 제출하며 Auth/IAM이 관리자 권한과 tenant 범위를 판별합니다. tenant 관리자는 JWT에 resolved `tenantId`를 받고, `system_admin`은 JWT에 `tenantId`를 넣지 않습니다. 일반 사용자 로그인은 기존처럼 tenant context를 함께 보냅니다.
 
 Refresh token rotation:
 

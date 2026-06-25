@@ -3,7 +3,7 @@ import type { AdminBffRequest } from "../context/request-context.js";
 export function authIamContext(req: AdminBffRequest, idempotencyKey?: string) {
   return {
     requestId: req.context.requestId,
-    tenantId: req.context.tenantId ?? "",
+    tenantId: req.context.tenantId,
     userId: req.context.userId ?? "",
     idempotencyKey
   };

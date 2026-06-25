@@ -3,14 +3,18 @@ WORKDIR /app
 RUN corepack enable
 
 FROM base AS deps
-COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml tsconfig.base.json turbo.json ./
 COPY apps ./apps
 COPY packages ./packages
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 ARG APP_NAME
+ARG VITE_API_BASE_URL=http://localhost:3000
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN pnpm --filter ${APP_NAME} build
 
 FROM nginx:1.27-alpine AS runner
+ARG APP_NAME
 COPY --from=build /app/apps/${APP_NAME}/dist /usr/share/nginx/html
+COPY docker/services/nginx-spa.conf /etc/nginx/conf.d/default.conf

@@ -180,7 +180,7 @@
           <tbody>
             <tr><th>Purpose</th><td>admin-bff-service가 외부 관리자 API 요청을 검증한 뒤 tenant 생성을 위임합니다.</td></tr>
             <tr><th>Allowed caller</th><td><code>admin-bff-service</code></td></tr>
-            <tr><th>Request body</th><td><code>name</code>은 필수이며, <code>domain</code>은 선택입니다.</td></tr>
+            <tr><th>Request body</th><td><code>name</code>은 필수이며, <code>domain</code>과 <code>contactPhone</code>은 선택입니다. <code>contactPhone</code>은 <code>tenant_settings.contactPhone</code>으로 저장합니다.</td></tr>
             <tr><th>Domain</th><td>입력된 domain은 ASCII hostname으로 정규화해 <code>tenant_domains</code>에 함께 저장합니다. 이미 등록된 domain은 <code>409 TENANT_DOMAIN_CONFLICT</code>로 실패합니다.</td></tr>
             <tr><th>Transaction</th><td>tenant 생성과 <code>tenant.created</code> outbox event 저장을 같은 DB transaction에서 처리합니다.</td></tr>
             <tr><th>Success status</th><td><code>201 Created</code></td></tr>
@@ -200,7 +200,7 @@
           <tbody>
             <tr><th>Purpose</th><td>admin-bff-service가 tenant 목록 화면을 구성할 때 사용합니다.</td></tr>
             <tr><th>Allowed caller</th><td><code>admin-bff-service</code></td></tr>
-            <tr><th>Query</th><td><code>page</code>, <code>size</code>, optional <code>status</code>, <code>code</code>, <code>name</code>, <code>domain</code></td></tr>
+            <tr><th>Query</th><td><code>page</code>, <code>size</code>, optional <code>keyword</code>, <code>status</code>, <code>moduleCode</code>, <code>code</code>, <code>name</code>, <code>domain</code>. <code>keyword</code>는 tenant code/name/domain 통합 검색이며, <code>moduleCode</code>는 활성 module이 있는 tenant만 반환합니다.</td></tr>
             <tr><th>Pagination</th><td><code>page</code>는 <code>1</code>부터 시작합니다. 기본 size는 <code>20</code>이고 최대 size는 <code>100</code>입니다.</td></tr>
             <tr><th>Success data</th><td><code>items</code>, <code>page</code>, <code>size</code>, <code>total</code>. 각 item은 tenant 기본 정보, <code>domains</code>, <code>enabledModules</code>를 포함합니다.</td></tr>
             <tr><th>Errors</th><td><code>400 VALIDATION_FAILED</code>, internal auth error codes</td></tr>
@@ -258,7 +258,7 @@
             </thead>
             <tbody>
               <tr><td><code>GET /internal/admin/tenants/{tenantId}</code></td><td>path <code>tenantId</code></td><td>tenant 기본 정보, <code>domains</code>, <code>enabledModules</code>, <code>settings</code></td><td><code>400 TENANT_INVALID_ID</code>, <code>404 TENANT_NOT_FOUND</code></td></tr>
-              <tr><td><code>PATCH /internal/admin/tenants/{tenantId}</code></td><td><code>name</code></td><td>tenant object</td><td><code>400 VALIDATION_FAILED</code>, <code>400 TENANT_INVALID_ID</code>, <code>404 TENANT_NOT_FOUND</code></td></tr>
+              <tr><td><code>PATCH /internal/admin/tenants/{tenantId}</code></td><td><code>name</code>, optional <code>domain</code>, optional <code>contactPhone</code></td><td>tenant object. <code>domain</code>은 대표 domain을 갱신하고, <code>contactPhone</code>은 tenant setting을 갱신합니다.</td><td><code>400 VALIDATION_FAILED</code>, <code>400 TENANT_INVALID_ID</code>, <code>404 TENANT_NOT_FOUND</code>, <code>409 TENANT_DOMAIN_CONFLICT</code></td></tr>
               <tr><td><code>PUT /internal/admin/tenants/{tenantId}/modules</code></td><td><code>enabledModules</code> array</td><td><code>tenantId</code>, sorted <code>enabledModules</code></td><td><code>400 VALIDATION_FAILED</code>, <code>400 TENANT_INVALID_ID</code>, <code>404 TENANT_NOT_FOUND</code></td></tr>
               <tr><td><code>GET /internal/admin/tenants/{tenantId}/domains</code></td><td>path <code>tenantId</code></td><td><code>items</code> domain list</td><td><code>400 TENANT_INVALID_ID</code>, <code>404 TENANT_NOT_FOUND</code></td></tr>
               <tr><td><code>POST /internal/admin/tenants/{tenantId}/domains</code></td><td><code>domain</code></td><td>domain object</td><td><code>400 VALIDATION_FAILED</code>, <code>409 TENANT_DOMAIN_CONFLICT</code></td></tr>

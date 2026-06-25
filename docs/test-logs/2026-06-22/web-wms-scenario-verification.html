@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>web-wms 시나리오 검증 로그</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Test Log</p>
+        <h1>web-wms 시나리오 검증 로그</h1>
+        <p class="lead">2026-06-22 local 환경에서 사용자용 WMS Desktop 화면을 API와 브라우저 화면 기준으로 검증한 기록입니다.</p>
+      </header>
+
+      <section>
+        <h2>실행 환경</h2>
+        <table>
+          <tbody>
+            <tr><th>날짜</th><td>2026-06-22</td></tr>
+            <tr><th>대상</th><td><code>apps/web-wms</code>, <code>user-bff-service</code></td></tr>
+            <tr><th>URL</th><td>gateway <code>http://localhost:3000</code>, web-wms <code>http://localhost:5174</code>, browser 검증 <code>http://127.0.0.1:5174</code>. Vite dev server와 Docker compose 모두 web-wms는 <code>5174</code>를 기준으로 맞췄습니다.</td></tr>
+            <tr><th>Seed 계정</th><td><code>admin@demo.local</code>, tenant <code>11111111-1111-4111-8111-111111111111</code>. 비밀번호와 token 원문은 기록하지 않습니다.</td></tr>
+            <tr><th>최근 반복 runId</th><td><code>web-wms-repeat-mqov88h9</code></td></tr>
+            <tr><th>초기 API runId</th><td><code>web-wms-scenario-mqors7uu</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>사전 검증</h2>
+        <table>
+          <tbody>
+            <tr><th>Service ready</th><td>gateway/backend <code>3000-3007</code> Docker 서비스 healthy, web-wms Vite direct <code>5174</code> ready 확인</td></tr>
+            <tr><th>Typecheck</th><td><code>pnpm --filter web-wms typecheck</code> 통과, <code>pnpm --filter user-bff-service typecheck</code> 통과</td></tr>
+            <tr><th>Build</th><td><code>pnpm --filter web-wms build</code> 통과</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>5회 반복 보강 검증</h2>
+        <table>
+          <tbody>
+            <tr><th>반복 결과</th><td><span class="tag done">5/5 Pass</span> <code>web-wms-repeat-mqov88h9</code></td></tr>
+            <tr><th>보강 시나리오</th><td><code>WEB-WMS-API-001</code>, <code>WEB-WMS-GW-001</code>, <code>WEB-WMS-UI-001</code>, <code>WEB-WMS-REP-001</code></td></tr>
+            <tr><th>사전 정적 검증</th><td><code>pnpm --filter web-wms typecheck</code>, <code>pnpm --filter user-bff-service typecheck</code>, <code>pnpm --filter web-wms build</code> 모두 통과</td></tr>
+            <tr><th>환경 보정</th><td>중간 점검에서 <code>web-admin</code>/<code>web-wms</code> Vite dev server 포트가 Docker 기준과 반대로 설정된 것을 확인했습니다. <code>apps/web-admin/vite.config.ts</code>는 <code>5173</code>, <code>apps/web-wms/vite.config.ts</code>는 <code>5174</code>와 <code>strictPort=true</code>로 수정한 뒤 1회차부터 다시 실행했습니다.</td></tr>
+            <tr><th>검증 보정</th><td>기준정보/출고 list count 선택자는 CSS module class name을 고려해 <code>[class*="compactItem"]</code> 기준으로 정정했습니다. 이 보정은 저장소 테스트 자동화 추가가 아니라 이번 실행용 시나리오 판정 기준 보정입니다.</td></tr>
+          </tbody>
+        </table>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>iteration</th><th>result</th><th>API evidence</th><th>UI evidence</th><th>requestId evidence</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td><span class="tag done">Pass</span></td><td>warehouses 3, locations 3, materials 3, inventory total 3, snapshots 3, filteredSnapshots 1, allocations 9, packings 6</td><td>browser API 24건, forbidden service port 0건, dashboard badge 1, inventory rows 3, snapshots rows 3, master-data badges 3/rows 9, outbound badges 2/rows 15</td><td><code>web-wms-repeat-mqov88h9-it1-auth-001-login</code>, <code>web-wms-repeat-mqov88h9-it1-auth-002-me</code>, <code>web-wms-repeat-mqov88h9-it1-auth-003-navigation</code></td></tr>
+              <tr><td>2</td><td><span class="tag done">Pass</span></td><td>warehouses 3, locations 3, materials 3, inventory total 3, snapshots 3, filteredSnapshots 1, allocations 9, packings 6</td><td>browser API 24건, forbidden service port 0건, route별 heading/API badge/list count 동일</td><td><code>web-wms-repeat-mqov88h9-it2-auth-001-login</code>, <code>web-wms-repeat-mqov88h9-it2-auth-002-me</code>, <code>web-wms-repeat-mqov88h9-it2-auth-003-navigation</code></td></tr>
+              <tr><td>3</td><td><span class="tag done">Pass</span></td><td>warehouses 3, locations 3, materials 3, inventory total 3, snapshots 3, filteredSnapshots 1, allocations 9, packings 6</td><td>browser API 24건, forbidden service port 0건, route별 heading/API badge/list count 동일</td><td><code>web-wms-repeat-mqov88h9-it3-auth-001-login</code>, <code>web-wms-repeat-mqov88h9-it3-auth-002-me</code>, <code>web-wms-repeat-mqov88h9-it3-auth-003-navigation</code></td></tr>
+              <tr><td>4</td><td><span class="tag done">Pass</span></td><td>warehouses 3, locations 3, materials 3, inventory total 3, snapshots 3, filteredSnapshots 1, allocations 9, packings 6</td><td>browser API 24건, forbidden service port 0건, route별 heading/API badge/list count 동일</td><td><code>web-wms-repeat-mqov88h9-it4-auth-001-login</code>, <code>web-wms-repeat-mqov88h9-it4-auth-002-me</code>, <code>web-wms-repeat-mqov88h9-it4-auth-003-navigation</code></td></tr>
+              <tr><td>5</td><td><span class="tag done">Pass</span></td><td>warehouses 3, locations 3, materials 3, inventory total 3, snapshots 3, filteredSnapshots 1, allocations 9, packings 6</td><td>browser API 24건, forbidden service port 0건, route별 heading/API badge/list count 동일</td><td><code>web-wms-repeat-mqov88h9-it5-auth-001-login</code>, <code>web-wms-repeat-mqov88h9-it5-auth-002-me</code>, <code>web-wms-repeat-mqov88h9-it5-auth-003-navigation</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>API 검증 결과</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenario</th><th>requestId</th><th>결과</th><th>evidence</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>로그인</td><td><code>web-wms-scenario-mqors7uu-auth-001-login</code></td><td><span class="tag done">Pass</span></td><td><code>tokenType=Bearer</code>, <code>expiresIn=1800</code></td></tr>
+              <tr><td>App context</td><td><code>web-wms-scenario-mqors7uu-auth-002-me</code></td><td><span class="tag done">Pass</span></td><td>tenant <code>DEMO0001</code>, status <code>active</code>, permissions 30개</td></tr>
+              <tr><td>Navigation</td><td><code>web-wms-scenario-mqors7uu-auth-003-navigation</code></td><td><span class="tag done">Pass</span></td><td>items 4개, paths <code>/wms</code>, <code>/wms/inventory</code>, <code>/wms/warehouses</code>, <code>/wms/materials</code></td></tr>
+              <tr><td>Dashboard</td><td><code>web-wms-scenario-mqors7uu-dash-001-dashboard</code></td><td><span class="tag done">Pass</span></td><td>balances 3, allocations 9, packings 6</td></tr>
+              <tr><td>Warehouses</td><td><code>web-wms-scenario-mqors7uu-master-001-warehouses</code></td><td><span class="tag done">Pass</span></td><td>items 3, total 3</td></tr>
+              <tr><td>Locations</td><td><code>web-wms-scenario-mqors7uu-master-002-locations</code></td><td><span class="tag done">Pass</span></td><td>items 3, total 3</td></tr>
+              <tr><td>Materials</td><td><code>web-wms-scenario-mqors7uu-master-003-materials</code></td><td><span class="tag done">Pass</span></td><td>items 3, total 3</td></tr>
+              <tr><td>Inventory summary</td><td><code>web-wms-scenario-mqors7uu-inv-001-inventory-summary</code></td><td><span class="tag done">Pass</span></td><td>items 3, total 3, <code>pageTotals.availableQuantity=39.000</code></td></tr>
+              <tr><td>Snapshots</td><td><code>web-wms-scenario-mqors7uu-snap-001-snapshots</code></td><td><span class="tag done">Pass</span></td><td>items 3, total 3, <code>pageTotals.availableQuantity=45.000</code></td></tr>
+              <tr><td>Outbound allocations</td><td><code>web-wms-scenario-mqors7uu-out-001-allocations</code></td><td><span class="tag done">Pass</span></td><td>items 9, total 9</td></tr>
+              <tr><td>Outbound packings</td><td><code>web-wms-scenario-mqors7uu-out-002-packings</code></td><td><span class="tag done">Pass</span></td><td>items 6, total 6</td></tr>
+              <tr><td>Snapshot filter</td><td><code>web-wms-scenario-mqors7uu-snap-002-filter</code></td><td><span class="tag done">Pass</span></td><td>filtered items 1, total 1</td></tr>
+              <tr><td>App context audit</td><td><code>web-wms-scenario-mqors7uu-audit-001-app-me-audit-query-0</code></td><td><span class="tag done">Pass</span></td><td><code>userBff.appContext.loaded</code>, total 1</td></tr>
+              <tr><td>Navigation audit</td><td><code>web-wms-scenario-mqors7uu-audit-002-navigation-audit-query-0</code></td><td><span class="tag done">Pass</span></td><td><code>userBff.navigation.loaded</code>, total 1</td></tr>
+              <tr><td>로그인 실패</td><td><code>web-wms-scenario-mqors7uu-neg-001-login-fail</code></td><td><span class="tag done">Pass</span></td><td><code>401 AUTH_INVALID_CREDENTIALS</code></td></tr>
+              <tr><td>Tenant mismatch</td><td><code>web-wms-scenario-mqors7uu-neg-002-tenant-mismatch</code></td><td><span class="tag done">Pass</span></td><td><code>403 TENANT_MISMATCH</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>화면 검증 결과</h2>
+        <table>
+          <tbody>
+            <tr><th>로그인/메뉴</th><td>로그인 form control은 tenant, email, password, 로그인 버튼이 각각 1개였습니다. 로그인 후 <code>/dashboard</code>로 이동했고 WMS 운영 콘솔과 한글 메뉴 6개가 표시됐습니다.</td></tr>
+            <tr><th>대시보드</th><td><code>/dashboard</code>에서 <code>대시보드</code>, <code>출고 진행</code>, <code>사용 가능 작업</code> heading과 <code>API 데이터</code> 배지를 확인했습니다.</td></tr>
+            <tr><th>재고 현황</th><td><code>/inventory</code>에서 <code>재고 현황</code> heading, <code>API 데이터</code> 배지, table row 3개를 확인했습니다.</td></tr>
+            <tr><th>재고 스냅샷</th><td><code>/snapshots</code>에서 <code>재고 스냅샷</code> heading, <code>API 데이터</code> 배지, table row 3개를 확인했습니다.</td></tr>
+            <tr><th>기준정보</th><td><code>/master-data</code>에서 <code>창고 3건</code>, <code>로케이션 3건</code>, <code>품목 3건</code> heading을 확인했습니다. 초기 검증에서는 출처 배지가 없었고, 수정 후 각 패널에 <code>API 데이터</code> 배지 3개가 표시됐습니다.</td></tr>
+            <tr><th>출고 작업</th><td><code>/outbound</code>에서 <code>출고 할당</code>, <code>포장 상태</code> heading을 확인했습니다. 초기 검증에서는 출처 배지가 없었고, 수정 후 각 패널에 <code>API 데이터</code> 배지 2개가 표시됐습니다.</td></tr>
+            <tr><th>권한 제한</th><td><code>/permission</code>에서 <code>접근 가능한 업무만 표시됩니다.</code>, <code>권한 예시</code>, <code>화면 처리</code> 안내를 확인했습니다.</td></tr>
+            <tr><th>로그아웃/로그인 실패</th><td>로그아웃 후 <code>/login</code>으로 이동했습니다. 잘못된 비밀번호 로그인은 <code>AUTH_INVALID_CREDENTIALS</code>와 requestId를 화면에 표시했습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>API 계약 필터 보강 검증</h2>
+        <table>
+          <tbody>
+            <tr><th>보강 범위</th><td>web-wms 재고, 스냅샷, 기준정보, 출고 화면 검색 조건을 User BFF WMS 조회 API query 계약과 연결했습니다.</td></tr>
+            <tr><th>정적 검증</th><td><code>pnpm --filter web-wms typecheck</code> 통과, <code>pnpm --filter web-wms build</code> 통과</td></tr>
+            <tr><th>API 오류 처리</th><td><code>400 VALIDATION_FAILED</code> 같은 API 오류는 샘플 데이터 fallback으로 숨기지 않고 화면 오류로 표시하도록 수정했습니다. 샘플 fallback은 네트워크 연결 실패 같은 비-API 오류에만 적용합니다.</td></tr>
+            <tr><th>레이아웃</th><td>출고 화면 4필드 검색 폼의 control bounding box 충돌 검사는 overlaps 0건이었습니다.</td></tr>
+          </tbody>
+        </table>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>scenario</th><th>requestId</th><th>결과</th><th>evidence</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Inventory filter</td><td><code>web-wms-api-align-inventory-filter-1782112140916</code></td><td><span class="tag done">Pass</span></td><td><code>warehouseId</code>, <code>locationId</code>, <code>itemId</code> query로 total 1, count 1</td></tr>
+              <tr><td>Snapshot filter</td><td><code>web-wms-api-align-snapshot-filter-1782112140953</code></td><td><span class="tag done">Pass</span></td><td><code>snapshotDate=2026-06-22</code>와 재고 식별자 query로 total 1, count 1</td></tr>
+              <tr><td>Warehouse code filter</td><td><code>web-wms-api-align-warehouse-code-filter-1782112140990</code></td><td><span class="tag done">Pass</span></td><td><code>code=whmqohlkua</code> query로 total 1, count 1</td></tr>
+              <tr><td>Location code filter</td><td><code>web-wms-api-align-location-code-filter-1782112141044</code></td><td><span class="tag done">Pass</span></td><td><code>warehouseId</code>, <code>code=locmqohmmlr</code> query로 total 1, count 1</td></tr>
+              <tr><td>Material SKU filter</td><td><code>web-wms-api-align-material-sku-filter-1782112141070</code></td><td><span class="tag done">Pass</span></td><td><code>sku=skumqohlkua</code> query로 total 1, count 1</td></tr>
+              <tr><td>Outbound allocation filter</td><td><code>web-wms-api-align-outbound-status-filter-1782112141100</code></td><td><span class="tag done">Pass</span></td><td><code>warehouseId</code>, <code>outboundOrderId</code>, <code>status=allocated</code> query로 total 1, count 1</td></tr>
+              <tr><td>Outbound packing filter</td><td><code>web-wms-api-align-packing-status-1782113000000</code></td><td><span class="tag done">Pass</span></td><td><code>warehouseId</code>, <code>outboundOrderId</code>, <code>status=packing</code> query로 total 1, count 1</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>화면</th><th>결과</th><th>evidence</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>/inventory</code></td><td><span class="tag done">Pass</span></td><td>적용 조건에 창고 ID, 로케이션 ID, 품목 ID가 표시되고 table row가 1건으로 축소됐습니다.</td></tr>
+              <tr><td><code>/snapshots</code></td><td><span class="tag done">Pass</span></td><td>기본 일자 <code>2026-06-22</code>와 창고/로케이션/품목 조건이 표시되고 table row가 1건으로 축소됐습니다.</td></tr>
+              <tr><td><code>/master-data</code></td><td><span class="tag done">Pass</span></td><td>창고, 로케이션, 품목 패널이 각각 1건으로 축소되고 적용 조건에 code/SKU 값이 표시됐습니다.</td></tr>
+              <tr><td><code>/outbound</code></td><td><span class="tag done">Pass</span></td><td>할당 상태와 포장 상태 필터를 분리한 뒤 두 패널 모두 <code>API 데이터</code> 1건으로 표시됐습니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>발견 Gap과 수정</h2>
+        <table>
+          <tbody>
+            <tr><th>Gap</th><td>기준정보와 출고 작업 화면은 여러 API 결과를 패널별로 조합하지만, 각 패널이 <code>API 데이터</code> 또는 <code>샘플 데이터</code> 출처를 표시하지 않았습니다.</td></tr>
+            <tr><th>수정</th><td><code>Panel</code>에 header meta 영역을 추가하고, 기준정보 3개 패널과 출고 2개 패널에 기존 <code>SourceBadge</code>를 재사용했습니다.</td></tr>
+            <tr><th>재검증</th><td><code>pnpm --filter web-wms typecheck</code>, <code>pnpm --filter web-wms build</code> 통과 후 브라우저에서 <code>/master-data</code> 배지 3개, <code>/outbound</code> 배지 2개를 확인했습니다.</td></tr>
+            <tr><th>추가 Gap</th><td>출고 화면의 단일 <code>status=allocated</code> 필터가 포장 API에도 전달되면 포장 API enum과 맞지 않아 <code>400 VALIDATION_FAILED</code>가 발생하고 기존 fallback 때문에 샘플 데이터처럼 보일 수 있었습니다.</td></tr>
+            <tr><th>추가 수정</th><td>출고 필터를 할당 상태와 포장 상태로 분리하고, API 오류는 샘플 fallback으로 숨기지 않도록 수정했습니다.</td></tr>
+            <tr><th>추가 재검증</th><td>브라우저에서 <code>/outbound</code> 검색 후 출고 할당 1건, 포장 상태 1건, <code>API 데이터</code> 배지 2개, 적용 조건 텍스트를 확인했습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer"><a href="../../test-scenarios/web-wms-test-scenarios.html">web-wms 테스트 시나리오로 이동</a> · <a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

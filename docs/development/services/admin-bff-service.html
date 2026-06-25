@@ -18,7 +18,7 @@
         <table>
           <tr><th>위치</th><td><code>apps/admin-bff-service</code></td></tr>
           <tr><th>카테고리</th><td>Backend Service · BFF</td></tr>
-          <tr><th>책임</th><td>테넌트 관리, 사용자/권한 관리, 운영 설정, 감사 로그 조회 화면 API 조합</td></tr>
+          <tr><th>책임</th><td>시스템 관리자 전용 고객사 관리, 사용자/권한 관리, 운영 설정, 감사 로그 조회 화면 API 조합</td></tr>
           <tr><th>제작 시점</th><td><code>tenant-service</code> 1차 완료 후, WMS 본격 개발 전에 운영자용 tenant/user/role 관리 surface부터 제작</td></tr>
           <tr><th>Tenant 관리 경계</th><td>외부 <code>/api/admin/tenants</code> surface를 소유하고, 실제 tenant 생성/상태/module/domain 변경은 tenant-service 내부 API로 위임합니다.</td></tr>
           <tr><th>주의</th><td>권한의 최종 판단은 Auth/IAM에 두고, tenant business rule은 tenant-service에, WMS 업무 정책은 WMS에 둡니다. BFF는 직접 DB에 접근하지 않습니다.</td></tr>
@@ -41,8 +41,8 @@
         <h2>구현 상태</h2>
         <table>
           <tr><th>상태</th><td><span class="tag done">1차 구현</span></td></tr>
-          <tr><th>완료 범위</th><td>NestJS 기본 구조, Auth/IAM 권한 check, tenant 관리 API, 사용자/role/permission 화면 조합 API, audit log 조회 연동, CDK 배포 리소스, 수동 배포 workflow</td></tr>
-          <tr><th>남은 범위</th><td><code>/api/admin/me</code> 구현, audit-log-service 장애 처리 정책 보강과 운영 검증 증거 축적</td></tr>
+          <tr><th>완료 범위</th><td>NestJS 기본 구조, Auth/IAM 권한 check, admin session API, tenant 관리 API, 관리자 대시보드 화면 조합 API, 사용자/role/permission 화면 조합 API, audit log 조회/관리자 변경성 action 기록 연동, CDK 배포 리소스, 수동 배포 workflow</td></tr>
+          <tr><th>남은 범위</th><td>audit-log-service 장애 처리 정책 보강과 운영 검증 증거 축적</td></tr>
           <tr><th>API 문서</th><td><code>docs/apis/admin-bff-service/index.html</code></td></tr>
         </table>
       </section>
@@ -52,6 +52,8 @@
           <div class="card"><strong>GET /api/admin/tenants</strong><p>tenant 목록, 상태, 활성 module 조회</p></div>
           <div class="card"><strong>POST /api/admin/tenants</strong><p>tenant 생성 요청을 tenant-service 내부 API로 위임</p></div>
           <div class="card"><strong>PATCH /api/admin/tenants/{tenantId}/status</strong><p>tenant 활성/정지 상태 변경</p></div>
+          <div class="card"><strong>GET /api/admin/me</strong><p>관리자 세션, tenant, 권한 summary, 메뉴 조합</p></div>
+          <div class="card"><strong>GET /api/admin/dashboard</strong><p>관리 대시보드용 tenant/access/audit 요약 조합</p></div>
           <div class="card"><strong>GET /api/admin/access-control/screen-data</strong><p>사용자/role/permission 화면 초기 데이터 조합</p></div>
           <div class="card"><strong>GET /api/admin/users</strong><p>운영자 사용자 목록과 tenant scope 조회</p></div>
           <div class="card"><strong>POST /api/admin/users</strong><p>사용자 초대 또는 생성 요청 조합</p></div>
@@ -73,16 +75,19 @@
               <p><label><input type="checkbox" checked disabled /> tenant 목록/생성/상태 변경 API 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> tenant 상세/기본 정보 수정 API 연결</label></p>
               <p><label><input type="checkbox" checked disabled /> tenant module 교체와 domain 관리 API 연결</label></p>
+              <p><label><input type="checkbox" checked disabled /> <code>/api/admin/me</code> 구현</label></p>
+              <p><label><input type="checkbox" checked disabled /> tenant 없는 <code>system_admin</code> 세션, 권한 check, dashboard 전역 조회 지원</label></p>
+              <p><label><input type="checkbox" checked disabled /> 관리자 대시보드 화면 조합 API 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> 사용자/role/permission 화면 조합 API 구현</label></p>
               <p><label><input type="checkbox" checked disabled /> 감사 로그 조회 API route/client 사전 준비</label></p>
               <p><label><input type="checkbox" checked disabled /> audit-log-service 내부 조회 API 연동</label></p>
+              <p><label><input type="checkbox" checked disabled /> 관리자 변경성 action audit-log-service 내부 기록 보강</label></p>
               <p><label><input type="checkbox" checked disabled /> <code>docs/apis/admin-bff-service/index.html</code>에 API 계약 작성</label></p>
             </div>
           </div>
           <div class="card">
             <h3>남은 작업</h3>
             <div class="task-list">
-              <p><label><input type="checkbox" disabled /> <code>/api/admin/me</code> 구현</label></p>
               <p><label><input type="checkbox" disabled /> audit-log-service 장애 처리 정책 보강과 운영 검증 증거 축적</label></p>
             </div>
           </div>
@@ -98,9 +103,12 @@
             <tr><th>Logging</th><td>요청 완료 시 JSON access log에 <code>requestId</code>, <code>tenantId</code>, <code>userId</code>, <code>method</code>, <code>path</code>, <code>statusCode</code>, <code>durationMs</code>를 남깁니다.</td></tr>
             <tr><th>Security</th><td>기존 gateway-service와 같은 보안 header와 명시 origin 기반 CORS 규칙을 사용합니다.</td></tr>
             <tr><th>Internal auth</th><td>auth-iam-service와 tenant-service 호출에 사용할 HMAC signer를 추가했습니다.</td></tr>
-            <tr><th>Permission check</th><td><code>@AdminPermission(...)</code> decorator와 전역 guard를 추가했습니다. decorator가 붙은 route는 auth-iam-service의 <code>POST /api/auth/permissions/check</code>를 internal auth로 호출해 관리자 권한을 확인합니다.</td></tr>
+            <tr><th>Permission check</th><td><code>@AdminPermission(...)</code> decorator와 전역 guard를 추가했습니다. decorator가 붙은 route는 auth-iam-service의 <code>POST /api/auth/permissions/check</code>를 internal auth로 호출해 관리자 권한을 확인합니다. tenant 없는 <code>system_admin</code> 요청은 Auth/IAM의 전역 permission check 결과를 그대로 사용합니다.</td></tr>
+            <tr><th>Admin Session</th><td><code>GET /api/admin/me</code>를 추가했습니다. Auth/IAM의 현재 사용자 정보와 tenant-service의 tenant 상태/module 정보를 조합하고, permission summary 기준으로 관리자 navigation을 반환합니다. tenant 없는 <code>system_admin</code>은 tenant-service 상태 조회를 생략하고 <code>tenantId=null</code>, <code>status=system_admin</code>, <code>enabledModules=["admin"]</code>을 반환합니다.</td></tr>
             <tr><th>Tenant client</th><td><code>TenantInternalClient</code>를 추가했습니다. tenant 목록/생성/상세/수정/상태/module/domain 내부 API를 호출하고, 변경성 요청에는 <code>Idempotency-Key</code>를 전파합니다.</td></tr>
+            <tr><th>Dashboard</th><td><code>GET /api/admin/dashboard</code>를 추가했습니다. tenant 목록, Auth/IAM permission summary와 사용자/role/permission 목록, audit log 최근 목록을 병렬 조회해 관리 대시보드용 요약 응답으로 조합합니다. <code>system_admin</code>은 tenant 없이 전체 tenant/user/role/audit 요약을 조회합니다.</td></tr>
             <tr><th>Audit client</th><td><code>AuditLogInternalClient</code>와 <code>GET /api/admin/audit-logs</code> controller를 구현했습니다. 로컬 compose 기준 <code>AUDIT_LOG_SERVICE_URL=http://audit-log-service:3000</code>와 <code>AUDIT_INTERNAL_AUTH_SECRET</code>로 <code>GET /api/internal/audit/logs</code>에 query, request context, internal auth header를 전파합니다.</td></tr>
+            <tr><th>Admin audit write</th><td><code>AdminAuditService</code>가 tenant/user/role 변경성 action 성공 후 <code>POST /api/internal/audit/logs</code>로 <code>admin.*</code> audit event를 best-effort 기록합니다. details에는 password, token, Authorization, email 원문을 포함하지 않습니다.</td></tr>
             <tr><th>Infra</th><td><code>apps/admin-bff-service/Dockerfile</code>을 추가했습니다. ECS 컨테이너 기본 포트는 <code>3000</code>이고 gateway는 Cloud Map 내부 URL과 <code>/api/admin</code> base path를 포함한 <code>ADMIN_BFF_SERVICE_URL</code>로 <code>/api/admin/**</code>를 전달합니다.</td></tr>
             <tr><th>Deploy</th><td>CDK에 ECR repository, CloudWatch log group, security group, ECS Fargate task/service, Cloud Map service를 추가했습니다. 기본 <code>adminBffDesiredCount</code>는 <code>0</code>이며, 이미지 push 후 <code>deploy-admin-bff-service.yml</code> 수동 workflow로 desired count를 올립니다.</td></tr>
           </tbody>
@@ -114,6 +122,7 @@
           <tr><th>ADMIN-BFF-003</th><td>변경성 요청은 <code>Idempotency-Key</code>가 없으면 차단되고, downstream 내부 호출에도 header가 전파된다.</td></tr>
           <tr><th>ADMIN-BFF-004</th><td>audit-log-service URL이 설정된 환경에서 audit log 조회는 <code>GET /api/internal/audit/logs</code>로 위임되고 표준 list envelope를 반환한다.</td></tr>
           <tr><th>ADMIN-BFF-005</th><td>audit-log-service URL이 없는 선택 환경에서 audit log 조회는 <code>AUDIT_LOG_SERVICE_NOT_CONFIGURED</code>로 실패한다.</td></tr>
+          <tr><th>ADMIN-BFF-006</th><td>관리자 변경성 action 성공 후 같은 <code>requestId</code>로 audit log를 조회하면 <code>admin.*</code> audit row가 1건 이상 반환된다.</td></tr>
         </table>
       </section>
       <section>
@@ -151,6 +160,54 @@
       </section>
       <section>
         <h2>개발 기록</h2>
+        <article>
+          <h3>2026-06-23 tenantless system_admin 관리자 surface 지원</h3>
+          <ul>
+            <li><code>AdminPermissionGuard</code>와 Auth/IAM internal client가 tenant 없는 context를 그대로 전달하도록 바꿔 <code>system_admin</code>의 전역 permission check를 허용했습니다.</li>
+            <li><code>GET /api/admin/me</code>는 tenant 없는 <code>system_admin</code> 요청에서 tenant-service status/module 조회를 생략하고 <code>tenantId=null</code>, <code>status=system_admin</code>, synthetic role/permission navigation을 반환합니다.</li>
+            <li><code>GET /api/admin/dashboard</code>는 <code>system_admin</code> 요청에서 tenant/user/role/permission/audit 요약을 전체 scope로 조합합니다.</li>
+            <li>검증 evidence: <code>requestId=verify-super-admin-me-v3</code>에서 tenant 없는 <code>system_admin</code> 세션이 <code>tenantId=null</code>, <code>status=system_admin</code>, 전체 permission 응답으로 성공했습니다. <code>verify-admin-tenantless-me</code>는 tenant 관리자 JWT의 resolved tenantId로 기존 tenant-scoped 세션을 반환했습니다.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3>2026-06-22 관리자 변경성 action audit 기록 보강</h3>
+          <ul>
+            <li><code>AdminAuditService</code>를 추가해 tenant 생성/수정/상태/module/domain, 사용자 생성/수정/상태/role 부여/해제, role/permission 변경 성공 후 audit-log-service 내부 기록 API로 <code>admin.*</code> event를 저장합니다.</li>
+            <li>감사 저장 장애는 warning log로 남기고 원 관리자 action 응답은 차단하지 않는 best-effort 정책으로 처리했습니다.</li>
+            <li>로컬 재검증 run <code>web-admin-audit-fix-mqorf18i</code>에서 변경성 requestId 8개가 모두 <code>GET /api/admin/audit-logs?requestId=...</code> 기준 <code>total=1</code>을 반환했습니다.</li>
+            <li>검증 명령: <code>pnpm --filter admin-bff-service typecheck</code>, <code>docker compose -f docker/local/docker-compose.yml up -d --build admin-bff-service audit-log-service</code>, gateway 경유 web-admin 시나리오 재검증.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3>2026-06-23 고객사 관리 scope 제한</h3>
+          <ul>
+            <li><code>GET /api/admin/me</code> navigation에서 고객사 관리 메뉴는 <code>system_admin</code> scope에만 노출합니다. 테넌트 관리자는 <code>tenant.tenants.read</code> 계열 permission이 있더라도 좌측 메뉴와 직접 route 접근 기준에서 제외됩니다.</li>
+            <li><code>/api/admin/tenants/**</code> 고객사 관련 API는 Admin BFF에서 tenant scope가 있는 관리자 요청을 <code>403 AUTH_ADMIN_SCOPE_MISMATCH</code>로 차단합니다. 시스템 관리자는 tenantless JWT와 기존 permission check를 통과해야 호출할 수 있습니다.</li>
+            <li>로컬 gateway 검증: <code>verify-scope-system-me</code>에서 <code>고객사 관리</code> navigation과 <code>verify-scope-system-tenants</code> 200을 확인했고, <code>verify-scope-tenant-me</code>에서는 메뉴 미노출, <code>verify-scope-tenant-tenants</code>에서는 <code>403 AUTH_ADMIN_SCOPE_MISMATCH</code>를 확인했습니다.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3>2026-06-22 Admin Me API 구현</h3>
+          <ul>
+            <li><code>GET /api/admin/me</code>를 추가해 web-admin App Shell 초기화에 필요한 사용자, tenant, 역할, 권한, 활성 module, navigation을 반환합니다.</li>
+            <li>권한별 메뉴 노출은 응답의 <code>navigation</code> 배열로 제공하며, 메뉴명은 관리 대시보드, 고객사 관리, 사용자/권한, 역할/권한, 감사 로그, 위험 작업 한글 기준을 사용합니다.</li>
+            <li>Auth/IAM <code>GET /api/auth/me</code>와 tenant-service status/module 내부 API를 호출하고, 기존 tenant status guard와 request context 전파 규칙을 유지합니다.</li>
+            <li>로컬 gateway 경유 검증에서 <code>requestId=web-admin-adminMe-verify-20260622-r2</code> 요청이 <code>200</code>으로 성공했고, navigation 6개와 active tenant 상태를 반환했습니다.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3>2026-06-22 관리자 대시보드 API 구현</h3>
+          <ul>
+            <li><code>GET /api/admin/dashboard</code> controller를 추가하고 <code>tenant.tenants.read</code>, <code>auth.users.read</code>, <code>auth.roles.read</code>, <code>auth.permissions.read</code>, <code>audit.logs.read</code> permission check를 적용했습니다.</li>
+            <li>tenant-service, auth-iam-service, audit-log-service 내부 조회를 병렬 호출해 tenant 상태, 활성 module, 사용자/역할/권한 집계, 최근 감사 evidence, 위험 신호를 조합합니다.</li>
+            <li>외부 응답은 Admin BFF 표준 envelope를 유지하며 request context와 tenant/user context를 downstream으로 전파합니다.</li>
+            <li>로컬 gateway 경유 검증에서 <code>requestId=web-admin-dashboard-verify-20260622-r2</code> 요청이 <code>200</code>으로 성공했고, tenant 3건, 사용자 9건, audit log 47건 요약을 반환했습니다.</li>
+          </ul>
+        </article>
 
         <article>
           <h3>2026-06-11 BFF 경계 최신화</h3>
@@ -287,6 +344,14 @@
             <li>관리자 surface는 계속 <code>/api/admin/**</code>를 소유하고, gateway-service는 admin-bff-service까지만 호출하는 기준을 확정했습니다.</li>
             <li>tenant 관리, tenant status check, audit 조회처럼 platform/domain service가 필요한 관리자 요청은 Admin BFF가 내부 API로 위임합니다.</li>
             <li>이후 관리자 기능이 추가되어도 gateway-service에서 domain/platform service로 직접 route를 만들지 않고 Admin BFF API 계약을 먼저 확장합니다.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>2026-06-22 로컬 Gateway 단일 진입점 정리</h3>
+          <ul>
+            <li>local/deploy compose에서 <code>admin-bff-service</code> host port 노출을 제거하고 compose 내부 네트워크 <code>3000</code>만 사용하도록 변경했습니다.</li>
+            <li>브라우저, Postman, 로컬 시스템 시나리오의 관리자 API 호출은 <code>http://localhost:3000/api/admin/**</code> gateway 경유만 사용합니다.</li>
+            <li><code>web-admin</code>은 Docker compose의 nginx 컨테이너로 <code>http://localhost:5173</code>에서 실행하며, 빌드 시 <code>VITE_API_BASE_URL=http://localhost:3000</code>을 사용합니다.</li>
           </ul>
         </article>
       </section>

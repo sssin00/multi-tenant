@@ -160,12 +160,8 @@ export function loadAppConfig(): AppConfig {
     securityHeadersEnabled: parseBoolean("USER_BFF_SECURITY_HEADERS_ENABLED", true),
     cors: {
       allowedOrigins: parseCsv("USER_BFF_CORS_ALLOWED_ORIGINS", [
-        "http://localhost:5173",
         "http://localhost:3000",
-        "http://localhost:3004",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3004"
+        "http://127.0.0.1:3000"
       ]),
       allowedMethods: parseCsv("USER_BFF_CORS_ALLOWED_METHODS", [
         "GET",

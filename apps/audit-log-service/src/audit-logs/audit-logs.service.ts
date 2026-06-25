@@ -132,7 +132,7 @@ export class AuditLogsService {
     }
 
     const filters: AuditLogSearchFilters = {
-      tenantId: this.requireUuid(command.tenantId, "tenantId"),
+      tenantId: command.tenantId ? this.requireUuid(command.tenantId, "tenantId") : undefined,
       page,
       size,
       from,

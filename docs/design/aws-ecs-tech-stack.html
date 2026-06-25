@@ -398,7 +398,7 @@
         <p class="lead">
           모든 인프라는 AWS 서비스를 사용하고, 실행 환경은 ECS Fargate를 기준으로 합니다.
           이 문서는 장기 기술스택과 현재 CDK 구현 상태를 함께 정리합니다.
-          2026-06-19 현재 로컬 런타임과 AWS CDK 배포 정의는 gateway-service, auth-iam-service, tenant-service, admin-bff-service, user-bff-service, wms-service, audit-log-service, outbox-relay-service를 함께 다룹니다.
+          2026-06-22 현재 로컬 런타임과 AWS CDK 배포 정의는 gateway-service, auth-iam-service, tenant-service, admin-bff-service, user-bff-service, wms-service, audit-log-service, outbox-relay-service를 함께 다룹니다.
           AWS CDK는 8개 backend service의 ECR/ECS/Cloud Map/security group/log group을 같은 스택에서 관리합니다.
         </p>
       </header>
@@ -435,6 +435,10 @@
 
       <section>
         <h2>현재 CDK 구현 기준</h2>
+        <p>
+          운영 배포 목표 구조도는 <a href="../infra/2026-06-22/index.html#production-architecture">2026-06-22 운영 기준 아키텍처</a>를 기준으로 봅니다.
+          이 구조도는 실제 AWS 계정 실측 현황이 아니라, DNS/ALB/gateway/BFF/domain/data/event/ops plane이 운영에서 지켜야 할 목표 경계입니다.
+        </p>
         <table class="stack-table">
           <tbody>
             <tr>
@@ -451,7 +455,7 @@
             </tr>
             <tr>
               <th>내부 연결</th>
-              <td><code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>, <code>user-bff-service</code>, <code>wms-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code>는 ALB에 직접 노출하지 않습니다. gateway-service는 Auth/IAM, Admin BFF, User BFF만 upstream으로 호출합니다. CDK gateway task env에는 <code>AUTH_IAM_SERVICE_URL</code>, <code>ADMIN_BFF_SERVICE_URL</code>, <code>USER_BFF_SERVICE_URL</code>이 주입됩니다. tenant-service, wms-service, audit-log-service, outbox-relay-service 같은 domain/platform/worker service는 gateway-service가 직접 호출하지 않고 BFF 또는 내부 서비스 호출 경로로만 사용합니다. User BFF는 Auth/IAM, tenant-service, wms-service를 내부 호출하고 WMS 화면 API를 조합합니다. User BFF app shell 감사 이벤트는 EventBridge 직접 발행을 우선 사용하고, 내부 기록 API는 호환 fallback으로 유지합니다.</td>
+              <td><code>auth-iam-service</code>, <code>tenant-service</code>, <code>admin-bff-service</code>, <code>user-bff-service</code>, <code>wms-service</code>, <code>audit-log-service</code>, <code>outbox-relay-service</code>는 ALB에 직접 노출하지 않습니다. gateway-service는 Auth/IAM, Admin BFF, User BFF만 upstream으로 호출합니다. CDK gateway task env에는 <code>AUTH_IAM_SERVICE_URL</code>, <code>ADMIN_BFF_SERVICE_URL</code>, <code>USER_BFF_SERVICE_URL</code>이 주입됩니다. tenant-service, wms-service, audit-log-service, outbox-relay-service 같은 domain/platform/worker service는 gateway-service가 직접 호출하지 않고 BFF 또는 내부 서비스 호출 경로로만 사용합니다. 로컬 Docker compose도 같은 원칙으로 Admin/User BFF host port를 열지 않고 gateway <code>localhost:3000</code>만 업무 API 진입점으로 둡니다. Admin BFF는 tenant/user/role 변경 성공 후 <code>admin.*</code> audit row를 내부 기록 API로 남기고, User BFF는 Auth/IAM, tenant-service, wms-service를 내부 호출해 WMS 화면 API를 조합합니다. User BFF app shell 감사 이벤트는 기본 호환값 <code>internal-api</code>를 사용하며, <code>userBffAppAuditPublisherType=eventbridge</code>와 bus name을 주면 EventBridge rule이 audit SQS target으로 연결됩니다.</td>
             </tr>
             <tr>
               <th>Redis</th>
@@ -467,7 +471,7 @@
             </tr>
             <tr>
               <th>기준 문서</th>
-              <td>상세 리소스와 context는 <a href="../infra/2026-06-19/index.html">2026-06-19 아키텍처/인프라 상태</a>를 기준으로 합니다.</td>
+              <td>상세 CDK와 로컬 gateway-only 실행 기준은 <a href="../infra/2026-06-22/index.html">2026-06-22 아키텍처/인프라 상태</a>에 있으며, 운영 배포 목표 구조는 같은 문서의 <a href="../infra/2026-06-22/index.html#production-architecture">운영 기준 아키텍처</a>를 기준으로 봅니다. 8개 backend service CDK 편입 과정은 <a href="../infra/2026-06-19/index.html">2026-06-19 스냅샷</a>을 함께 기준으로 봅니다. 화면/API 검증 결과는 <a href="../test-logs/2026-06-22/final-system-scenario-verification.html">2026-06-22 전체 시스템 검증</a>, <a href="../test-logs/2026-06-22/web-admin-scenario-verification.html">web-admin 검증</a>, <a href="../test-logs/2026-06-22/web-wms-scenario-verification.html">web-wms 검증</a> 문서를 함께 확인합니다.</td>
             </tr>
           </tbody>
         </table>
@@ -778,7 +782,7 @@
         </div>
       </section>
 
-      <p class="footer">작성일: 2026-05-29 · 현행화: 2026-06-19 · 프로젝트: multi-tenant smart factory · 기준: AWS ECS Fargate</p>
+      <p class="footer">작성일: 2026-05-29 · 현행화: 2026-06-22 · 프로젝트: multi-tenant smart factory · 기준: AWS ECS Fargate</p>
     </main>
   </body>
 </html>

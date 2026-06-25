@@ -5,7 +5,7 @@ import { InternalAuthSignerService } from "./internal-auth-signer.service.js";
 
 export interface PermissionCheckCommand {
   requestId: string;
-  tenantId: string;
+  tenantId?: string;
   userId: string;
   permission: string;
   scope?: {
@@ -16,7 +16,7 @@ export interface PermissionCheckCommand {
 export interface PermissionCheckResult {
   allowed: boolean;
   userId: string;
-  tenantId: string;
+  tenantId: string | null;
   permission: string;
   scope: {
     warehouseId: string | null;
@@ -25,13 +25,13 @@ export interface PermissionCheckResult {
 
 export interface PermissionSummaryCommand {
   requestId: string;
-  tenantId: string;
+  tenantId?: string;
   userId: string;
 }
 
 export interface PermissionSummaryResult {
   userId: string;
-  tenantId: string;
+  tenantId: string | null;
   roles: Array<{
     roleId: string;
     roleCode: string;
@@ -40,9 +40,22 @@ export interface PermissionSummaryResult {
   permissions: string[];
 }
 
+export interface AuthIamMeResult extends PermissionSummaryResult {
+  user: {
+    id: string;
+    tenantId: string | null;
+    email: string;
+    displayName: string;
+    userType: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
 export interface AuthIamClientContext {
   requestId: string;
-  tenantId: string;
+  tenantId?: string;
   userId: string;
   idempotencyKey?: string;
 }
@@ -96,6 +109,14 @@ export class AuthIamInternalClient {
       requestId: command.requestId,
       tenantId: command.tenantId,
       userId: command.userId
+    });
+  }
+
+  async getMe(context: AuthIamClientContext): Promise<AuthIamMeResult> {
+    return this.request<AuthIamMeResult>({
+      method: "GET",
+      path: "/api/auth/me",
+      ...context
     });
   }
 
@@ -247,7 +268,7 @@ export class AuthIamInternalClient {
     method: string;
     path: string;
     requestId: string;
-    tenantId: string;
+    tenantId?: string;
     userId: string;
     idempotencyKey?: string;
     body?: unknown;
@@ -353,7 +374,7 @@ export class AuthIamInternalClient {
     command: {
       method: string;
       requestId: string;
-      tenantId: string;
+      tenantId?: string;
       userId: string;
       idempotencyKey?: string;
       body?: unknown;
@@ -364,9 +385,11 @@ export class AuthIamInternalClient {
       Accept: "application/json",
       "Content-Type": "application/json",
       "X-Request-Id": command.requestId,
-      "X-Tenant-Id": command.tenantId,
       "X-User-Id": command.userId
     });
+    if (command.tenantId) {
+      headers.set("X-Tenant-Id", command.tenantId);
+    }
     if (command.idempotencyKey) {
       headers.set("Idempotency-Key", command.idempotencyKey);
     }

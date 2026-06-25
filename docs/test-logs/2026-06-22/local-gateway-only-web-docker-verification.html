@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Local Gateway-only & Web Docker Verification</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Verification · 2026-06-22</p>
+        <h1>로컬 Gateway 단일 진입점과 Web Docker 검증</h1>
+        <p class="lead">로컬 Docker Compose에서도 Admin/User BFF host port를 열지 않고, web-admin/web-wms가 gateway만 API 진입점으로 사용하도록 변경한 결과입니다.</p>
+      </header>
+      <section>
+        <h2>검증 요약</h2>
+        <table>
+          <tbody>
+            <tr><th>대상</th><td><code>docker/local/docker-compose.yml</code>, <code>docker/services/Dockerfile.web</code>, CDK synth 산출물, Postman collection, 시스템 테스트 시나리오</td></tr>
+            <tr><th>결과</th><td><span class="tag done">통과</span> BFF host port 미노출, web-admin/web-wms Docker image build, nginx static smoke, CDK gateway-only ALB/BFF ingress 확인</td></tr>
+            <tr><th>업무 API 진입점</th><td><code>http://localhost:3000</code> gateway</td></tr>
+            <tr><th>Web URLs</th><td><code>http://localhost:5173</code> web-admin, <code>http://localhost:5174</code> web-wms</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Evidence</h2>
+        <div class="wide-table">
+          <table>
+            <thead>
+              <tr><th>항목</th><th>명령</th><th>확인 결과</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>BFF host port 제거</td>
+                <td><code>docker compose -f docker/local/docker-compose.yml config | rg 'published: "3003"|published: "3004"'</code></td>
+                <td>매칭 없음. Admin/User BFF는 <code>expose: 3000</code>만 사용합니다.</td>
+              </tr>
+              <tr>
+                <td>Web Docker build</td>
+                <td><code>docker compose -f docker/local/docker-compose.yml build web-admin web-wms</code></td>
+                <td><code>multi-tenant-local-web-admin:latest</code>, <code>multi-tenant-local-web-wms:latest</code> 이미지 빌드 성공</td>
+              </tr>
+              <tr>
+                <td>Web nginx smoke</td>
+                <td><code>docker run -p 18073:80 multi-tenant-local-web-admin:latest</code>, <code>docker run -p 18074:80 multi-tenant-local-web-wms:latest</code></td>
+                <td><code>GET /</code> 응답: web-admin <code>200</code>, web-wms <code>200</code></td>
+              </tr>
+              <tr>
+                <td>CDK synth</td>
+                <td><code>pnpm --filter @multi-tenant/infra-cdk synth</code></td>
+                <td>성공. ALB target group은 gateway-service만 포함합니다.</td>
+              </tr>
+              <tr>
+                <td>CDK BFF ingress</td>
+                <td>CDK template에서 Admin/User BFF security group ingress 조회</td>
+                <td>Admin/User BFF로 들어오는 ingress는 gateway-service security group source 2개뿐입니다.</td>
+              </tr>
+              <tr>
+                <td>TypeScript</td>
+                <td><code>pnpm --filter admin-bff-service typecheck</code>, <code>pnpm --filter user-bff-service typecheck</code></td>
+                <td>둘 다 통과</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section>
+        <h2>수정 범위</h2>
+        <ul>
+          <li>local compose에서 Admin/User BFF host port를 제거하고 web-admin/web-wms nginx 서비스를 추가했습니다.</li>
+          <li>Web Dockerfile이 루트 TypeScript 설정을 복사하고 Vite API base URL을 build arg로 받을 수 있게 수정했습니다.</li>
+          <li>Postman과 로컬 시스템 테스트 시나리오에서 BFF 직접 호출을 gateway 경유 호출로 정리했습니다.</li>
+          <li>CDK는 수정 없이 synth와 산출물 검사 기준으로 gateway-only 외부 노출 구조가 유효함을 확인했습니다.</li>
+        </ul>
+      </section>
+      <p class="footer"><a href="../../index.html">문서 대시보드로 돌아가기</a></p>
+    </main>
+  </body>
+</html>

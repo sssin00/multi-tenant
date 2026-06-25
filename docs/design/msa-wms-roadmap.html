@@ -459,7 +459,7 @@
           </div>
           <div class="summary-item">
             <strong>4. 화면과 확장</strong>
-            <p>User BFF, web-wms, 운영 화면을 붙인 뒤 ERP, 알림, MES/QMS/FMS/EMS로 확장합니다.</p>
+            <p>User BFF, web-wms, web-admin 1차 화면을 붙인 뒤 PDA, ERP, 알림, MES/QMS/FMS/EMS로 확장합니다.</p>
           </div>
         </div>
       </section>
@@ -469,7 +469,7 @@
         <div class="summary-grid">
           <div class="summary-item">
             <strong>완료/1차 구현</strong>
-            <p>gateway-service, auth-iam-service, tenant-service, admin-bff-service, user-bff-service 기본 구조, wms-service 1차 도메인 API, audit-log-service, outbox-relay-service의 로컬 구현과 검증 기준이 잡혀 있습니다.</p>
+            <p>gateway-service, auth-iam-service, tenant-service, admin-bff-service, user-bff-service, wms-service, audit-log-service, outbox-relay-service의 로컬 구현과 검증 기준이 잡혀 있습니다. web-admin과 web-wms는 Desktop 1차 화면과 API 연동 검증까지 진행했습니다.</p>
           </div>
           <div class="summary-item">
             <strong>배포 준비</strong>
@@ -477,7 +477,7 @@
           </div>
           <div class="summary-item">
             <strong>다음 후보</strong>
-            <p>user-bff-service의 WMS 화면 조합 API와 web-wms 첫 화면 계약을 연결합니다.</p>
+            <p>PDA Web 화면, WMS mutation 화면 연결, dev AWS outbox/audit end-to-end 증적, 운영 alarm/runbook을 보강합니다.</p>
           </div>
           <div class="summary-item">
             <strong>그 다음</strong>
@@ -544,7 +544,7 @@
                 <div class="task"><strong>Gateway</strong><span>JWT 검증, tenant mismatch 차단, Auth/BFF proxy route, rate limit, security/CORS를 1차 구현했습니다. tenant status check는 BFF 책임입니다.</span></div>
                 <div class="task"><strong>Auth/IAM Service</strong><span>login/refresh/logout, user/role/permission, permission summary/check, outbox 저장을 1차 구현했습니다.</span></div>
                 <div class="task"><strong>Tenant Service</strong><span>tenant status/modules, admin tenant 목록/생성/상세/수정/상태/module/domain 내부 API를 구현했습니다.</span></div>
-                <div class="task"><strong>Admin BFF</strong><span>tenant, user, role, permission, audit 조회 surface를 1차 구현했고 Admin 화면 연결을 기다립니다.</span></div>
+                <div class="task"><strong>Admin BFF</strong><span>tenant, user, role, permission, audit surface와 변경성 action audit 기록을 1차 구현했고 web-admin Desktop 화면 검증까지 연결했습니다.</span></div>
               </div>
             </div>
           </article>
@@ -598,12 +598,12 @@
             <div class="phase-body">
               <div class="phase-title">
                 <h3>User BFF와 WMS 화면</h3>
-                <span class="status progress">진행 중</span>
+                <span class="status done">Desktop 1차 완료</span>
               </div>
-              <p>User BFF는 app shell과 navigation 기본 API를 구현했고, 다음 단계에서 WMS 화면 데이터를 조합합니다. web-wms는 BFF를 통해서만 업무 데이터를 조회합니다.</p>
+              <p>User BFF는 app shell, navigation, WMS 화면 조회 API를 구현했습니다. web-wms Desktop 1차 화면은 구현된 BFF 계약을 통해서만 업무 데이터를 조회하며, 2026-06-22 시나리오 검증을 완료했습니다.</p>
               <div class="task-grid">
-                <div class="task"><strong>User BFF</strong><span><code>/api/app/me</code>, <code>/api/app/navigation</code> 기본 구조는 구현됐고, WMS dashboard, warehouses, materials, inventory summary 조합 API를 다음에 구현합니다.</span></div>
-                <div class="task"><strong>web-wms</strong><span>로그인 후 tenant/user/menu context와 WMS 첫 화면을 연결합니다.</span></div>
+                <div class="task"><strong>User BFF</strong><span><code>/api/app/me</code>, <code>/api/app/navigation</code>, WMS dashboard, warehouses, locations, materials, inventory summary, inventory snapshots, outbound allocations, outbound packings API를 구현했습니다.</span></div>
+                <div class="task"><strong>web-wms</strong><span>로그인 후 tenant/user/menu context, dashboard, inventory, snapshot, master data, outbound 조회 화면을 <code>/api/app/wms/**</code> 계약에 연결했습니다.</span></div>
                 <div class="task"><strong>PDA/현장 화면</strong><span>입고, 재고, 출고 작업 화면은 WMS 1차 API 안정화 후 분리합니다.</span></div>
                 <div class="task"><strong>API 계약</strong><span>WMS API와 User BFF 응답이 달라지면 API 문서와 테스트 시나리오를 함께 갱신합니다.</span></div>
               </div>
@@ -707,10 +707,12 @@
           <li>완료: WMS → Outbox Relay → LocalStack SQS → audit-log-service 로컬 연계 검증 5개 시나리오 통과</li>
           <li>완료: user-bff-service 기본 구조와 <code>/api/app/me</code>, <code>/api/app/navigation</code>, gateway <code>/api/app/**</code> route, audit-log best-effort 기록 연결</li>
           <li>완료: user-bff-service와 wms-service CDK/ECS/ECR/Cloud Map/security group, 수동 배포 workflow 반영</li>
-          <li>다음: user-bff-service WMS dashboard/warehouse/materials/inventory summary 조합 API</li>
+          <li>완료: user-bff-service WMS dashboard/warehouse/location/materials/inventory summary/snapshot/outbound allocation/outbound packing 조합 API</li>
+          <li>완료: web-admin Desktop 1차 화면, 테넌트 사용자 추가, 변경성 action audit 기록, 관리자 화면 시나리오 검증</li>
+          <li>완료: web-wms Desktop 1차 화면, User BFF 실 API 연동, 화면 시나리오 검증</li>
           <li>다음: WMS 기준정보 read 권한 분리 여부와 Idempotency-Key 저장 전략 결정</li>
           <li>이후: dev AWS Outbox Relay → SQS → audit-log-service end-to-end 증적 확보와 replay 운영 기준 확정</li>
-          <li>이후: web-wms 화면 연결</li>
+          <li>이후: PDA Web과 WMS mutation 화면 연결</li>
           <li>이후: 운영 JWT, permission cache, alarm, rollback 보강</li>
           <li>이후: Notification, File, Scheduler, ERP 연동 구현</li>
           <li>장기: 검색/통계 확장과 MES, QMS, FMS, EMS 순차 추가</li>
@@ -750,7 +752,7 @@
         </div>
       </section>
 
-      <p class="footer">최종 업데이트: 2026-06-19 · 프로젝트: multi-tenant smart factory</p>
+      <p class="footer">최종 업데이트: 2026-06-22 · 프로젝트: multi-tenant smart factory</p>
     </main>
   </body>
 </html>
