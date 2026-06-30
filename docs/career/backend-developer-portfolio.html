@@ -143,6 +143,7 @@
           <span class="pill">SQS / DLQ</span>
           <span class="pill">Outbox Pattern</span>
           <span class="pill">MSA</span>
+          <span class="pill">DDD</span>
         </div>
       </header>
 
@@ -240,6 +241,66 @@
             <p>서비스는 ECS Fargate task로 실행하고, CDK로 ECR, ALB, VPC, Cloud Map, Redis, SQS/DLQ, CloudWatch, Security Group을 관리합니다.</p>
           </div>
         </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>DDD 관점의 설계</h2>
+            <p>서비스를 단순 CRUD 단위가 아니라 업무 언어와 책임 경계 기준으로 나누기 위해 DDD 관점을 적용했습니다.</p>
+          </div>
+          <span class="tag">DDD</span>
+        </div>
+        <div class="grid two">
+          <div class="card">
+            <strong>Bounded Context 분리</strong>
+            <p>Auth/IAM, Tenant, WMS, Audit Log, Outbox Relay를 서로 다른 bounded context로 보고, 각 context가 소유한 모델과 규칙을 다른 서비스가 직접 침범하지 않도록 나눴습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Ubiquitous Language</strong>
+            <p>WMS에서는 warehouse, location, item, inventory, inbound, outbound, packing, shipment 같은 업무 용어를 API, 이벤트, 테스트 시나리오 이름에 일관되게 사용했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Aggregate 중심 규칙</strong>
+            <p>재고 조정, 입고 확정, 출고 할당, 포장, 출하는 단순 row 변경이 아니라 상태 전이와 정합성 규칙을 가진 업무 행위로 보고 wms-service 내부에서 처리했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Domain Event</strong>
+            <p>업무에서 이미 발생한 사실을 wms.inventory.adjusted, wms.inbound.confirmed, wms.outbound.shipped 같은 과거형 이벤트로 표현하고 outbox를 통해 발행했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Application Layer</strong>
+            <p>BFF와 controller는 요청 조합, 인증 컨텍스트, 응답 변환에 집중하고, 중요한 업무 판단은 domain service 계층에 남겨 화면 요구사항이 도메인 규칙을 오염시키지 않도록 했습니다.</p>
+          </div>
+          <div class="card">
+            <strong>Infrastructure 분리</strong>
+            <p>Prisma, Redis, SQS, EventBridge, CDK 같은 기술 세부사항은 repository, client, relay, infra 계층에 배치해 도메인 규칙과 운영 구현을 분리했습니다.</p>
+          </div>
+        </div>
+        <table>
+          <tbody>
+            <tr>
+              <th>Core Domain</th>
+              <td>초기 핵심 도메인은 WMS입니다. 재고, 입고, 출고, 포장, 출하의 상태 전이와 정합성 규칙을 가장 중요한 업무 모델로 두었습니다.</td>
+            </tr>
+            <tr>
+              <th>Supporting Domain</th>
+              <td>Tenant, Auth/IAM, Audit Log는 WMS 업무를 안전하게 운영하기 위한 지원 도메인입니다. 각 서비스는 독립 모델을 가지며 WMS 내부 데이터에 직접 접근하지 않습니다.</td>
+            </tr>
+            <tr>
+              <th>Context Mapping</th>
+              <td>Gateway와 BFF는 upstream/downstream 사이의 anti-corruption layer처럼 동작합니다. 외부 화면 요구사항을 domain service 모델에 직접 밀어 넣지 않고, BFF에서 화면 응답으로 변환합니다.</td>
+            </tr>
+            <tr>
+              <th>Consistency Boundary</th>
+              <td>한 업무 transaction 안에서 반드시 함께 성공해야 하는 변경은 같은 service와 DB transaction 안에서 처리합니다. 다른 context로 전달되는 변화는 outbox event로 비동기 전파합니다.</td>
+            </tr>
+            <tr>
+              <th>확장 방향</th>
+              <td>MES, QMS, FMS, EMS가 추가될 때도 각 도메인을 별도 bounded context로 두고, 공통 모델 공유보다 API/event 계약을 통해 연계하는 방향을 유지합니다.</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section>
@@ -417,7 +478,7 @@
         </div>
       </section>
 
-      <p class="footer">작성일: 2026-06-24 · 단일 포트폴리오 HTML · 외부 링크/외부 CSS 없음 · docs/index.html 미연결</p>
+      <p class="footer">작성일: 2026-06-24 · DDD 설계 보강: 2026-06-26 · 단일 포트폴리오 HTML · 외부 링크/외부 CSS 없음 · docs/index.html 미연결</p>
     </main>
   </body>
 </html>
