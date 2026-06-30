@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AWS dev 배포 검증 로그 (2026-07-01)</title>
+    <link rel="stylesheet" href="../../assets-docs.css" />
+    <style>
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 20px;
+      }
+
+      .metric {
+        min-height: 118px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+      }
+
+      .metric strong {
+        display: block;
+        color: var(--primary-dark);
+        font-size: 28px;
+        line-height: 1.15;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: 1fr 1.1fr 1.2fr 1fr;
+        gap: 14px;
+        margin-top: 20px;
+        align-items: stretch;
+      }
+
+      .flow-col {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .flow-node {
+        min-height: 74px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+      }
+
+      .flow-node.primary {
+        border-color: rgba(15, 107, 115, 0.35);
+        background: #edf8f8;
+      }
+
+      .flow-node.inactive {
+        border-style: dashed;
+        background: #f8fafb;
+        color: var(--muted);
+      }
+
+      .flow-node strong {
+        display: block;
+        color: var(--primary-dark);
+      }
+
+      .flow-node span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .arrow-note {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .status-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .status-item {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+      }
+
+      @media (max-width: 900px) {
+        .summary-grid,
+        .flow,
+        .status-item {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">AWS Deployment Verification Log</p>
+        <h1>AWS dev 배포 검증 로그</h1>
+        <p class="lead">
+          <code>2026-07-01</code>에 <code>dev</code> 환경으로 실제 AWS 배포를 수행하고,
+          gateway-service 기준 헬스체크와 최소 기능체크를 완료한 뒤, 이번 배포에서 생성한 리소스를 모두 삭제한 기록입니다.
+          기존 AWS 리소스는 조회만 했고 삭제 대상에 포함하지 않았습니다.
+        </p>
+      </header>
+
+      <section>
+        <h2>검증 요약</h2>
+        <div class="summary-grid">
+          <div class="metric">
+            <strong>dev</strong>
+            <span>배포 환경</span>
+          </div>
+          <div class="metric">
+            <strong>1</strong>
+            <span>실제 실행한 ECS task: gateway-service</span>
+          </div>
+          <div class="metric">
+            <strong>8</strong>
+            <span>CDK 스택에 포함된 backend service</span>
+          </div>
+          <div class="metric">
+            <strong>완료</strong>
+            <span>헬스체크, 기능체크, 리소스 삭제 검증</span>
+          </div>
+        </div>
+        <table>
+          <tbody>
+            <tr><th>AWS 계정/리전</th><td><code>252660243277</code>, <code>ap-northeast-2</code></td></tr>
+            <tr><th>AWS profile</th><td><code>sssin00</code></td></tr>
+            <tr><th>스택 이름</th><td><code>multi-tenant-dev-gateway-service-stack</code></td></tr>
+            <tr><th>CDK bootstrap</th><td>배포 전 <code>CDKToolkit</code>이 없어서 이번 검증 중 생성했고, 검증 종료 후 삭제했습니다.</td></tr>
+            <tr><th>비용 절감 기준</th><td>gateway-service만 <code>desiredCount=1</code>로 실행하고, 다른 backend service는 <code>desiredCount=0</code>으로 유지했습니다. NAT Gateway는 사용하지 않았습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>배포 구성도</h2>
+        <div class="flow" aria-label="2026-07-01 AWS dev 배포 구성도">
+          <div class="flow-col">
+            <div class="flow-node primary">
+              <strong>Client</strong>
+              <span>HTTP 요청</span>
+            </div>
+          </div>
+          <div class="flow-col">
+            <div class="flow-node primary">
+              <strong>ALB</strong>
+              <span><code>multi-tenant-dev-alb</code><br />HTTP 80 listener</span>
+            </div>
+            <div class="flow-node">
+              <strong>Target Group</strong>
+              <span><code>multi-tenant-dev-gw-tg</code><br />target health: healthy</span>
+            </div>
+          </div>
+          <div class="flow-col">
+            <div class="flow-node primary">
+              <strong>ECS Fargate</strong>
+              <span><code>gateway-service</code><br />desired 1, running 1, healthy</span>
+            </div>
+            <div class="flow-node">
+              <strong>ElastiCache Redis</strong>
+              <span><code>cache.t4g.micro</code><br />gateway rate limit 설정 확인</span>
+            </div>
+            <div class="flow-node">
+              <strong>Cloud Map</strong>
+              <span><code>dev.multi-tenant.local</code><br />내부 서비스 discovery</span>
+            </div>
+          </div>
+          <div class="flow-col">
+            <div class="flow-node inactive">
+              <strong>auth-iam-service</strong>
+              <span>desired 0</span>
+            </div>
+            <div class="flow-node inactive">
+              <strong>admin-bff-service</strong>
+              <span>desired 0</span>
+            </div>
+            <div class="flow-node inactive">
+              <strong>user-bff-service</strong>
+              <span>desired 0</span>
+            </div>
+            <div class="flow-node inactive">
+              <strong>tenant / wms / audit / outbox</strong>
+              <span>desired 0</span>
+            </div>
+          </div>
+        </div>
+        <p class="arrow-note">
+          실선 역할의 주요 검증 경로는 Client → ALB → gateway-service입니다.
+          점선 성격의 내부 서비스 라우트는 CDK와 환경변수에 구성되어 있으나, 이번 비용 절감 검증에서는 실행하지 않았습니다.
+        </p>
+      </section>
+
+      <section>
+        <h2>실제 생성됐던 리소스</h2>
+        <table>
+          <thead>
+            <tr><th>분류</th><th>생성 리소스</th><th>검증 당시 상태</th></tr>
+          </thead>
+          <tbody>
+            <tr><th>CloudFormation</th><td><code>multi-tenant-dev-gateway-service-stack</code>, <code>CDKToolkit</code></td><td>배포 후 삭제 완료</td></tr>
+            <tr><th>Network</th><td>VPC 1개, public subnet 2개, Internet Gateway, route table, security group</td><td>배포 중 생성, 삭제 검증 시 미존재</td></tr>
+            <tr><th>Load Balancer</th><td><code>multi-tenant-dev-alb</code>, HTTP listener, <code>multi-tenant-dev-gw-tg</code></td><td>target health <code>healthy</code> 확인 후 삭제</td></tr>
+            <tr><th>ECS</th><td><code>multi-tenant-dev-ecs-cluster</code>, backend ECS service 8개, task definition</td><td>gateway만 실행, 나머지 desired 0, 삭제 후 기존 <code>grafanaCluster</code>만 남음</td></tr>
+            <tr><th>ECR</th><td><code>multi-tenant-dev-*</code> repository 8개, gateway image <code>dev-smoke-20260701080113</code></td><td>삭제 검증 시 repository 없음</td></tr>
+            <tr><th>Cache</th><td><code>multi-tenant-dev-gateway-service-redis</code>, node type <code>cache.t4g.micro</code></td><td><code>deleting</code> 확인 후 최종 미존재</td></tr>
+            <tr><th>Queue</th><td><code>multi-tenant-dev-audit-events-queue</code>, <code>multi-tenant-dev-audit-events-dlq</code></td><td>삭제 검증 시 queue 없음</td></tr>
+            <tr><th>Service Discovery</th><td>Cloud Map namespace <code>dev.multi-tenant.local</code>와 서비스별 discovery service</td><td>삭제 완료</td></tr>
+            <tr><th>Logs</th><td><code>/multi-tenant/dev/{service}</code> CloudWatch log group</td><td>삭제 완료</td></tr>
+            <tr><th>IAM</th><td>서비스별 task role, execution role, policy</td><td>삭제 완료</td></tr>
+            <tr><th>Secret</th><td>테스트용 <code>multi-tenant-dev-smoke-gateway-jwt-20260701080248</code></td><td><code>force-delete-without-recovery</code>로 삭제 완료</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>검증 결과</h2>
+        <div class="status-list">
+          <div class="status-item">
+            <span class="tag done">PASS</span>
+            <p>ECS gateway task가 <code>RUNNING</code>, container health가 <code>HEALTHY</code> 상태로 올라왔습니다.</p>
+          </div>
+          <div class="status-item">
+            <span class="tag done">PASS</span>
+            <p>ALB target group에서 gateway target 상태가 <code>healthy</code>로 확인됐습니다.</p>
+          </div>
+          <div class="status-item">
+            <span class="tag done">PASS</span>
+            <p><code>GET /health</code>는 <code>200 OK</code>와 <code>{"status":"ok","service":"gateway-service"}</code> 응답을 반환했습니다.</p>
+          </div>
+          <div class="status-item">
+            <span class="tag done">PASS</span>
+            <p><code>GET /ready</code>는 <code>200 OK</code>와 config, jwt, proxyRoutes, rateLimit, security check의 <code>ok</code> 상태를 반환했습니다.</p>
+          </div>
+          <div class="status-item">
+            <span class="tag done">PASS</span>
+            <p><code>GET /api/admin/tenants</code>를 token 없이 호출했을 때 <code>401 UNAUTHORIZED</code>와 표준 오류 응답을 반환했습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>삭제 검증</h2>
+        <table>
+          <tbody>
+            <tr><th>프로젝트 스택</th><td><code>multi-tenant-dev-gateway-service-stack</code> 조회 결과: 존재하지 않음</td></tr>
+            <tr><th>CDK bootstrap</th><td><code>CDKToolkit</code> 조회 결과: 존재하지 않음</td></tr>
+            <tr><th>ECS cluster</th><td>조회 결과 기존 <code>grafanaCluster</code>만 존재. 이번 검증의 <code>multi-tenant-dev-ecs-cluster</code>는 삭제됨</td></tr>
+            <tr><th>ECR</th><td><code>multi-tenant-dev-*</code> repository 조회 결과 없음</td></tr>
+            <tr><th>VPC</th><td><code>multi-tenant-dev-vpc</code> 조회 결과 없음</td></tr>
+            <tr><th>ALB</th><td><code>multi-tenant-dev-alb</code> 조회 결과 없음</td></tr>
+            <tr><th>Redis</th><td><code>multi-tenant-dev-gateway-service-redis</code> 조회 결과 없음</td></tr>
+            <tr><th>SQS</th><td><code>multi-tenant-dev</code> prefix queue 조회 결과 없음</td></tr>
+            <tr><th>Secret</th><td>테스트용 JWT secret 조회 결과 없음</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>테스트 범위와 후속 보완</h2>
+        <table>
+          <tbody>
+            <tr><th>이번 범위</th><td>gateway-service의 AWS 배포 가능성, ALB 외부 진입, readiness, 인증 없는 admin API 차단까지 검증했습니다.</td></tr>
+            <tr><th>제외 범위</th><td>auth-iam-service, tenant-service, BFF, WMS 등은 비용 절감을 위해 <code>desiredCount=0</code>으로 유지했으므로 로그인과 도메인 기능은 이번 AWS 검증 범위에서 제외했습니다.</td></tr>
+            <tr><th>다음 권장</th><td>다음 AWS smoke test에서는 auth-iam-service와 admin-bff-service만 추가로 <code>desiredCount=1</code>로 올려 login → admin tenant API 흐름을 짧게 검증하고 삭제하는 방식을 권장합니다.</td></tr>
+            <tr><th>주의</th><td>테스트용 CDK bootstrap을 삭제했기 때문에, 다음 실제 AWS CDK 배포 전에는 bootstrap이 다시 필요할 수 있습니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer">
+        작성일: 2026-07-01 · 대상:
+        <code>infra/cdk</code>, <code>apps/gateway-service/Dockerfile</code>,
+        <code>multi-tenant-dev-gateway-service-stack</code>, AWS <code>ap-northeast-2</code>
+      </p>
+    </main>
+  </body>
+</html>
