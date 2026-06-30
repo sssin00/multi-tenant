@@ -10,5 +10,7 @@ apps/*/src/generated/
 .env.*
 
 cdk.out/
+output/
+tmp/
 *.log
 .DS_Store
